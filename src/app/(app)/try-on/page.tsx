@@ -1,2 +1,2 @@
-import { SectionPlaceholder } from "@/components/app/section-placeholder";
-export default function TryOnPage(){return <SectionPlaceholder eyebrow="ESTUDIO IA" title="Crear Try-On" description="El flujo creativo principal de la aplicación." icon="✦"/>}
+import { TryOnStudio } from "@/components/tryon/tryon-studio";
+export default function TryOnPage(){return <div className="sectionPage pageEnter"><TryOnStudio/></div>}

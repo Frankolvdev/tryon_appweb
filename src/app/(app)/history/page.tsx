@@ -1,2 +1,2 @@
-import { SectionPlaceholder } from "@/components/app/section-placeholder";
-export default function HistoryPage(){return <SectionPlaceholder eyebrow="ACTIVIDAD" title="Historial" description="Seguimiento real de tus generaciones y sus estados." icon="◫"/>}
+import { HistoryList } from "@/components/tryon/history-list";
+export default function HistoryPage(){return <div className="sectionPage pageEnter"><header className="sectionHeader"><span className="eyebrow">TU ACTIVIDAD</span><h1>Historial creativo</h1><p>Trabajos recuperados directamente desde tu cuenta.</p></header><HistoryList/></div>}
