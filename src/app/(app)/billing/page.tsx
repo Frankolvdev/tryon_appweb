@@ -1,0 +1,3 @@
+"use client";
+import { useAppSession } from "@/components/app/app-session";
+export default function BillingPage(){const {user}=useAppSession();return <div className="sectionPage pageEnter"><header className="sectionHeader"><span className="eyebrow">CUENTA COMERCIAL</span><h1>Tokens y plan</h1><p>Resumen disponible desde tu cuenta actual.</p></header><section className="accountSummary"><div><small>TOKENS DISPONIBLES</small><strong>{user.token_balance ?? "—"}</strong></div><p>Los planes, precios, compras y beneficios se conectarán exclusivamente con los endpoints comerciales reales del backend; no se incluyen valores hardcodeados.</p></section></div>}

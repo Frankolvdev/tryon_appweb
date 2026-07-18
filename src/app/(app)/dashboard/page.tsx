@@ -1,12 +1,44 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth-api";
-import { clearSession, getAccessToken } from "@/lib/auth-storage";
-import type { CurrentUser } from "@/types/auth";
+
+import Link from "next/link";
+import { useAppSession } from "@/components/app/app-session";
+
 export default function DashboardPage() {
-  const router = useRouter(); const [user, setUser] = useState<CurrentUser | null>(null); const [loading, setLoading] = useState(true);
-  useEffect(() => { if (!getAccessToken()) { router.replace("/login"); return; } getCurrentUser().then(setUser).catch(() => { clearSession(); router.replace("/login"); }).finally(() => setLoading(false)); }, [router]);
-  if (loading) return <div className="pageLoading"><div className="spinner"/><p>Preparando tu estudio…</p></div>;
-  return <div className="dashboard"><header className="topbar"><div><span className="eyebrow">ESTUDIO PERSONAL</span><h1>Hola, {user?.full_name?.split(" ")[0] || "creador"}</h1><p>Todo está listo para transformar tu próxima idea.</p></div><div className="tokenBadge"><span>◇</span><div><small>Tokens disponibles</small><strong>{user?.token_balance ?? "—"}</strong></div></div></header><section className="heroAction"><div><span className="statusPill">✦ NUEVA GENERACIÓN</span><h2>Tu próximo look empieza con una imagen.</h2><p>Sube una fotografía, elige una prenda y deja que la IA construya el resultado.</p><button className="primaryButton">Crear mi primer Try-On</button></div><div className="heroArt"><div className="artCard artA"/><div className="artCard artB"><span>BEFORE</span><strong>→</strong><span>AFTER</span></div></div></section><section className="statsGrid"><article><span>◫</span><small>Generaciones</small><strong>0</strong><p>Tu historial aparecerá aquí.</p></article><article><span>▦</span><small>Galería personal</small><strong>0</strong><p>Guarda tus mejores resultados.</p></article><article><span>◇</span><small>Plan actual</small><strong>Inicial</strong><p>Consulta tokens y beneficios.</p></article></section></div>;
+  const { user } = useAppSession();
+  const firstName = user.full_name?.trim().split(/\s+/)[0] || "creador";
+
+  return (
+    <div className="dashboard pageEnter">
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">ESTUDIO PERSONAL</span>
+          <h1>Hola, {firstName}</h1>
+          <p>Tu espacio creativo está preparado para la próxima transformación.</p>
+        </div>
+        <Link href="/billing" className="tokenBadge" aria-label="Consultar tokens y plan">
+          <span>◇</span>
+          <div><small>Tokens disponibles</small><strong>{user.token_balance ?? "—"}</strong></div>
+        </Link>
+      </header>
+
+      <section className="heroAction">
+        <div>
+          <span className="statusPill">✦ NUEVA GENERACIÓN</span>
+          <h2>Tu próximo look empieza con una imagen.</h2>
+          <p>Sube tu fotografía, combina una prenda y prepara una transformación creada para ti.</p>
+          <Link className="primaryButton heroButton" href="/try-on">Crear un Try-On</Link>
+        </div>
+        <div className="heroArt" aria-hidden="true">
+          <div className="artCard artA"><span>ORIGINAL</span></div>
+          <div className="artCard artB"><span>TRANSFORMACIÓN</span><strong>✦</strong><small>AI TRY-ON</small></div>
+        </div>
+      </section>
+
+      <section className="quickGrid" aria-label="Accesos rápidos">
+        <Link href="/try-on" className="quickCard quickPrimary"><span>01</span><div><small>CREAR</small><strong>Nueva transformación</strong><p>Inicia el flujo de generación.</p></div><b>→</b></Link>
+        <Link href="/history" className="quickCard"><span>02</span><div><small>REVISAR</small><strong>Historial</strong><p>Consulta el estado de tus trabajos.</p></div><b>→</b></Link>
+        <Link href="/gallery" className="quickCard"><span>03</span><div><small>INSPIRAR</small><strong>Galería</strong><p>Organiza tus resultados favoritos.</p></div><b>→</b></Link>
+      </section>
+    </div>
+  );
 }
