@@ -1,29 +1,3 @@
 "use client";
-
 import { env } from "@/lib/env";
-
-export function SocialProviders() {
-  const startGoogle = () => {
-    if (!env.googleOAuthStartUrl) {
-      window.alert("Google OAuth aún no está configurado. Completa NEXT_PUBLIC_GOOGLE_OAUTH_START_URL siguiendo GOOGLE_OAUTH_SETUP.md.");
-      return;
-    }
-    const returnTo = encodeURIComponent(`${env.appUrl}/oauth/callback`);
-    const separator = env.googleOAuthStartUrl.includes("?") ? "&" : "?";
-    window.location.assign(`${env.googleOAuthStartUrl}${separator}return_to=${returnTo}`);
-  };
-
-  return (
-    <div className="socialGroup">
-      <button type="button" className="socialButton googleButton" onClick={startGoogle}>
-        <span className="googleGlyph">G</span> Continuar con Google
-      </button>
-      <div className="futureProviders" aria-label="Proveedores preparados para futuras integraciones">
-        <button type="button" disabled title="Próximamente: Apple">●</button>
-        <button type="button" disabled title="Próximamente: GitHub">⌘</button>
-        <button type="button" disabled title="Próximamente: Facebook">f</button>
-        <span>Más opciones próximamente</span>
-      </div>
-    </div>
-  );
-}
+export function SocialProviders(){const startGoogle=()=>{if(!env.googleOAuthStartUrl){window.alert("Google OAuth aún no está configurado. Completa NEXT_PUBLIC_GOOGLE_OAUTH_START_URL.");return;}const returnTo=encodeURIComponent(`${env.appUrl}/oauth/callback`);const separator=env.googleOAuthStartUrl.includes("?")?"&":"?";window.location.assign(`${env.googleOAuthStartUrl}${separator}return_to=${returnTo}`)};return <div className="exactSocial"><button type="button" onClick={startGoogle}><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5L15.4 17c-.9.6-2 1-3.4 1a5.8 5.8 0 0 1-5.5-4H3.2v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.5 14a6 6 0 0 1 0-4V7.4H3.2a10 10 0 0 0 0 9.2L6.5 14Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-8.8 5.4L6.5 10A5.8 5.8 0 0 1 12 6Z"/></svg><span>Continuar con Google</span></button><div><span>o continúa con correo</span></div></div>}

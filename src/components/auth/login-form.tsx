@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -7,35 +6,27 @@ import { login } from "@/lib/auth-api";
 import { saveSession } from "@/lib/auth-storage";
 import { SocialProviders } from "@/components/auth/social-providers";
 
-export function LoginForm() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+function SvgIcon({ type }: { type: "mail" | "lock" | "eye" | "eyeoff" | "alert" }) {
+  const p={viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const};
+  if(type==="mail") return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>;
+  if(type==="lock") return <svg {...p}><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>;
+  if(type==="alert") return <svg {...p}><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>;
+  if(type==="eyeoff") return <svg {...p}><path d="m3 3 18 18"/><path d="M10.6 10.7a2 2 0 0 0 2.7 2.7"/><path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9 5 9 5a16 16 0 0 1-2.1 2.6M6.6 6.6C4.3 8 3 10 3 10s3.5 5 9 5a10 10 0 0 0 3.4-.6"/></svg>;
+  return <svg {...p}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>;
+}
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError(""); setLoading(true);
-    const data = new FormData(event.currentTarget);
-    try {
-      const token = await login(String(data.get("email")), String(data.get("password")));
-      saveSession(token.access_token, token.refresh_token);
-      router.replace("/dashboard");
-    } catch (err) { setError(err instanceof Error ? err.message : "No fue posible iniciar sesión."); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <div className="authCard">
-      <div className="formHeading"><span className="eyebrow">Bienvenido de vuelta</span><h2>Entra a tu estudio</h2><p>Continúa creando looks que antes solo podías imaginar.</p></div>
-      <SocialProviders />
-      <div className="divider"><span>o usa tu correo</span></div>
-      <form onSubmit={submit} className="authForm">
-        <label>Correo electrónico<input name="email" type="email" autoComplete="email" required placeholder="tu@correo.com" /></label>
-        <label>Contraseña<input name="password" type="password" autoComplete="current-password" required minLength={8} placeholder="••••••••" /></label>
-        <div className="formMeta"><label className="checkLabel"><input type="checkbox" /> Recordarme</label><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></div>
-        {error && <p className="formError" role="alert">{error}</p>}
-        <button className="primaryButton" disabled={loading}>{loading ? "Entrando…" : "Entrar a TryOn"}</button>
-      </form>
-      <p className="switchAuth">¿Aún no tienes cuenta? <Link href="/register">Crear cuenta</Link></p>
-    </div>
-  );
+export function LoginForm(){
+ const router=useRouter(); const[loading,setLoading]=useState(false); const[error,setError]=useState(""); const[show,setShow]=useState(false);
+ async function submit(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setError("");setLoading(true);const d=new FormData(e.currentTarget);try{const t=await login(String(d.get("email")),String(d.get("password")));saveSession(t.access_token,t.refresh_token);router.replace("/dashboard");}catch(err){setError(err instanceof Error?err.message:"No fue posible iniciar sesión.");}finally{setLoading(false)}}
+ return <>
+  <SocialProviders />
+  <form className="exactLoginForm" onSubmit={submit} noValidate>
+   {error&&<div className="exactError" role="alert"><SvgIcon type="alert"/><p>{error}</p></div>}
+   <div><label htmlFor="email">Correo electrónico</label><div className="exactInput"><span><SvgIcon type="mail"/></span><input id="email" name="email" type="email" autoComplete="username" placeholder="usuario@correo.com" disabled={loading}/></div></div>
+   <div><div className="exactLabelRow"><label htmlFor="password">Contraseña</label><small>Acceso protegido</small></div><div className="exactInput"><span><SvgIcon type="lock"/></span><input id="password" name="password" type={show?"text":"password"} autoComplete="current-password" placeholder="••••••••••••" disabled={loading}/><button type="button" className="exactEye" onClick={()=>setShow(v=>!v)} aria-label={show?"Ocultar contraseña":"Mostrar contraseña"}><SvgIcon type={show?"eyeoff":"eye"}/></button></div></div>
+   <div className="exactMeta"><label><input type="checkbox"/><span>Recordarme</span></label><Link href="/forgot-password">¿Olvidaste tu contraseña?</Link></div>
+   <button className="exactSubmit" disabled={loading}>{loading?"Verificando acceso…":"Entrar a LUXIA"}</button>
+  </form>
+  <p className="exactSwitch">¿Aún no tienes cuenta? <Link href="/register">Crear cuenta</Link></p>
+ </>;
 }
