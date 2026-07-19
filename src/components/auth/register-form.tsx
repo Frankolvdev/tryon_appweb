@@ -42,7 +42,14 @@ export function RegisterForm() {
 
     setLoading(true);
     try {
-      await register({ full_name: fullName, email, password, accept_terms: true });
+      await register({
+        full_name: fullName,
+        email,
+        password,
+        terms_accepted: true,
+        terms_version: "v1",
+        age_confirmed: true,
+      });
       router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No fue posible crear la cuenta.");
