@@ -17,7 +17,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${env.apiBaseUrl}${path}`, { ...init, headers, cache: "no-store" });
+  const target = path.startsWith("/api/") ? path : `${env.apiBaseUrl}${path}`;
+  let response: Response;
+  try {
+    response = await fetch(target, { ...init, headers, cache: "no-store" });
+  } catch {
+    throw new Error("No se pudo conectar con el servidor. Verifica que el backend esté encendido.");
+  }
   if (!response.ok) {
     let payload: ApiErrorPayload | null = null;
     try { payload = await response.json(); } catch { payload = null; }

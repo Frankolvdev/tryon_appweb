@@ -220,3 +220,64 @@
   margin-top: 28px;
   line-height: 20px;
 }
+
+/* 01E6 · Registro alineado con la pantalla de acceso aprobada */
+/* 01E7 · El registro usa exclusivamente el scroll del documento. */
+.exactRegisterRoot{overflow:hidden}
+.exactRegisterSection{padding-top:40px;padding-bottom:40px}
+.exactRegisterCard{margin-top:auto;margin-bottom:auto}
+.exactRegisterForm{gap:16px}
+.exactTerms{display:flex!important;align-items:flex-start;gap:10px;margin:0!important;color:#71717a!important;font-size:12px!important;font-weight:400!important;line-height:20px}
+.exactTerms input{flex:0 0 auto;width:15px;height:15px;margin:2px 0 0;accent-color:#dc2626}
+.exactTerms span{display:block}
+.exactTerms a{color:#ef4444;text-decoration:none}
+.exactTerms a:hover{text-decoration:underline}
+@media(max-height:900px) and (min-width:1024px){.exactRegisterSection{align-items:flex-start}.exactRegisterCard{margin-top:0}.exactRegisterRoot .exactFormColumn{padding:20px 0}}
+@media(max-width:639px){.exactRegisterSection{padding-top:24px;padding-bottom:32px}.exactRegisterForm{gap:15px}}
+
+
+/* 01E9 — Email verification confirmation */
+.exactVerifyContainer {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 32px 20px;
+}
+
+.exactVerifyCard {
+  width: min(460px, 100%);
+  padding: 36px;
+}
+
+.exactVerifyCard h1 {
+  margin: 12px 0 12px;
+}
+
+.exactVerifyText {
+  margin: 0;
+  color: var(--text-muted, #8b8b94);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.exactVerifyText strong {
+  color: var(--text-primary, #f7f7f8);
+  font-weight: 600;
+}
+
+.exactVerifyNotice {
+  margin: 24px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-muted, #8b8b94);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.exactVerifyButton {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
