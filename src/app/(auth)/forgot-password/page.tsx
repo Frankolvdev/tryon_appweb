@@ -4,9 +4,9 @@ import { PasswordRecoveryLayout } from "@/components/auth/password-recovery-layo
 export default function ForgotPasswordPage() {
   return (
     <PasswordRecoveryLayout
-      eyebrow="Recuperación segura"
-      title="Vuelve a entrar."
-      description="Escribe el correo asociado a tu cuenta. Te enviaremos un enlace privado para crear una nueva contraseña."
+      eyebrow="RECUPERACIÓN DE ACCESO"
+      title="Recupera tu cuenta"
+      description="Escribe el correo asociado a tu cuenta y te enviaremos un enlace seguro para crear una nueva contraseña."
     >
       <ForgotPasswordForm />
     </PasswordRecoveryLayout>

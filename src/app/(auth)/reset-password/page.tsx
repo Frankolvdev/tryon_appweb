@@ -10,12 +10,12 @@ export default async function ResetPasswordPage({
 
   return (
     <PasswordRecoveryLayout
-      eyebrow="Nueva contraseña"
-      title="Protege tu cuenta."
-      description="Crea una contraseña fuerte y diferente a las anteriores. El enlace dejará de funcionar después de usarlo."
+      eyebrow="NUEVA CONTRASEÑA"
+      title="Protege nuevamente tu cuenta"
+      description="Crea una contraseña segura y diferente a las que hayas utilizado anteriormente."
     >
       <ResetPasswordForm
-        email={params.email ?? ""}
+        email={(params.email ?? "").trim().toLowerCase()}
         token={params.token}
         otp={params.otp}
       />
