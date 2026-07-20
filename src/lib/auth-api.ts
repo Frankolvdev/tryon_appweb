@@ -1,5 +1,10 @@
 import { apiFetch } from "@/lib/api";
-import type { CurrentUser, TokenResponse } from "@/types/auth";
+import type {
+  CurrentUser,
+  OAuthAuthorizationResponse,
+  OAuthProvidersResponse,
+  TokenResponse,
+} from "@/types/auth";
 
 type RegisterInput = {
   email: string;
@@ -100,4 +105,36 @@ export async function confirmVerification(
 
 export async function getCurrentUser(): Promise<CurrentUser> {
   return apiFetch<CurrentUser>("/api/auth/me");
+}
+
+
+export async function getOAuthProviders(): Promise<OAuthProvidersResponse> {
+  const response = await fetch("/api/auth/oauth/providers", { cache: "no-store" });
+  if (!response.ok) throw await parseError(response, "No fue posible consultar los proveedores de acceso.");
+  return response.json() as Promise<OAuthProvidersResponse>;
+}
+
+export async function startGoogleOAuth(input: {
+  redirect_uri: string;
+  terms_accepted: boolean;
+  terms_version?: string | null;
+  age_confirmed: boolean;
+}): Promise<OAuthAuthorizationResponse> {
+  const response = await fetch("/api/auth/oauth/google/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw await parseError(response, "No fue posible iniciar el acceso con Google.");
+  return response.json() as Promise<OAuthAuthorizationResponse>;
+}
+
+export async function exchangeOAuthCode(code: string): Promise<TokenResponse> {
+  const response = await fetch("/api/auth/oauth/exchange", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) throw await parseError(response, "No fue posible completar el acceso con Google.");
+  return response.json() as Promise<TokenResponse>;
 }

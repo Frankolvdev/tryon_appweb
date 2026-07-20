@@ -313,3 +313,23 @@
 .verificationSpinner{width:26px;height:26px;border:2px solid rgba(255,255,255,.16);border-top-color:#ef334d;border-radius:50%;animation:verificationSpin .8s linear infinite}
 @keyframes verificationSpin{to{transform:rotate(360deg)}}
 @media(max-width:639px){.verificationContainer{padding:24px 16px}.verificationCard{padding:30px 22px;border-radius:23px}.verificationCard h1{font-size:26px}.verificationSteps{grid-template-columns:1fr}.verificationSteps>div{display:flex;align-items:center;gap:11px;text-align:left}.verificationSteps span{flex:0 0 auto;margin:0}.verificationLinks{flex-direction:column;gap:12px}}
+
+.exactSocial button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.exactSocialError {
+  margin: 10px 0 0;
+  color: #ff9a9a;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.callbackPage > a {
+  margin-top: 18px;
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

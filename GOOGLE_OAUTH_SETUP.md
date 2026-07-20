@@ -1,64 +1,42 @@
-# Configuración de Google OAuth
+# Google OAuth — AppWeb
 
-## 1. Google Cloud
+## Flujo implementado
 
-1. Entra a Google Cloud Console y crea o selecciona el proyecto de TryOn.
-2. Configura **Google Auth Platform / OAuth consent screen**.
-3. Añade nombre, correo de soporte y dominios autorizados.
-4. En **Clients**, crea un cliente **Web application**.
+1. AppWeb consulta `GET /api/v1/oauth/providers` mediante su proxy interno.
+2. AppWeb solicita el inicio con `POST /api/v1/oauth/google/start`.
+3. El backend entrega la URL segura de Google.
+4. Google regresa al callback del backend.
+5. El backend redirige a `http://localhost:3003/oauth/callback?code=...`.
+6. AppWeb canjea el código de un solo uso en `POST /api/v1/oauth/exchange`.
+7. AppWeb guarda los tokens y abre `/dashboard`.
 
-## 2. Orígenes autorizados
+Los access tokens y refresh tokens no viajan en la URL del navegador.
 
-Desarrollo:
-
-- `http://localhost:3001`
-- `http://127.0.0.1:8001` si el backend inicia el flujo directamente.
-
-Producción sugerida:
-
-- `https://app.tudominio.com`
-- `https://api.tudominio.com`
-
-## 3. URI de redirección
-
-La URI exacta debe ser la ruta callback implementada por el backend. No uses la ruta del frontend como callback de Google salvo que el backend esté diseñado expresamente así.
-
-Flujo recomendado:
-
-1. AppWeb redirige al endpoint OAuth del backend.
-2. Backend redirige a Google.
-3. Google vuelve al callback del backend.
-4. Backend valida el código, crea/vincula al usuario y redirige a:
-   `http://localhost:3001/oauth/callback?access_token=...`
-5. AppWeb guarda la sesión y abre `/dashboard`.
-
-## 4. Variables
-
-En el backend configura los nombres que ya utilice su clase Settings, normalmente equivalentes a:
+## AppWeb `.env.local`
 
 ```env
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8001/<callback-real-del-backend>
-FRONTEND_APP_URL=http://localhost:3001
-```
-
-En `.env.local` de AppWeb:
-
-```env
+API_BASE_URL=http://127.0.0.1:8001
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001
-NEXT_PUBLIC_APP_URL=http://localhost:3001
-NEXT_PUBLIC_GOOGLE_OAUTH_START_URL=http://127.0.0.1:8001/<inicio-real-google-oauth>
+NEXT_PUBLIC_LANDING_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3003
 ```
 
-## 5. Seguridad
+Ya no se utiliza `NEXT_PUBLIC_GOOGLE_OAUTH_START_URL`: el inicio es un `POST` real y pasa por el proxy de Next.js.
 
-- Nunca subas `GOOGLE_CLIENT_SECRET` al frontend ni a Git.
-- El frontend solo necesita la URL pública que inicia OAuth.
-- En producción usa HTTPS.
-- Autoriza exactamente los dominios reales.
-- Configura CORS del backend para `http://localhost:3001` en desarrollo y para el dominio de AppWeb en producción.
+## Backend
 
-## 6. Proveedores futuros
+```env
+FRONTEND_URL=http://localhost:3003
+```
 
-La pantalla ya reserva una capa visual para Apple, GitHub y Facebook. No se activan hasta que el backend implemente sus respectivos flujos OAuth reales.
+Redis debe estar activo.
+
+## Google Cloud
+
+URI de redirección autorizada en desarrollo:
+
+```text
+http://127.0.0.1:8001/api/v1/oauth/google/callback
+```
+
+El proveedor Google debe estar habilitado y configurado en el BackOffice. El frontend mantiene el botón desactivado mientras el endpoint público indique que Google no está disponible.

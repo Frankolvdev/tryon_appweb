@@ -60,7 +60,7 @@ export function RegisterForm() {
 
   return (
     <>
-      <SocialProviders />
+      <SocialProviders registration />
       <form className="exactLoginForm exactRegisterForm" onSubmit={submit} noValidate>
         {error && <div className="exactError" role="alert"><SvgIcon type="alert"/><p>{error}</p></div>}
 
