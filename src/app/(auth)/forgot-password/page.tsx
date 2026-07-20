@@ -1,3 +1,14 @@
-import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
-export default function ForgotPasswordPage() { return <AuthShell eyebrow="Recupera el acceso" title="Tu estudio sigue esperándote." description="Restablece tu acceso de forma segura y vuelve a tus creaciones."><div className="authCard"><div className="formHeading"><span className="eyebrow">Seguridad</span><h2>Recuperar contraseña</h2><p>Este formulario se conectará en el módulo específico de recuperación, utilizando exclusivamente el endpoint confirmado del backend.</p></div><Link className="primaryButton linkButton" href="/login">Volver al acceso</Link></div></AuthShell>; }
+import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+
+export default function ForgotPasswordPage() {
+  return (
+    <AuthShell
+      eyebrow="Recupera el acceso"
+      title="Restablece tu contraseña."
+      description="Te enviaremos un enlace privado y temporal para recuperar tu cuenta sin perder tus creaciones."
+    >
+      <ForgotPasswordForm />
+    </AuthShell>
+  );
+}

@@ -1,0 +1,4 @@
+Este paquete contiene dos ZIP incrementales:
+1) Descomprime 01E12_appweb_password_recovery_complete.zip sobre la raíz de tryon_appweb.
+2) Descomprime backend_branded_security_email_templates.zip sobre la raíz de tryon_backend.
+Cada ZIP interno contiene directamente sus rutas, sin carpeta raíz adicional.
