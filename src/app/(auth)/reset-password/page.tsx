@@ -1,5 +1,10 @@
-import { AuthShell } from "@/components/auth/auth-shell";
+import type { Metadata } from "next";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { RecoveryAuthShell } from "@/components/auth/recovery-auth-shell";
+
+export const metadata: Metadata = {
+  title: "Nueva contraseña",
+};
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -13,15 +18,16 @@ export default async function ResetPasswordPage({
   const params = await searchParams;
 
   return (
-    <AuthShell
-      title="Crea una nueva contraseña"
-      description="Protege nuevamente tu cuenta con una contraseña segura y diferente a las anteriores."
+    <RecoveryAuthShell
+      eyebrow="Nueva contraseña"
+      title="Protege nuevamente tu cuenta"
+      description="Crea una contraseña segura y diferente a las que hayas utilizado anteriormente."
     >
       <ResetPasswordForm
         email={(params.email ?? "").trim().toLowerCase()}
         token={params.token}
         otp={params.otp}
       />
-    </AuthShell>
+    </RecoveryAuthShell>
   );
 }
