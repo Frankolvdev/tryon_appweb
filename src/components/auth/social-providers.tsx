@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getOAuthProviders, startGoogleOAuth } from "@/lib/auth-api";
+import { rememberOAuthReturnTo, normalizeReturnTo } from "@/lib/auth-redirect";
+import { hasSession } from "@/lib/auth-storage";
 import { env } from "@/lib/env";
 
 type SocialProvidersProps = {
@@ -34,7 +36,13 @@ export function SocialProviders({ registration = false }: SocialProvidersProps) 
   }, []);
 
   async function startGoogle() {
+    if (loading) return;
     setError("");
+
+    if (hasSession()) {
+      window.location.assign(normalizeReturnTo(new URLSearchParams(window.location.search).get("next")));
+      return;
+    }
 
     if (!available) {
       setError("Google OAuth todavía no está habilitado en el BackOffice.");
@@ -49,6 +57,8 @@ export function SocialProviders({ registration = false }: SocialProvidersProps) 
     }
 
     setLoading(true);
+    rememberOAuthReturnTo(new URLSearchParams(window.location.search).get("next"));
+
     try {
       const response = await startGoogleOAuth({
         redirect_uri: `${env.appUrl}/oauth/callback`,
@@ -64,7 +74,7 @@ export function SocialProviders({ registration = false }: SocialProvidersProps) 
   }
 
   return (
-    <div className="exactSocial">
+    <div className="exactSocial" aria-busy={checking || loading}>
       <button type="button" onClick={startGoogle} disabled={checking || loading || !available}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z"/>
