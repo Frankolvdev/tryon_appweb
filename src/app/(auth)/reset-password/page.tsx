@@ -1,4 +1,4 @@
-import { AuthShell } from "@/components/auth/auth-shell";
+import { PasswordRecoveryLayout } from "@/components/auth/password-recovery-layout";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 export default async function ResetPasswordPage({
@@ -7,13 +7,18 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ email?: string; token?: string; otp?: string }>;
 }) {
   const params = await searchParams;
+
   return (
-    <AuthShell
-      eyebrow="Seguridad"
-      title="Crea una nueva contraseña."
-      description="Elige una contraseña segura. Al confirmarla, cerraremos las sesiones anteriores de tu cuenta."
+    <PasswordRecoveryLayout
+      eyebrow="Nueva contraseña"
+      title="Protege tu cuenta."
+      description="Crea una contraseña fuerte y diferente a las anteriores. El enlace dejará de funcionar después de usarlo."
     >
-      <ResetPasswordForm email={params.email ?? ""} token={params.token} otp={params.otp} />
-    </AuthShell>
+      <ResetPasswordForm
+        email={params.email ?? ""}
+        token={params.token}
+        otp={params.otp}
+      />
+    </PasswordRecoveryLayout>
   );
 }

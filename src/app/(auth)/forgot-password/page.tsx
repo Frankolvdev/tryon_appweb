@@ -1,14 +1,14 @@
-import { AuthShell } from "@/components/auth/auth-shell";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import { PasswordRecoveryLayout } from "@/components/auth/password-recovery-layout";
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthShell
-      eyebrow="Recupera el acceso"
-      title="Restablece tu contraseña."
-      description="Te enviaremos un enlace privado y temporal para recuperar tu cuenta sin perder tus creaciones."
+    <PasswordRecoveryLayout
+      eyebrow="Recuperación segura"
+      title="Vuelve a entrar."
+      description="Escribe el correo asociado a tu cuenta. Te enviaremos un enlace privado para crear una nueva contraseña."
     >
       <ForgotPasswordForm />
-    </AuthShell>
+    </PasswordRecoveryLayout>
   );
 }
