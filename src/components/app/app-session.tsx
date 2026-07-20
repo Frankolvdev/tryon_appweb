@@ -1,9 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-api";
-import { clearSession, getAccessToken } from "@/lib/auth-storage";
+import {
+  clearSession,
+  getAccessToken,
+  isAccessTokenExpired,
+  subscribeToSessionChanges,
+} from "@/lib/auth-storage";
 import type { CurrentUser } from "@/types/auth";
 
 type AppSessionValue = {
@@ -19,11 +24,17 @@ export function AppSession({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function loadUser() {
+  const redirectToLogin = useCallback(() => {
+    setUser(null);
+    setLoading(false);
+    router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [pathname, router]);
+
+  const loadUser = useCallback(async () => {
     const token = getAccessToken();
-    if (!token) {
+    if (!token || isAccessTokenExpired(token)) {
       clearSession();
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      redirectToLogin();
       return;
     }
 
@@ -31,21 +42,36 @@ export function AppSession({ children }: { children: ReactNode }) {
       setUser(await getCurrentUser());
     } catch {
       clearSession();
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      redirectToLogin();
     } finally {
       setLoading(false);
     }
-  }
+  }, [redirectToLogin]);
 
   useEffect(() => {
     void loadUser();
-    // La validación se realiza al montar el área privada.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadUser]);
+
+  useEffect(() => subscribeToSessionChanges(() => {
+    const token = getAccessToken();
+    if (!token || isAccessTokenExpired(token)) redirectToLogin();
+  }), [redirectToLogin]);
+
+  useEffect(() => {
+    const revalidate = () => {
+      if (document.visibilityState === "visible") void loadUser();
+    };
+    window.addEventListener("focus", revalidate);
+    document.addEventListener("visibilitychange", revalidate);
+    return () => {
+      window.removeEventListener("focus", revalidate);
+      document.removeEventListener("visibilitychange", revalidate);
+    };
+  }, [loadUser]);
 
   const value = useMemo<AppSessionValue | null>(
     () => (user ? { user, refreshUser: loadUser } : null),
-    [user],
+    [loadUser, user],
   );
 
   if (loading || !value) {

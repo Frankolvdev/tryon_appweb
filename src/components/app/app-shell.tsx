@@ -28,8 +28,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   function logout() {
+    setOpen(false);
     clearSession();
     router.replace("/login");
+    router.refresh();
   }
 
   return (
