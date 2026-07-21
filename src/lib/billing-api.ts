@@ -32,6 +32,18 @@ export async function checkoutTokenPackage(tokenPackageId: number) {
   });
 }
 
+export async function checkoutCustomTokens(tokensAmount: number) {
+  return apiFetch<{ checkout_url: string }>("/api/v1/billing/checkout/tokens", {
+    method: "POST",
+    body: JSON.stringify({
+      tokens_amount: tokensAmount,
+      success_url: currentUrl("/billing?checkout=success&type=custom-tokens"),
+      cancel_url: currentUrl("/billing?checkout=cancelled&type=custom-tokens"),
+      allow_promotion_codes: true,
+    }),
+  });
+}
+
 export async function checkoutSubscription(planKey: string) {
   return apiFetch<{ checkout_url: string }>("/api/v1/billing/subscriptions/checkout", {
     method: "POST",

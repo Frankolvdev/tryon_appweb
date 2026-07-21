@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAppSession } from "@/components/app/app-session";
 import {
   cancelSubscription,
+  checkoutCustomTokens,
   checkoutSubscription,
   checkoutTokenPackage,
   getCurrentSubscription,
@@ -41,6 +42,7 @@ export function BillingCenter() {
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
+  const [customTokens, setCustomTokens] = useState(1);
 
   const load = useCallback(async () => {
     setError(null);
@@ -63,11 +65,29 @@ export function BillingCenter() {
 
   useEffect(() => {
     const checkout = params.get("checkout");
-    if (checkout === "success") setNotice("Pago confirmado por Stripe. El saldo o la suscripción se actualizarán cuando el webhook sea procesado.");
+    if (checkout === "success") {
+      setNotice("Pago confirmado por Stripe. Estamos sincronizando tu saldo e historial.");
+      let attempts = 0;
+      const timer = window.setInterval(() => {
+        attempts += 1;
+        void load();
+        if (attempts >= 5) window.clearInterval(timer);
+      }, 2500);
+      return () => window.clearInterval(timer);
+    }
     if (checkout === "cancelled") setNotice("El proceso de pago fue cancelado. No se realizó ningún cargo.");
-  }, [params]);
+  }, [params, load]);
 
   const currentPlan = useMemo(() => plans.find((plan) => plan.id === subscription?.subscription_plan_id), [plans, subscription]);
+  const commercialTokenValue = useMemo(() => {
+    const packageValue = packages.find((item) => Number(item.commercial_token_value) > 0)?.commercial_token_value;
+    const planValue = plans.find((item) => Number(item.commercial_token_value) > 0)?.commercial_token_value;
+    return Number(packageValue ?? planValue ?? 0);
+  }, [packages, plans]);
+  const customCurrency = packages[0]?.currency || plans[0]?.currency || "USD";
+  const customTotal = customTokens * commercialTokenValue;
+  const tokenPayments = useMemo(() => payments.filter((item) => item.payment_type === "token_purchase"), [payments]);
+  const subscriptionPayments = useMemo(() => payments.filter((item) => item.payment_type === "subscription" || item.payment_type === "subscription_renewal"), [payments]);
 
   async function redirect(action: () => Promise<{ checkout_url?: string; portal_url?: string }>, key: string) {
     setBusy(key); setError(null);
@@ -84,6 +104,17 @@ export function BillingCenter() {
     try { const result = await action(); setNotice(result.message); await load(); }
     catch (value) { setError(value instanceof Error ? value.message : "No fue posible actualizar la suscripción."); }
     finally { setBusy(null); }
+  }
+
+  function normalizeCustomTokens(value: number) {
+    if (!Number.isFinite(value)) return 1;
+    return Math.max(1, Math.floor(value));
+  }
+
+  async function buyCustomTokens() {
+    const amount = normalizeCustomTokens(customTokens);
+    setCustomTokens(amount);
+    await redirect(() => checkoutCustomTokens(amount), "custom-tokens");
   }
 
   async function checkCoupon() {
@@ -116,16 +147,32 @@ export function BillingCenter() {
       <div className="planGrid">{plans.map((plan) => <article className="commercialCard" key={plan.id}><div><span>{plan.billing_interval === "year" ? "ANUAL" : "MENSUAL"}</span>{currentPlan?.id === plan.id && <b>ACTUAL</b>}</div><h3>{plan.name}</h3><p>{plan.description}</p><strong>{money(plan.calculated_price_amount, plan.currency)}<small>/{plan.billing_interval === "year" ? "año" : "mes"}</small></strong><ul>{plan.features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><div className="commercialMeta"><span>{plan.tokens_per_period.toLocaleString("es-MX")} tokens</span>{plan.max_generations_per_period && <span>{plan.max_generations_per_period} generaciones</span>}</div><button className="primaryButton" disabled={!!busy || currentPlan?.id === plan.id || !plan.stripe_configured} onClick={() => redirect(() => checkoutSubscription(plan.key), `plan-${plan.id}`)}>{currentPlan?.id === plan.id ? "Plan actual" : busy === `plan-${plan.id}` ? "Abriendo Stripe…" : plan.stripe_configured ? "Elegir plan" : "Stripe no configurado"}</button></article>)}</div>
     </section>
 
-    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">TOKENS A TU MANERA</span><h2>Paquetes de tokens</h2></div><p>Compra puntual, sin cambiar tu plan actual.</p></div>
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">TOKENS A TU MANERA</span><h2>Compra exactamente los que necesites</h2></div><p>Desde 1 token, sin cambiar tu plan actual. El backend confirmará siempre el precio final.</p></div>
+      <article className="customTokenCard">
+        <div><small>CANTIDAD PERSONALIZADA</small><h3>Elige cualquier cantidad</h3><p>Compra 1, 37, 250 o los tokens que necesites.</p></div>
+        <div className="customTokenControls">
+          <label htmlFor="customTokens">Tokens</label>
+          <input id="customTokens" type="number" min="1" step="1" value={customTokens} onChange={(event) => setCustomTokens(normalizeCustomTokens(Number(event.target.value)))} />
+          <div className="customTokenQuick">{[1, 10, 25, 50, 100, 250, 500].map((amount) => <button type="button" key={amount} onClick={() => setCustomTokens(amount)}>{amount}</button>)}</div>
+        </div>
+        <div className="customTokenSummary"><small>PRECIO ESTIMADO</small><strong>{commercialTokenValue > 0 ? money(customTotal, customCurrency) : "Calculado en Stripe"}</strong><span>{commercialTokenValue > 0 ? `${money(commercialTokenValue, customCurrency)} por token` : "El backend aplicará el valor comercial vigente."}</span><button className="primaryButton" disabled={!!busy || customTokens < 1} onClick={() => void buyCustomTokens()}>{busy === "custom-tokens" ? "Abriendo Stripe…" : `Comprar ${customTokens.toLocaleString("es-MX")} token${customTokens === 1 ? "" : "s"}`}</button></div>
+      </article>
+      <div className="commercialHeading packageHeading"><div><span className="eyebrow">PAQUETES</span><h2>Opciones preparadas</h2></div><p>También puedes elegir uno de los paquetes configurados desde el BackOffice.</p></div>
       <div className="packageGrid">{packages.map((item) => <article className={`packageCard ${selectedPackage?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => setSelectedPackage(item)}><small>{item.name}</small><strong>{item.tokens_amount.toLocaleString("es-MX")}</strong><span>tokens</span><b>{money(item.calculated_price_cents / 100, item.currency)}</b><p>{item.description}</p><button className="primaryButton" disabled={!!busy || !item.stripe_price_id} onClick={(event) => { event.stopPropagation(); void redirect(() => checkoutTokenPackage(item.id), `package-${item.id}`); }}>{busy === `package-${item.id}` ? "Abriendo Stripe…" : item.stripe_price_id ? "Comprar" : "Stripe no configurado"}</button></article>)}</div>
       {selectedPackage && <div className="couponBox"><div><strong>Validar cupón para {selectedPackage.name}</strong><p>Stripe permitirá aplicar códigos promocionales durante el checkout. Aquí puedes comprobar su elegibilidad antes de continuar.</p></div><div><input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="CÓDIGO"/><button onClick={checkCoupon} disabled={busy === "coupon" || !couponCode.trim()}>{busy === "coupon" ? "Validando…" : "Validar"}</button></div>{couponMessage && <span>{couponMessage}</span>}</div>}
     </section>
 
-    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">ACTIVIDAD</span><h2>Movimientos y pagos</h2></div><button className="ghostButton" onClick={() => void load()} disabled={!!busy}>Actualizar</button></div>
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">COMPRAS Y PAGOS</span><h2>Actividad de tokens</h2></div><button className="ghostButton" onClick={() => void load()} disabled={!!busy}>Actualizar</button></div>
       <div className="billingTables">
-        <div className="billingTable"><h3>Tokens</h3>{transactions.length ? transactions.map((item) => <div key={item.id}><span><b>{item.description || item.source || item.transaction_type}</b><small>{date(item.created_at)}</small></span><strong className={item.amount >= 0 ? "positive" : "negative"}>{item.amount >= 0 ? "+" : ""}{item.amount}</strong></div>) : <p>Sin movimientos.</p>}</div>
-        <div className="billingTable"><h3>Compras</h3>{purchases.length ? purchases.map((item) => <div key={item.id}><span><b>{item.total_tokens} tokens</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin compras.</p>}</div>
-        <div className="billingTable"><h3>Pagos</h3>{payments.length ? payments.map((item) => <div key={item.id}><span><b>{item.description || item.payment_type}</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin pagos.</p>}</div>
+        <div className="billingTable"><h3>Movimientos de tokens</h3>{transactions.length ? transactions.map((item) => <div key={item.id}><span><b>{item.description || item.source || item.transaction_type}</b><small>{date(item.created_at)}</small></span><strong className={item.amount >= 0 ? "positive" : "negative"}>{item.amount >= 0 ? "+" : ""}{item.amount}</strong></div>) : <p>Sin movimientos.</p>}</div>
+        <div className="billingTable"><h3>Compras de tokens</h3>{purchases.length ? purchases.map((item) => <div key={item.id}><span><b>{item.total_tokens} tokens {item.token_package_id === null ? "personalizados" : "en paquete"}</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin compras.</p>}</div>
+        <div className="billingTable billingTableWide"><h3>Pagos de tokens</h3>{tokenPayments.length ? tokenPayments.map((item) => <div key={item.id}><span><b>{item.description || "Compra de tokens"}</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin pagos de tokens.</p>}</div>
+      </div>
+    </section>
+
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">SUSCRIPCIONES</span><h2>Pagos y facturas del plan</h2></div><p>Los cargos del plan se mantienen separados de tus compras de tokens.</p></div>
+      <div className="billingTables">
+        <div className="billingTable"><h3>Pagos de suscripción</h3>{subscriptionPayments.length ? subscriptionPayments.map((item) => <div key={item.id}><span><b>{item.description || (item.payment_type === "subscription_renewal" ? "Renovación de plan" : "Suscripción")}</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin pagos de suscripción.</p>}</div>
         <div className="billingTable"><h3>Facturas</h3>{invoices.length ? invoices.map((item) => <div key={item.id}><span><b>{item.invoice_number || `Factura #${item.id}`}</b><small>{date(item.created_at)} · {item.status}</small></span><span className="invoiceActions"><strong>{money(item.total, item.currency)}</strong>{item.hosted_invoice_url && <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">Ver</a>}{item.invoice_pdf_url && <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">PDF</a>}</span></div>) : <p>Sin facturas.</p>}</div>
       </div>
     </section>

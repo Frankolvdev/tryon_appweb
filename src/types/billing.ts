@@ -54,7 +54,7 @@ export type UserSubscription = {
 
 export type TokenPurchase = {
   id: number;
-  token_package_id: number;
+  token_package_id: number | null;
   status: string;
   tokens_amount: number;
   bonus_tokens: number;
