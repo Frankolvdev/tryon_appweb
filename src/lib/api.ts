@@ -35,10 +35,26 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   const target = path.startsWith("/api/") ? path : `${env.apiBaseUrl}${path}`;
   let response: Response;
+  const timeoutController = new AbortController();
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), 30_000);
+  const abortFromCaller = () => timeoutController.abort();
+  init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
   try {
-    response = await fetch(target, { ...init, headers, cache: "no-store" });
-  } catch {
+    response = await fetch(target, {
+      ...init,
+      headers,
+      cache: "no-store",
+      signal: timeoutController.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiRequestError("La solicitud tardó demasiado. Intenta nuevamente.", 0);
+    }
     throw new ApiRequestError("No se pudo conectar con el servidor. Verifica que el backend esté encendido.", 0);
+  } finally {
+    window.clearTimeout(timeoutId);
+    init.signal?.removeEventListener("abort", abortFromCaller);
   }
 
   if (!response.ok) {
