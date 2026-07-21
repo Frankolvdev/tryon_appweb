@@ -2,35 +2,24 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useAppSession } from "@/components/app/app-session";
 import { Brand } from "@/components/ui/brand";
 import { clearSession } from "@/lib/auth-storage";
 
 const items = [
-  ["/dashboard", "Inicio", "Resumen de tu estudio", "home"],
-  ["/try-on", "Crear Try-On", "Estudio de creación", "spark"],
-  ["/history", "Historial", "Tus generaciones", "history"],
-  ["/gallery", "Galería", "Colección personal", "gallery"],
-  ["/billing", "Tokens y plan", "Pagos y membresía", "wallet"],
-  ["/settings", "Configuración", "Perfil y preferencias", "settings"],
+  ["/dashboard", "Inicio", "home"],
+  ["/try-on", "Crear Try-On", "spark"],
+  ["/history", "Historial", "history"],
+  ["/gallery", "Galería", "gallery"],
+  ["/billing", "Tokens y plan", "wallet"],
+  ["/settings", "Configuración", "settings"],
 ] as const;
 
-type IconName = (typeof items)[number][3];
+type IconName = (typeof items)[number][2];
 
-function NavigationIcon({ name }: { name: IconName }) {
-  const common = {
-    width: 21,
-    height: 21,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-
+function AppIcon({ name }: { name: IconName }) {
+  const common = { width: 19, height: 19, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
   if (name === "home") return <svg {...common}><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg>;
   if (name === "spark") return <svg {...common}><path d="m12 3 1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3Z"/><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/></svg>;
   if (name === "history") return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>;
@@ -40,14 +29,15 @@ function NavigationIcon({ name }: { name: IconName }) {
 }
 
 function initials(name?: string | null) {
-  const value = name?.trim() || "Usuario";
-  return value.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  return (name?.trim() || "Usuario").split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAppSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   function logout() {
     clearSession();
@@ -56,34 +46,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="appFrame railFrame">
-      <aside className="sidebar fashionRail">
-        <div className="railBrand"><Brand /></div>
-        <nav className="railNavigation" aria-label="Navegación principal">
-          {items.map(([href, label, caption, icon]) => {
+    <div className={`boAppShell${collapsed ? " isCollapsed" : ""}`}>
+      {mobileOpen && <button className="boSidebarOverlay" onClick={() => setMobileOpen(false)} aria-label="Cerrar menú" />}
+      <aside className={`boSidebar${mobileOpen ? " isOpen" : ""}`}>
+        <div className="boSidebarBrand"><Brand /></div>
+        <div className="boSidebarSectionLabel">MI ESTUDIO</div>
+        <nav className="boSidebarNav" aria-label="Navegación principal">
+          {items.map(([href, label, icon]) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link key={href} href={href} className={`railItem${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
-                <span className="railIcon"><NavigationIcon name={icon} /></span>
-                <span className="railCard">
-                  <strong>{label}</strong>
-                  <small>{caption}</small>
-                  <i aria-hidden="true">↗</i>
-                </span>
-              </Link>
-            );
+            return <Link key={href} href={href} className={active ? "active" : ""} onClick={() => setMobileOpen(false)} aria-current={active ? "page" : undefined}><span className="boNavIcon"><AppIcon name={icon} /></span><span className="boNavLabel">{label}</span></Link>;
           })}
         </nav>
-        <div className="railAccount">
-          <Link href="/settings" className="railProfile" aria-label="Abrir mi cuenta">
-            <span className="userAvatar">{initials(user.full_name)}</span>
-            <span><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span>
-          </Link>
-          <button className="railLogout" onClick={logout} aria-label="Cerrar sesión">↗</button>
+        <div className="boSidebarFooter">
+          <Link href="/settings" className="boUserCard"><span className="boAvatar">{initials(user.full_name)}</span><span className="boUserCopy"><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span></Link>
+          <button className="boCollapseButton" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expandir panel" : "Contraer panel"}><span>{collapsed ? "›" : "‹"}</span><span className="boNavLabel">Contraer panel</span></button>
+          <button className="boLogoutButton" onClick={logout}><span>↗</span><span className="boNavLabel">Cerrar sesión</span></button>
         </div>
       </aside>
-      <header className="mobileHeader railMobileHeader"><Brand /></header>
-      <main className="appContent railContent">{children}</main>
+      <div className="boMainColumn">
+        <header className="boTopbar">
+          <button className="boMobileMenu" onClick={() => setMobileOpen(true)} aria-label="Abrir navegación">☰</button>
+          <div className="boSearch"><span>⌕</span><input aria-label="Buscar" placeholder="Buscar en la plataforma" disabled /><small>Próximamente</small></div>
+          <div className="boTopbarActions"><button className="boLanguage">ES</button><Link href="/settings" className="boTopbarProfile"><span className="boAvatar">{initials(user.full_name)}</span><span><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span></Link></div>
+        </header>
+        <main className="boAppContent">{children}</main>
+      </div>
     </div>
   );
 }
