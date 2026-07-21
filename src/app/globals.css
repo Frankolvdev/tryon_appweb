@@ -343,3 +343,170 @@
 
 /* 09S3B · custom token checkout and separated billing history */
 .customTokenCard{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,.9fr) minmax(240px,.8fr);gap:24px;align-items:center;border:1px solid rgba(225,29,53,.32);border-radius:22px;padding:24px;background:radial-gradient(circle at 100% 0,rgba(225,29,53,.14),transparent 38%),#0d0d0f;margin-bottom:28px}.customTokenCard h3{font-size:24px;margin:8px 0}.customTokenCard p{color:var(--muted);line-height:1.55;margin:0}.customTokenControls{display:grid;gap:10px}.customTokenControls label,.customTokenSummary small,.customTokenCard>div:first-child small{font-size:10px;font-weight:900;letter-spacing:.13em;color:#85858d}.customTokenControls>input{width:100%;min-height:54px;border:1px solid var(--line);border-radius:14px;background:#08080a;color:#fff;padding:0 16px;font-size:24px;font-weight:800}.customTokenQuick{display:flex;gap:7px;flex-wrap:wrap}.customTokenQuick button{border:1px solid var(--line);border-radius:999px;background:#151518;color:#b9b9c0;padding:7px 10px;cursor:pointer}.customTokenQuick button:hover{border-color:rgba(225,29,53,.5);color:#fff}.customTokenSummary{display:grid;gap:7px;text-align:right}.customTokenSummary>strong{font-size:30px}.customTokenSummary>span{font-size:11px;color:#777}.customTokenSummary .primaryButton{margin-top:8px;border:0;min-height:46px}.packageHeading{margin-top:6px}.billingTableWide{grid-column:1/-1}@media(max-width:1000px){.customTokenCard{grid-template-columns:1fr 1fr}.customTokenSummary{grid-column:1/-1;text-align:left}}@media(max-width:700px){.customTokenCard{grid-template-columns:1fr}.customTokenSummary{grid-column:auto}.billingTableWide{grid-column:auto}}
+
+/* ========================================================================== */
+/* 09T · APPWEB UI/UX POLISH                                                  */
+/* Incremental visual layer: preserves the existing background and behavior.  */
+/* ========================================================================== */
+
+:root{
+  --app-radius-xs:10px;
+  --app-radius-sm:14px;
+  --app-radius-md:18px;
+  --app-radius-lg:24px;
+  --app-radius-xl:30px;
+  --app-ease:cubic-bezier(.2,.8,.2,1);
+  --app-shadow-soft:0 18px 50px rgba(0,0,0,.28);
+  --app-shadow-card:0 22px 70px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.035);
+  --app-glow:0 0 0 1px rgba(225,29,53,.11),0 18px 55px rgba(165,9,29,.12);
+}
+
+html{scroll-behavior:smooth}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:rgba(225,29,53,.34);color:#fff}
+
+/* Unified typography and focus */
+h1,h2,h3,h4,strong,.brand,.primaryButton,.secondaryButton,.ghostButton{
+  font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif;
+}
+h1,h2,h3,h4{letter-spacing:-.035em}
+button,a,input,select,textarea{transition:border-color .22s var(--app-ease),background .22s var(--app-ease),color .22s var(--app-ease),box-shadow .22s var(--app-ease),transform .22s var(--app-ease),opacity .22s var(--app-ease)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:none;box-shadow:0 0 0 3px rgba(225,29,53,.22),0 0 0 1px #e11d35;
+}
+button:not(:disabled):active,.primaryButton:not(:disabled):active,.secondaryButton:not(:disabled):active{transform:translateY(1px) scale(.99)}
+button:disabled{cursor:not-allowed}
+
+/* Brand parity with authentication screens */
+.brand{gap:11px;font-size:15px;line-height:1;white-space:nowrap}
+.brandMark{position:relative;isolation:isolate;overflow:hidden;border:1px solid rgba(255,255,255,.1);box-shadow:0 12px 34px rgba(225,29,53,.28),inset 0 1px 0 rgba(255,255,255,.18)}
+.brandMark:after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.34) 50%,transparent 62%);transform:translateX(-70%) rotate(15deg);animation:brandSheen 7s ease-in-out infinite;z-index:-1}
+.brandAccent{text-shadow:0 0 22px rgba(225,29,53,.35)}
+@keyframes brandSheen{0%,72%{transform:translateX(-75%) rotate(15deg)}88%,100%{transform:translateX(75%) rotate(15deg)}}
+
+/* Premium app shell while preserving the original background */
+.appFrame{grid-template-columns:272px minmax(0,1fr)}
+.sidebar{width:272px;padding:28px 20px;background:linear-gradient(180deg,rgba(16,16,18,.96),rgba(8,8,9,.985));box-shadow:18px 0 70px rgba(0,0,0,.18);backdrop-filter:blur(20px)}
+.sidebar:after{content:"";position:absolute;inset:0 0 0 auto;width:1px;background:linear-gradient(180deg,transparent,rgba(225,29,53,.35),transparent);opacity:.55}
+.workspaceLabel{margin-top:42px;color:#686871}
+.sidebar nav{gap:7px}
+.sidebar nav a{position:relative;min-height:48px;align-items:center;padding:0 14px;border:1px solid transparent;overflow:hidden}
+.sidebar nav a:before{content:"";position:absolute;inset:8px auto 8px 0;width:3px;border-radius:999px;background:#e11d35;box-shadow:0 0 18px rgba(225,29,53,.8);transform:scaleY(0);transition:transform .22s var(--app-ease)}
+.sidebar nav a:hover{border-color:rgba(255,255,255,.055);background:rgba(255,255,255,.025);transform:translateX(2px)}
+.sidebar nav a.active{border-color:rgba(225,29,53,.18);background:linear-gradient(90deg,rgba(225,29,53,.17),rgba(225,29,53,.035));box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.sidebar nav a.active:before{transform:scaleY(1)}
+.sidebar nav a span{width:24px;height:24px;display:grid;place-items:center;border-radius:8px;color:#b8b8c0;font-size:0;position:relative;flex:0 0 24px}
+.sidebar nav a span:before,.sidebar nav a span:after{content:"";position:absolute;box-sizing:border-box}
+/* Consistent CSS line-icon system; replaces mixed text glyphs visually. */
+.sidebar nav a:nth-child(1) span:before{width:15px;height:13px;border:1.7px solid currentColor;border-top:0;border-radius:2px;bottom:3px}
+.sidebar nav a:nth-child(1) span:after{width:11px;height:11px;border-left:1.7px solid currentColor;border-top:1.7px solid currentColor;transform:rotate(45deg);top:3px;border-radius:2px}
+.sidebar nav a:nth-child(2) span:before{width:16px;height:16px;border:1.7px solid currentColor;border-radius:50%}
+.sidebar nav a:nth-child(2) span:after{width:6px;height:6px;background:currentColor;clip-path:polygon(50% 0,64% 36%,100% 50%,64% 64%,50% 100%,36% 64%,0 50%,36% 36%)}
+.sidebar nav a:nth-child(3) span:before{width:15px;height:15px;border:1.7px solid currentColor;border-radius:50%}
+.sidebar nav a:nth-child(3) span:after{width:6px;height:1.7px;background:currentColor;top:11px;left:5px;box-shadow:3px -4px 0 -0.2px currentColor;transform:rotate(-12deg)}
+.sidebar nav a:nth-child(4) span:before{width:16px;height:14px;border:1.7px solid currentColor;border-radius:3px}
+.sidebar nav a:nth-child(4) span:after{width:5px;height:5px;border:1.5px solid currentColor;border-radius:50%;right:4px;top:4px;box-shadow:-6px 6px 0 -1px currentColor}
+.sidebar nav a:nth-child(5) span:before{width:16px;height:12px;border:1.7px solid currentColor;border-radius:4px}
+.sidebar nav a:nth-child(5) span:after{width:8px;height:1.7px;background:currentColor;left:4px;top:8px;box-shadow:0 4px 0 -0.2px currentColor}
+.sidebar nav a:nth-child(6) span:before{width:15px;height:15px;border:1.7px solid currentColor;border-radius:50%;box-shadow:inset 0 0 0 3px transparent}
+.sidebar nav a:nth-child(6) span:after{width:5px;height:5px;border:1.5px solid currentColor;border-radius:50%}
+.sidebar nav a.active span{color:#fff;background:rgba(225,29,53,.15);box-shadow:0 0 18px rgba(225,29,53,.14)}
+.userMiniCard{border-color:rgba(255,255,255,.075);background:linear-gradient(145deg,#151518,#0d0d0f);box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.userMiniCard:hover{border-color:rgba(225,29,53,.2);transform:translateY(-1px)}
+.userAvatar{box-shadow:0 10px 24px rgba(165,9,29,.24)}
+.logout{border-radius:12px}.logout:hover{background:rgba(225,29,53,.08);color:#ff90a3}
+
+.appContent{padding:38px clamp(24px,4vw,66px) 64px;max-width:1720px;width:100%;margin-left:auto;margin-right:auto}
+.pageEnter{animation:premiumPageEnter .52s var(--app-ease) both}
+@keyframes premiumPageEnter{from{opacity:0;transform:translateY(12px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+.topbar,.sectionHeader{margin-bottom:8px}
+.topbar h1,.sectionHeader h1{background:linear-gradient(180deg,#fff,#d7d7dc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tokenBadge{min-height:62px;border-color:rgba(255,255,255,.085);background:linear-gradient(145deg,rgba(22,22,25,.92),rgba(11,11,13,.94));box-shadow:var(--app-shadow-soft)}
+.tokenBadge:hover{border-color:rgba(225,29,53,.24);transform:translateY(-2px);box-shadow:var(--app-glow)}
+
+/* Shared cards, inputs, tables and buttons across the entire AppWeb */
+.heroAction,.statsGrid article,.quickCard,.moduleCanvas,.accountSummary,.profilePanel,.commercialSection,.commercialCard,.packageCard,.billingHero>div,.billingTable,.jobModal>article{
+  box-shadow:var(--app-shadow-card);
+}
+.statsGrid article,.quickCard,.commercialCard,.packageCard,.billingTable,.profilePanel,.accountSummary{
+  position:relative;overflow:hidden;transition:transform .26s var(--app-ease),border-color .26s var(--app-ease),box-shadow .26s var(--app-ease),background .26s var(--app-ease);
+}
+.statsGrid article:before,.quickCard:before,.commercialCard:before,.packageCard:before,.billingTable:before{
+  content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.035),transparent 32%);opacity:.7;
+}
+.statsGrid article:hover,.quickCard:hover,.commercialCard:hover,.packageCard:hover,.billingTable:hover{
+  transform:translateY(-3px);border-color:rgba(225,29,53,.2);box-shadow:var(--app-glow);
+}
+.primaryButton{position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(165,9,29,.26),inset 0 1px rgba(255,255,255,.16)}
+.primaryButton:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 25%,rgba(255,255,255,.2),transparent 75%);transform:translateX(-120%);transition:transform .65s var(--app-ease)}
+.primaryButton:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 42px rgba(165,9,29,.34),inset 0 1px rgba(255,255,255,.2)}
+.primaryButton:hover:not(:disabled):before{transform:translateX(120%)}
+.secondaryButton:hover,.ghostButton:hover,.billingActions button:hover,.couponBox button:hover{border-color:rgba(225,29,53,.34);background:#1b1417;color:#fff;transform:translateY(-1px)}
+input,select,textarea{background:#0b0b0d!important;border-color:rgba(255,255,255,.09)!important}
+input:hover,select:hover,textarea:hover{border-color:rgba(255,255,255,.16)!important}
+input:focus,select:focus,textarea:focus{border-color:rgba(225,29,53,.72)!important;box-shadow:0 0 0 3px rgba(225,29,53,.11)!important}
+
+/* Billing information architecture and richer motion */
+.billingCenter{gap:24px}
+.billingCenter>*{animation:billingReveal .48s var(--app-ease) both}
+.billingCenter>*:nth-child(2){animation-delay:.04s}.billingCenter>*:nth-child(3){animation-delay:.08s}.billingCenter>*:nth-child(4){animation-delay:.12s}.billingCenter>*:nth-child(5){animation-delay:.16s}.billingCenter>*:nth-child(6){animation-delay:.2s}
+@keyframes billingReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.billingAlert{box-shadow:0 12px 35px rgba(0,0,0,.18);backdrop-filter:blur(14px)}
+.billingHero{grid-template-columns:minmax(300px,.84fr) minmax(420px,1.16fr);gap:18px}
+.billingHero>div{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(145deg,rgba(20,20,23,.96),rgba(10,10,12,.98));box-shadow:var(--app-shadow-card)}
+.billingHero>div:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;right:-110px;top:-120px;background:rgba(225,29,53,.09);filter:blur(35px);pointer-events:none}
+.billingHero>div:first-child>strong{font-variant-numeric:tabular-nums;text-shadow:0 0 32px rgba(225,29,53,.2)}
+.commercialSection{border-radius:24px;padding:28px;background:linear-gradient(145deg,rgba(18,18,21,.94),rgba(10,10,12,.97));border-color:rgba(255,255,255,.075)}
+.commercialHeading{padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,.06)}
+.commercialHeading h2{font-size:28px}
+.planGrid,.packageGrid{gap:14px}
+.commercialCard,.packageCard{background:linear-gradient(150deg,#111114,#0a0a0c);border-color:rgba(255,255,255,.075)}
+.packageCard.selected{transform:translateY(-3px);background:radial-gradient(circle at 100% 0,rgba(225,29,53,.14),transparent 42%),#0e0e11;box-shadow:var(--app-glow)}
+.customTokenCard{position:relative;overflow:hidden;box-shadow:var(--app-shadow-card);transition:border-color .25s var(--app-ease),box-shadow .25s var(--app-ease)}
+.customTokenCard:after{content:"";position:absolute;inset:-1px;pointer-events:none;border-radius:inherit;background:linear-gradient(115deg,transparent 30%,rgba(225,29,53,.11),transparent 65%);transform:translateX(-100%);animation:tokenCardSweep 8s ease-in-out infinite}
+@keyframes tokenCardSweep{0%,72%{transform:translateX(-100%)}88%,100%{transform:translateX(100%)}}
+.customTokenQuick button:hover{transform:translateY(-2px);background:rgba(225,29,53,.09)}
+
+/* Existing history blocks: purchases first, ledger full width, invoices full width. */
+.billingTables{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.billingTable{min-width:0;border-radius:20px;padding:20px;background:linear-gradient(155deg,#111113,#0a0a0c);border-color:rgba(255,255,255,.075)}
+.billingTable h3{font-size:18px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.billingTable h3:before{content:"";width:8px;height:8px;border-radius:50%;background:#e11d35;box-shadow:0 0 16px rgba(225,29,53,.72)}
+.billingTable>div{min-height:66px;padding:14px 4px}
+.billingTable>div:hover{background:linear-gradient(90deg,rgba(225,29,53,.045),transparent);padding-left:8px;padding-right:8px;border-radius:10px}
+.billingTableWide{grid-column:1/-1}
+.billingTables .billingTable:last-child{grid-column:1/-1}
+.invoiceActions a{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border:1px solid rgba(225,29,53,.22);border-radius:9px;background:rgba(225,29,53,.06)}
+.invoiceActions a:hover{background:rgba(225,29,53,.14);border-color:rgba(225,29,53,.42);transform:translateY(-1px)}
+.billingTable .positive,.billingTable .negative{font-variant-numeric:tabular-nums;font-weight:850;padding:6px 9px;border-radius:999px}
+.billingTable .positive{background:rgba(62,190,126,.08)}.billingTable .negative{background:rgba(225,29,53,.08)}
+
+/* Skeleton-like loading pulse without changing component logic */
+.pageLoading{gap:18px;color:#aaa}.pageLoading:before{content:"";width:52px;height:52px;margin:0 auto;border-radius:16px;background:linear-gradient(110deg,#151518 20%,#25252a 42%,#151518 64%);background-size:220% 100%;animation:appShimmer 1.3s linear infinite;box-shadow:var(--app-shadow-soft)}
+@keyframes appShimmer{to{background-position-x:-220%}}
+
+/* Responsive refinements */
+@media(max-width:1100px){
+  .appContent{padding-left:28px;padding-right:28px}
+  .billingHero{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+  .appFrame{display:block}
+  .appContent{max-width:none;padding:26px 20px 52px}
+  .sidebar{width:min(86vw,310px)}
+  .mobileHeader{box-shadow:0 12px 40px rgba(0,0,0,.28)}
+  .billingTables{grid-template-columns:1fr}
+  .billingTables .billingTable:last-child,.billingTableWide{grid-column:auto}
+}
+@media(max-width:700px){
+  .commercialSection{padding:18px;border-radius:20px}
+  .commercialHeading{padding-bottom:15px}
+  .billingHero>div{padding:24px}
+  .billingHero>div:first-child>strong{font-size:58px}
+  .billingTable{padding:16px}
+  .billingTable>div{align-items:flex-start;flex-direction:column}
+  .invoiceActions{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+}
