@@ -1,0 +1,133 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useAppSession } from "@/components/app/app-session";
+import {
+  cancelSubscription,
+  checkoutSubscription,
+  checkoutTokenPackage,
+  getCurrentSubscription,
+  listInvoices,
+  listPayments,
+  listPlans,
+  listTokenPackages,
+  listTokenPurchases,
+  listTokenTransactions,
+  openCustomerPortal,
+  reactivateSubscription,
+  synchronizeSubscription,
+  validateCoupon,
+} from "@/lib/billing-api";
+import type { BillingInvoice, BillingPayment, SubscriptionPlan, TokenPackage, TokenPurchase, TokenTransaction, UserSubscription } from "@/types/billing";
+
+const money = (value: string | number, currency = "USD") => new Intl.NumberFormat("es-MX", { style: "currency", currency: currency.toUpperCase() }).format(Number(value));
+const date = (value?: string | null) => value ? new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+
+export function BillingCenter() {
+  const params = useSearchParams();
+  const { user, refreshUser } = useAppSession();
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [packages, setPackages] = useState<TokenPackage[]>([]);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [transactions, setTransactions] = useState<TokenTransaction[]>([]);
+  const [purchases, setPurchases] = useState<TokenPurchase[]>([]);
+  const [payments, setPayments] = useState<BillingPayment[]>([]);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    const [planData, packageData, transactionData, purchaseData, paymentData, invoiceData] = await Promise.all([
+      listPlans(), listTokenPackages(), listTokenTransactions(), listTokenPurchases(), listPayments(), listInvoices(),
+    ]);
+    setPlans(planData.filter((item) => item.is_active));
+    setPackages(packageData.filter((item) => item.is_active));
+    setTransactions(transactionData);
+    setPurchases(purchaseData.items);
+    setPayments(paymentData.items);
+    setInvoices(invoiceData.items);
+    try { setSubscription(await getCurrentSubscription()); } catch { setSubscription(null); }
+    await refreshUser();
+  }, [refreshUser]);
+
+  useEffect(() => {
+    load().catch((value) => setError(value instanceof Error ? value.message : "No fue posible cargar tu información comercial.")).finally(() => setLoading(false));
+  }, [load]);
+
+  useEffect(() => {
+    const checkout = params.get("checkout");
+    if (checkout === "success") setNotice("Pago confirmado por Stripe. El saldo o la suscripción se actualizarán cuando el webhook sea procesado.");
+    if (checkout === "cancelled") setNotice("El proceso de pago fue cancelado. No se realizó ningún cargo.");
+  }, [params]);
+
+  const currentPlan = useMemo(() => plans.find((plan) => plan.id === subscription?.subscription_plan_id), [plans, subscription]);
+
+  async function redirect(action: () => Promise<{ checkout_url?: string; portal_url?: string }>, key: string) {
+    setBusy(key); setError(null);
+    try {
+      const result = await action();
+      const target = result.checkout_url || result.portal_url;
+      if (!target) throw new Error("El backend no devolvió una URL de Stripe.");
+      window.location.assign(target);
+    } catch (value) { setError(value instanceof Error ? value.message : "No fue posible abrir Stripe."); setBusy(null); }
+  }
+
+  async function subscriptionAction(action: () => Promise<{ message: string }>, key: string) {
+    setBusy(key); setError(null);
+    try { const result = await action(); setNotice(result.message); await load(); }
+    catch (value) { setError(value instanceof Error ? value.message : "No fue posible actualizar la suscripción."); }
+    finally { setBusy(null); }
+  }
+
+  async function checkCoupon() {
+    if (!selectedPackage || !couponCode.trim()) return;
+    setBusy("coupon"); setCouponMessage(null);
+    try {
+      const result = await validateCoupon(couponCode.trim(), selectedPackage.calculated_price_cents / 100, "token_package", selectedPackage.id);
+      setCouponMessage(result.message);
+    } catch (value) { setCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón."); }
+    finally { setBusy(null); }
+  }
+
+  if (loading) return <div className="historyState"><span className="spinner"/><p>Cargando economía de tu cuenta…</p></div>;
+
+  return <div className="billingCenter">
+    {(notice || error) && <div className={error ? "billingAlert billingAlertError" : "billingAlert"}>{error || notice}</div>}
+
+    <section className="billingHero">
+      <div><span className="eyebrow">SALDO ACTUAL</span><strong>{user.token_balance ?? 0}</strong><p>tokens disponibles para generar nuevos Try-On.</p></div>
+      <div className="subscriptionSummary"><small>PLAN ACTUAL</small><h2>{currentPlan?.name || (subscription ? "Suscripción activa" : "Sin plan activo")}</h2><p>{subscription ? `Estado: ${subscription.status}` : "Puedes comprar tokens sin suscripción o elegir un plan."}</p>{subscription?.current_period_end && <span>Renovación: {date(subscription.current_period_end)}</span>}
+        <div className="billingActions">
+          {subscription && <button onClick={() => redirect(openCustomerPortal, "portal")} disabled={!!busy}>{busy === "portal" ? "Abriendo…" : "Administrar en Stripe"}</button>}
+          {subscription?.cancel_at_period_end ? <button onClick={() => subscriptionAction(reactivateSubscription, "reactivate")} disabled={!!busy}>Reactivar</button> : subscription && <button onClick={() => subscriptionAction(cancelSubscription, "cancel")} disabled={!!busy}>Cancelar al final</button>}
+          {subscription && <button onClick={() => subscriptionAction(synchronizeSubscription, "sync")} disabled={!!busy}>Sincronizar</button>}
+        </div>
+      </div>
+    </section>
+
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">SUSCRIPCIONES</span><h2>Planes disponibles</h2></div><p>Precios y beneficios cargados directamente desde el backend.</p></div>
+      <div className="planGrid">{plans.map((plan) => <article className="commercialCard" key={plan.id}><div><span>{plan.billing_interval === "year" ? "ANUAL" : "MENSUAL"}</span>{currentPlan?.id === plan.id && <b>ACTUAL</b>}</div><h3>{plan.name}</h3><p>{plan.description}</p><strong>{money(plan.calculated_price_amount, plan.currency)}<small>/{plan.billing_interval === "year" ? "año" : "mes"}</small></strong><ul>{plan.features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul><div className="commercialMeta"><span>{plan.tokens_per_period.toLocaleString("es-MX")} tokens</span>{plan.max_generations_per_period && <span>{plan.max_generations_per_period} generaciones</span>}</div><button className="primaryButton" disabled={!!busy || currentPlan?.id === plan.id || !plan.stripe_configured} onClick={() => redirect(() => checkoutSubscription(plan.key), `plan-${plan.id}`)}>{currentPlan?.id === plan.id ? "Plan actual" : busy === `plan-${plan.id}` ? "Abriendo Stripe…" : plan.stripe_configured ? "Elegir plan" : "Stripe no configurado"}</button></article>)}</div>
+    </section>
+
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">TOKENS A TU MANERA</span><h2>Paquetes de tokens</h2></div><p>Compra puntual, sin cambiar tu plan actual.</p></div>
+      <div className="packageGrid">{packages.map((item) => <article className={`packageCard ${selectedPackage?.id === item.id ? "selected" : ""}`} key={item.id} onClick={() => setSelectedPackage(item)}><small>{item.name}</small><strong>{item.tokens_amount.toLocaleString("es-MX")}</strong><span>tokens</span><b>{money(item.calculated_price_cents / 100, item.currency)}</b><p>{item.description}</p><button className="primaryButton" disabled={!!busy || !item.stripe_price_id} onClick={(event) => { event.stopPropagation(); void redirect(() => checkoutTokenPackage(item.id), `package-${item.id}`); }}>{busy === `package-${item.id}` ? "Abriendo Stripe…" : item.stripe_price_id ? "Comprar" : "Stripe no configurado"}</button></article>)}</div>
+      {selectedPackage && <div className="couponBox"><div><strong>Validar cupón para {selectedPackage.name}</strong><p>Stripe permitirá aplicar códigos promocionales durante el checkout. Aquí puedes comprobar su elegibilidad antes de continuar.</p></div><div><input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="CÓDIGO"/><button onClick={checkCoupon} disabled={busy === "coupon" || !couponCode.trim()}>{busy === "coupon" ? "Validando…" : "Validar"}</button></div>{couponMessage && <span>{couponMessage}</span>}</div>}
+    </section>
+
+    <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">ACTIVIDAD</span><h2>Movimientos y pagos</h2></div><button className="ghostButton" onClick={() => void load()} disabled={!!busy}>Actualizar</button></div>
+      <div className="billingTables">
+        <div className="billingTable"><h3>Tokens</h3>{transactions.length ? transactions.map((item) => <div key={item.id}><span><b>{item.description || item.source || item.transaction_type}</b><small>{date(item.created_at)}</small></span><strong className={item.amount >= 0 ? "positive" : "negative"}>{item.amount >= 0 ? "+" : ""}{item.amount}</strong></div>) : <p>Sin movimientos.</p>}</div>
+        <div className="billingTable"><h3>Compras</h3>{purchases.length ? purchases.map((item) => <div key={item.id}><span><b>{item.total_tokens} tokens</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin compras.</p>}</div>
+        <div className="billingTable"><h3>Pagos</h3>{payments.length ? payments.map((item) => <div key={item.id}><span><b>{item.description || item.payment_type}</b><small>{date(item.created_at)} · {item.status}</small></span><strong>{money(item.amount, item.currency)}</strong></div>) : <p>Sin pagos.</p>}</div>
+        <div className="billingTable"><h3>Facturas</h3>{invoices.length ? invoices.map((item) => <div key={item.id}><span><b>{item.invoice_number || `Factura #${item.id}`}</b><small>{date(item.created_at)} · {item.status}</small></span><span className="invoiceActions"><strong>{money(item.total, item.currency)}</strong>{item.hosted_invoice_url && <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">Ver</a>}{item.invoice_pdf_url && <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">PDF</a>}</span></div>) : <p>Sin facturas.</p>}</div>
+      </div>
+    </section>
+  </div>;
+}

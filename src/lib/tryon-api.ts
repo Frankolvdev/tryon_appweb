@@ -20,3 +20,7 @@ export async function createTryOn(input: {
 export async function listTryOnJobs(skip = 0, limit = 50): Promise<TryOnJob[]> {
   return apiFetch<TryOnJob[]>(`/api/v1/tryon/?skip=${skip}&limit=${limit}`);
 }
+
+export async function getTryOnJob(jobId: number): Promise<TryOnJob> {
+  return apiFetch<TryOnJob>(`/api/v1/tryon/${jobId}`);
+}

@@ -1,3 +1,6 @@
-"use client";
-import { useAppSession } from "@/components/app/app-session";
-export default function BillingPage(){const {user}=useAppSession();return <div className="sectionPage pageEnter"><header className="sectionHeader"><span className="eyebrow">CUENTA COMERCIAL</span><h1>Tokens y plan</h1><p>Resumen disponible desde tu cuenta actual.</p></header><section className="accountSummary"><div><small>TOKENS DISPONIBLES</small><strong>{user.token_balance ?? "—"}</strong></div><p>Los planes, precios, compras y beneficios se conectarán exclusivamente con los endpoints comerciales reales del backend; no se incluyen valores hardcodeados.</p></section></div>}
+import { Suspense } from "react";
+import { BillingCenter } from "@/components/billing/billing-center";
+
+export default function BillingPage() {
+  return <div className="sectionPage pageEnter"><header className="sectionHeader"><span className="eyebrow">CUENTA COMERCIAL</span><h1>Tokens, planes y pagos</h1><p>Administra tu saldo, suscripción, compras e historial con datos reales del backend.</p></header><Suspense fallback={<div className="historyState"><span className="spinner"/><p>Cargando facturación…</p></div>}><BillingCenter/></Suspense></div>;
+}
