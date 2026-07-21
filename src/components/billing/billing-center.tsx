@@ -71,21 +71,69 @@ const subscriptionMovementLabel = (paymentType: string) =>
   ? "Renovación de suscripción"
   : "Compra de suscripción";
 
-const BillingIcon = ({ name }: { name: "tokens" | "purchase" | "payment" | "invoice" | "calendar" }) => {
- const paths = {
-  tokens: "M12 3c4.97 0 9 1.79 9 4s-4.03 4-9 4-9-1.79-9-4 4.03-4 9-4Zm-9 4v5c0 2.21 4.03 4 9 4s9-1.79 9-4V7m-18 5v5c0 2.21 4.03 4 9 4s9-1.79 9-4v-5",
-  purchase: "M4 4h2l2.4 10.2a2 2 0 0 0 1.95 1.54h6.9a2 2 0 0 0 1.94-1.5L21 7H7m4 13h.01M18 20h.01",
-  payment: "M3 6h18v12H3zM3 10h18M7 15h4",
-  invoice: "M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6",
-  calendar: "M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z",
- } as const;
- return (
-  <span className="billingIcon" aria-hidden="true">
-   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d={paths[name]} />
-   </svg>
-  </span>
+const titleFromKey = (value: string) =>
+ value
+  .replace(/[_-]+/g, " ")
+  .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const friendlyTransactionDescription = (
+ transaction: TokenTransaction,
+ currentPlanName?: string | null,
+) => {
+ const description = transaction.description?.trim();
+ if (!description) {
+  return transaction.source || transaction.transaction_type;
+ }
+
+ const subscriptionMatch = description.match(
+  /Subscription tokens for plan\s+([^;]+)(?:;\s*invoice\s+\S+)?/i,
  );
+ if (subscriptionMatch) {
+  const planName = currentPlanName || titleFromKey(subscriptionMatch[1]);
+  return `Tokens incluidos en el plan ${planName}`;
+ }
+
+ return description
+  .replace(/;\s*invoice\s+in_[A-Za-z0-9]+/gi, "")
+  .replace(/\bin_[A-Za-z0-9]+\b/g, "")
+  .trim();
+};
+
+const paymentMethodLabel = (detail?: BillingPayment | null) => {
+ if (!detail) return null;
+
+ const brands: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners Club",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+ };
+ const wallets: Record<string, string> = {
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
+  link: "Link",
+ };
+ const brand = detail.payment_method_brand
+  ? brands[detail.payment_method_brand] ||
+    titleFromKey(detail.payment_method_brand)
+  : null;
+ const card =
+  brand && detail.payment_method_last4
+   ? `${brand} •••• ${detail.payment_method_last4}`
+   : brand;
+ const wallet = detail.payment_method_wallet
+  ? wallets[detail.payment_method_wallet] || titleFromKey(detail.payment_method_wallet)
+  : null;
+
+ if (wallet && card) return `${wallet} · ${card}`;
+ if (card) return card;
+ if (detail.payment_method_type) {
+  return titleFromKey(detail.payment_method_type);
+ }
+ return null;
 };
 
 export function BillingCenter() {
@@ -205,6 +253,26 @@ export function BillingCenter() {
      item.payment_type === "subscription" ||
      item.payment_type === "subscription_renewal",
    ),
+  [payments],
+ );
+
+ const purchasesByPayment = useMemo(
+  () =>
+   new Map(
+    purchases
+     .filter((item) => item.billing_payment_id != null)
+     .map((item) => [item.billing_payment_id as number, item]),
+   ),
+  [purchases],
+ );
+
+ const visibleInvoices = useMemo(
+  () => invoices.filter((invoice) => invoice.invoice_documents_enabled),
+  [invoices],
+ );
+
+ const paymentsById = useMemo(
+  () => new Map(payments.map((payment) => [payment.id, payment])),
   [payments],
  );
 
@@ -660,13 +728,11 @@ export function BillingCenter() {
     )}
    </section>
 
-   <section className="commercialSection">
+   <section className="commercialSection billingCommerceSection">
     <div className="commercialHeading">
      <div>
-      <span className="eyebrow">
-       ACTIVIDAD DE TOKENS
-      </span>
-      <h2>Compras y movimientos</h2>
+      <span className="eyebrow">PAGOS Y COMPRAS</span>
+      <h2>Actividad comercial</h2>
      </div>
      <button
       className="ghostButton"
@@ -677,46 +743,46 @@ export function BillingCenter() {
      </button>
     </div>
 
-    <div className="billingTables">
-     <div className="billingTable">
-      <h3><BillingIcon name="tokens" />Movimientos de tokens</h3>
-      <div className="billingTableHeader"><span>Movimiento</span><span>Tokens</span></div>
-      {transactions.length ? (
-       transactions.map((item) => (
+    <div className="billingCommerceGrid">
+     <div className="billingTable billingCommerceCard">
+      <div className="billingBlockHeading">
+       <span className="billingBlockIcon" aria-hidden="true">S</span>
+       <div>
+        <h3>Pagos de suscripción</h3>
+        <p>Altas, renovaciones y cambios de plan.</p>
+       </div>
+      </div>
+      {subscriptionPayments.length ? (
+       subscriptionPayments.map((item) => (
         <div key={item.id}>
          <span>
-          <b>
-           {item.description ||
-            item.source ||
-            item.transaction_type}
-          </b>
-          <small className="billingDate"><BillingIcon name="calendar" />{date(item.created_at)}</small>
+          <b>{currentPlan?.name || "Plan de suscripción"}</b>
+          <small>
+           {subscriptionMovementLabel(item.payment_type)} · {statusLabel(item.status)}
+          </small>
+          {paymentMethodLabel(item) && <small>{paymentMethodLabel(item)}</small>}
+          <small>{date(item.paid_at || item.created_at)}</small>
          </span>
-         <strong
-          className={
-           item.amount >= 0
-            ? "positive"
-            : "negative"
-          }
-         >
-          {item.amount >= 0 ? "+" : ""}
-          {item.amount.toLocaleString("es-MX")}
-         </strong>
+         <strong>{money(item.amount, item.currency)}</strong>
         </div>
        ))
       ) : (
-       <p>Sin movimientos de tokens.</p>
+       <p className="billingEmptyState">Sin pagos de suscripción.</p>
       )}
      </div>
 
-     <div className="billingTable billingTableWide">
-      <h3><BillingIcon name="purchase" />Compras de tokens</h3>
-      <div className="billingTableHeader billingTableHeaderWide"><span>Compra</span><span>Total</span></div>
+     <div className="billingTable billingCommerceCard">
+      <div className="billingBlockHeading">
+       <span className="billingBlockIcon" aria-hidden="true">T</span>
+       <div>
+        <h3>Compras de tokens</h3>
+        <p>Paquetes y compras personalizadas.</p>
+       </div>
+      </div>
       {purchases.length ? (
        purchases.map((item) => {
         const tokenPackage = packages.find(
-         (packageItem) =>
-          packageItem.id === item.token_package_id,
+         (packageItem) => packageItem.id === item.token_package_id,
         );
         const purchaseTitle =
          tokenPackage?.name ||
@@ -729,130 +795,138 @@ export function BillingCenter() {
           <span>
            <b>{purchaseTitle}</b>
            <small>
-            {item.total_tokens.toLocaleString(
-             "es-MX",
-            )}{" "}
-            tokens · {statusLabel(item.status)} ·{" "}
-            {date(item.paid_at || item.created_at)}
+            {item.total_tokens.toLocaleString("es-MX")} tokens · {statusLabel(item.status)}
            </small>
-           {item.bonus_tokens > 0 && (
+           {paymentMethodLabel(
+            item.billing_payment_id
+             ? paymentsById.get(item.billing_payment_id)
+             : undefined,
+           ) && (
             <small>
-             Incluye{" "}
-             {item.bonus_tokens.toLocaleString(
-              "es-MX",
-             )}{" "}
-             tokens de bonificación
+             {paymentMethodLabel(
+              item.billing_payment_id
+               ? paymentsById.get(item.billing_payment_id)
+               : undefined,
+             )}
             </small>
            )}
+           <small>{date(item.paid_at || item.created_at)}</small>
           </span>
-          <strong>
-           {money(item.amount, item.currency)}
-          </strong>
+          <strong>{money(item.amount, item.currency)}</strong>
          </div>
         );
        })
       ) : (
-       <p>Sin compras de tokens.</p>
+       <p className="billingEmptyState">Sin compras de tokens.</p>
       )}
      </div>
     </div>
    </section>
 
-   <section className="commercialSection">
+   <section className="commercialSection billingLedgerSection">
     <div className="commercialHeading">
      <div>
-      <span className="eyebrow">SUSCRIPCIONES</span>
-      <h2>Pagos y facturas del plan</h2>
+      <span className="eyebrow">CONTABILIDAD DE TOKENS</span>
+      <h2>Movimientos de tokens</h2>
      </div>
-     <p>
-      Consulta tus cargos, renovaciones y documentos sin
-      identificadores técnicos de Stripe.
-     </p>
+     <p>Entradas, consumos, bonificaciones y ajustes de saldo.</p>
     </div>
 
-    <div className="billingTables">
-     <div className="billingTable">
-      <h3><BillingIcon name="payment" />Pagos de suscripción</h3>
-      <div className="billingTableHeader"><span>Movimiento</span><span>Importe</span></div>
-      {subscriptionPayments.length ? (
-       subscriptionPayments.map((item) => (
-        <div key={item.id}>
-         <span>
-          <b>
-           {currentPlan?.name ||
-            "Plan de suscripción"}
-          </b>
-          <small>
-           {subscriptionMovementLabel(
-            item.payment_type,
-           )}{" "}
-           <span className={`billingStatus status-${(item.status || "unknown").toLowerCase()}`}>
-            {statusLabel(item.status)}
-           </span>
-          </small>
-          <small>
-           {date(item.paid_at || item.created_at)}
-          </small>
-         </span>
-         <strong>
-          {money(item.amount, item.currency)}
-         </strong>
-        </div>
-       ))
-      ) : (
-       <p>Sin pagos de suscripción.</p>
-      )}
+    <div className="billingTable billingFullWidthTable">
+     <div className="billingTableHeader" aria-hidden="true">
+      <span>Movimiento</span>
+      <span>Fecha</span>
+      <span>Tokens</span>
      </div>
+     {transactions.length ? (
+      transactions.map((item) => (
+       <div className="billingLedgerRow" key={item.id}>
+        <span>
+         <b>{friendlyTransactionDescription(item, currentPlan?.name)}</b>
+         <small>{item.source || item.transaction_type}</small>
+        </span>
+        <small className="billingRowDate">{date(item.created_at)}</small>
+        <strong className={item.amount >= 0 ? "positive" : "negative"}>
+         {item.amount >= 0 ? "+" : ""}
+         {item.amount.toLocaleString("es-MX")}
+        </strong>
+       </div>
+      ))
+     ) : (
+      <p className="billingEmptyState">Sin movimientos de tokens.</p>
+     )}
+    </div>
+   </section>
 
-     <div className="billingTable">
-      <h3><BillingIcon name="invoice" />Facturas</h3>
-      <div className="billingTableHeader"><span>Documento</span><span>Total y acciones</span></div>
-      {invoices.length ? (
-       invoices.map((item) => (
-        <div key={item.id}>
+   <section className="commercialSection billingInvoicesSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">DOCUMENTOS DE PAGO</span>
+      <h2>Facturas</h2>
+     </div>
+     <p>Facturas de suscripciones y compras reunidas en un solo lugar.</p>
+    </div>
+
+    <div className="billingTable billingFullWidthTable billingInvoiceTable">
+     <div className="billingTableHeader billingInvoiceHeader" aria-hidden="true">
+      <span>Factura</span>
+      <span>Tipo</span>
+      <span>Fecha</span>
+      <span>Total y acciones</span>
+     </div>
+     {visibleInvoices.length ? (
+      visibleInvoices.map((item) => {
+       const relatedPurchase = item.billing_payment_id
+        ? purchasesByPayment.get(item.billing_payment_id)
+        : undefined;
+       const relatedPackage = relatedPurchase?.token_package_id
+        ? packages.find(
+           (packageItem) => packageItem.id === relatedPurchase.token_package_id,
+          )
+        : undefined;
+       const invoiceType = relatedPurchase ? "Compra de tokens" : "Suscripción";
+       const invoiceTitle = relatedPurchase
+        ? relatedPackage?.name
+         ? `Factura de ${relatedPackage.name}`
+         : "Factura de compra personalizada"
+        : currentPlan?.name
+         ? `Factura de ${currentPlan.name}`
+         : "Factura de suscripción";
+
+       return (
+        <div className="billingInvoiceRow" key={item.id}>
          <span>
-          <b>
-           {currentPlan?.name
-            ? `Factura de ${currentPlan.name}`
-            : "Factura de suscripción"}
-          </b>
+          <b>{invoiceTitle}</b>
           <small>
-           {item.invoice_number
-            ? `N.º ${item.invoice_number} · `
-            : ""}
+           {item.invoice_number ? `N.º ${item.invoice_number} · ` : ""}
            {statusLabel(item.status)}
           </small>
-          <small className="billingDate"><BillingIcon name="calendar" />{date(item.created_at)}</small>
          </span>
+         <span className="billingInvoiceType">{invoiceType}</span>
+         <small className="billingRowDate">{date(item.created_at)}</small>
          <span className="invoiceActions">
-          <strong>
-           {money(item.total, item.currency)}
-          </strong>
+          <strong>{money(item.total, item.currency)}</strong>
           {item.hosted_invoice_url && (
-           <a
-            href={item.hosted_invoice_url}
-            target="_blank"
-            rel="noreferrer"
-           >
-            <BillingIcon name="invoice" />Ver factura
+           <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">
+            Ver factura
            </a>
           )}
           {item.invoice_pdf_url && (
-           <a
-            href={item.invoice_pdf_url}
-            target="_blank"
-            rel="noreferrer"
-           >
-            <BillingIcon name="invoice" />Descargar PDF
+           <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">
+            Descargar PDF
            </a>
           )}
          </span>
         </div>
-       ))
-      ) : (
-       <p>Sin facturas.</p>
-      )}
-     </div>
+       );
+      })
+     ) : (
+      <p className="billingEmptyState">
+       {invoices.length
+        ? "Las facturas existentes no están habilitadas para publicación."
+        : "Sin facturas disponibles."}
+      </p>
+     )}
     </div>
    </section>
   </div>

@@ -344,62 +344,645 @@
 /* 09S3B · custom token checkout and separated billing history */
 .customTokenCard{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,.9fr) minmax(240px,.8fr);gap:24px;align-items:center;border:1px solid rgba(225,29,53,.32);border-radius:22px;padding:24px;background:radial-gradient(circle at 100% 0,rgba(225,29,53,.14),transparent 38%),#0d0d0f;margin-bottom:28px}.customTokenCard h3{font-size:24px;margin:8px 0}.customTokenCard p{color:var(--muted);line-height:1.55;margin:0}.customTokenControls{display:grid;gap:10px}.customTokenControls label,.customTokenSummary small,.customTokenCard>div:first-child small{font-size:10px;font-weight:900;letter-spacing:.13em;color:#85858d}.customTokenControls>input{width:100%;min-height:54px;border:1px solid var(--line);border-radius:14px;background:#08080a;color:#fff;padding:0 16px;font-size:24px;font-weight:800}.customTokenQuick{display:flex;gap:7px;flex-wrap:wrap}.customTokenQuick button{border:1px solid var(--line);border-radius:999px;background:#151518;color:#b9b9c0;padding:7px 10px;cursor:pointer}.customTokenQuick button:hover{border-color:rgba(225,29,53,.5);color:#fff}.customTokenSummary{display:grid;gap:7px;text-align:right}.customTokenSummary>strong{font-size:30px}.customTokenSummary>span{font-size:11px;color:#777}.customTokenSummary .primaryButton{margin-top:8px;border:0;min-height:46px}.packageHeading{margin-top:6px}.billingTableWide{grid-column:1/-1}@media(max-width:1000px){.customTokenCard{grid-template-columns:1fr 1fr}.customTokenSummary{grid-column:1/-1;text-align:left}}@media(max-width:700px){.customTokenCard{grid-template-columns:1fr}.customTokenSummary{grid-column:auto}.billingTableWide{grid-column:auto}}
 
+/* ========================================================================== */
+/* 09T · APPWEB UI/UX POLISH                                                  */
+/* Incremental visual layer: preserves the existing background and behavior.  */
+/* ========================================================================== */
 
-/* 10B3 · BackOffice visual parity and final commercial polish */
-.billingCenter{gap:22px}.billingCenter .commercialSection{border-radius:18px;padding:22px;background:rgba(13,13,15,.94);box-shadow:0 18px 46px rgba(0,0,0,.22)}.billingCenter .commercialHeading{margin-bottom:18px;align-items:center}.billingCenter .commercialHeading h2{font-size:22px;letter-spacing:-.025em;margin-top:5px}.billingCenter .commercialHeading p{font-size:12px;line-height:1.55}.billingCenter .billingHero{gap:14px}.billingCenter .billingHero>div{border-radius:18px;padding:22px}.billingCenter .billingHero>div:first-child>strong{font-size:52px;margin:12px 0 6px}.billingCenter .subscriptionSummary h2{font-size:21px}.billingCenter .billingActions button,.billingCenter .ghostButton{min-height:36px;padding:8px 12px;border-radius:9px;font-size:12px}.billingCenter .planGrid{gap:12px}.billingCenter .commercialCard{border-radius:14px;padding:18px;transition:border-color .18s ease,transform .18s ease,background .18s ease}.billingCenter .commercialCard:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.14);background:#101012}.billingCenter .commercialCard h3{font-size:19px;margin:13px 0 6px}.billingCenter .commercialCard>p{font-size:12px}.billingCenter .commercialCard>strong{font-size:23px;margin:16px 0}.billingCenter .commercialCard ul{font-size:12px;gap:7px;min-height:72px}.billingCenter .commercialMeta{margin:14px 0}.billingCenter .commercialMeta span{padding:6px 8px}.billingCenter .packageGrid{gap:10px}.billingCenter .packageCard{border-radius:14px;padding:17px;transition:border-color .18s ease,transform .18s ease}.billingCenter .packageCard:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.16)}.billingCenter .packageCard>strong{font-size:31px;margin:13px 0 3px}.billingCenter .packageCard>b{font-size:17px;margin-top:14px}.billingCenter .packageCard p{font-size:11px}.billingCenter .customTokenCard{border-radius:16px;padding:20px;gap:18px;margin-bottom:22px}.billingCenter .customTokenCard h3{font-size:20px}.billingCenter .customTokenControls>input{min-height:46px;border-radius:10px;font-size:20px}.billingCenter .customTokenSummary>strong{font-size:24px}.billingTables{gap:12px}.billingTable{padding:0;border-radius:14px;overflow:hidden;background:#0c0c0e}.billingTable h3{display:flex;align-items:center;gap:9px;margin:0;padding:15px 16px;border-bottom:1px solid var(--line);font-size:14px;letter-spacing:-.01em;background:rgba(255,255,255,.018)}.billingIcon{width:27px;height:27px;border:1px solid rgba(255,255,255,.09);border-radius:8px;display:inline-grid;place-items:center;color:#c8c8ce;background:#141416;flex:0 0 auto}.billingIcon svg{width:14px;height:14px}.billingTableHeader{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:9px 16px!important;border-top:0!important;border-bottom:1px solid var(--line);background:#101012;color:#65656d;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.billingTableHeader span:last-child{text-align:right}.billingTable>div:not(.billingTableHeader){min-height:68px;padding:12px 16px;border-top:0;border-bottom:1px solid rgba(255,255,255,.06);transition:background .15s ease}.billingTable>div:not(.billingTableHeader):last-child{border-bottom:0}.billingTable>div:not(.billingTableHeader):hover{background:rgba(255,255,255,.025)}.billingTable>div span:first-child{gap:5px;min-width:0}.billingTable b{font-size:12px;font-weight:680;color:#ededf0}.billingTable small{font-size:10px;line-height:1.4}.billingTable>div>strong,.invoiceActions>strong{font-size:12px;white-space:nowrap}.billingDate{display:flex!important;grid-template-columns:none!important;align-items:center;gap:5px}.billingDate .billingIcon{width:18px;height:18px;border:0;background:transparent;color:#686870}.billingDate .billingIcon svg{width:11px;height:11px}.billingStatus{display:inline-flex;align-items:center;margin-left:4px;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.09);font-size:9px;font-weight:800;letter-spacing:.03em;color:#b6b6bd;background:#151517}.billingStatus.status-succeeded,.billingStatus.status-paid,.billingStatus.status-active,.billingStatus.status-completed{color:#78dba7;border-color:rgba(68,190,126,.28);background:rgba(68,190,126,.08)}.billingStatus.status-pending,.billingStatus.status-processing,.billingStatus.status-open{color:#e7bf69;border-color:rgba(231,191,105,.26);background:rgba(231,191,105,.07)}.billingStatus.status-failed,.billingStatus.status-canceled,.billingStatus.status-cancelled{color:#ff8197;border-color:rgba(225,29,53,.3);background:rgba(225,29,53,.08)}.invoiceActions{justify-content:flex-end;flex-wrap:wrap}.invoiceActions a{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:#d7d7dc;background:#141416}.invoiceActions a:hover{border-color:rgba(225,29,53,.35);color:#fff}.invoiceActions .billingIcon{width:17px;height:17px;border:0;background:transparent;color:#ff7895}.invoiceActions .billingIcon svg{width:11px;height:11px}.billingTable>p{margin:0;padding:24px 16px;color:#6f6f77;font-size:12px}.billingAlert{border-radius:12px;font-size:12px}.couponBox{border-radius:14px;padding:16px}.couponBox input{border-radius:9px}.billingCenter button:focus-visible,.billingCenter a:focus-visible,.billingCenter input:focus-visible{outline:2px solid rgba(225,29,53,.72);outline-offset:2px}@media(max-width:700px){.billingCenter .commercialSection{padding:16px}.billingCenter .commercialHeading h2{font-size:20px}.billingCenter .billingHero>div{padding:18px}.billingCenter .billingHero>div:first-child>strong{font-size:44px}.billingTable{overflow-x:auto}.billingTable>div{min-width:520px}.billingTable h3{min-width:0}.billingTable>p{min-width:0}.invoiceActions{justify-content:flex-end}}
-
-/* 10B7 — Shell visual equivalente al BackOffice, sin alterar Billing */
-.boExactShell{min-height:100vh;background:#040405;color:#f7f7f8}
-.boExactSidebar{position:fixed;inset:0 auto 0 0;z-index:40;width:288px;display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,.06);background:rgba(7,7,8,.95);backdrop-filter:blur(20px);transition:width .3s ease}
-.boExactBrand{min-height:80px;display:flex;align-items:center;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.06);overflow:hidden}
-.boExactNav{flex:1;overflow-y:auto;padding:20px 12px}
-.boExactNav section>p{margin:0 0 8px;padding:0 12px;color:#3f3f46;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase}
-.boExactNav section>div{display:grid;gap:4px}
-.boExactNav a{height:40px;display:flex;align-items:center;gap:12px;padding:0 12px;border:1px solid transparent;border-radius:12px;color:#71717a;font-size:14px;transition:.2s ease}
-.boExactNav a svg{flex:0 0 auto;color:#52525b;transition:.2s ease}
-.boExactNav a:hover{border-color:rgba(255,255,255,.05);background:rgba(255,255,255,.025);color:#e4e4e7}
-.boExactNav a:hover svg{color:#d4d4d8}
-.boExactNav a.active{border-color:rgba(239,68,68,.15);background:linear-gradient(90deg,rgba(69,10,10,.45),rgba(69,10,10,.1));color:#fff;box-shadow:0 0 28px rgba(150,10,30,.12)}
-.boExactNav a.active svg{color:#f87171}
-.boExactSidebarFooter{display:block;padding:12px;border-top:1px solid rgba(255,255,255,.06)}
-.boExactSidebarFooter button{width:100%;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid rgba(255,255,255,.06);border-radius:12px;background:rgba(255,255,255,.02);color:#71717a;font-size:12px}
-.boExactSidebarFooter button:hover{background:rgba(255,255,255,.05);color:#fff}
-.boExactSidebarFooter b{font-size:19px;font-weight:400}
-.boExactMain{min-height:100vh;padding-left:288px;transition:padding-left .3s ease}
-.boExactTopbar{position:sticky;top:0;z-index:30;height:80px;display:flex;align-items:center;padding:0 32px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(5,5,6,.8);backdrop-filter:blur(20px)}
-.boExactTopbarActions{margin-left:auto;display:flex;align-items:center;gap:8px}
-.boExactLanguage{height:40px;display:flex;align-items:center;padding:0 12px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a;font-size:12px}
-.boExactProfile{height:48px;display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
-.boExactProfile>span:last-child{min-width:0;display:grid;gap:2px}
-.boExactProfile strong,.boExactProfile small{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.boExactProfile strong{font-size:12px;color:#f4f4f5}
-.boExactProfile small{font-size:10px;color:#71717a}
-.boExactAvatar{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(239,68,68,.18);border-radius:10px;background:rgba(69,10,10,.45);color:#f87171;font-size:11px;font-weight:800}
-.boExactLogout{width:40px;height:40px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a}
-.boExactLogout:hover{background:rgba(255,255,255,.05);color:#fff}
-.boExactMenu{display:none;width:40px;height:40px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a}
-.boExactContent{min-height:calc(100vh - 80px);padding:32px;background-color:#040405;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:42px 42px}
-.boExactShell.isCollapsed .boExactSidebar{width:80px}
-.boExactShell.isCollapsed .boExactMain{padding-left:80px}
-.boExactShell.isCollapsed .boExactBrand{justify-content:center;padding:0 12px}
-.boExactShell.isCollapsed .boExactBrand .brandName,.boExactShell.isCollapsed .boExactBrand .brandText,.boExactShell.isCollapsed .boExactBrand span:not(.brandMark){display:none}
-.boExactShell.isCollapsed .boExactNav a{justify-content:center;padding:0}
-.boExactShell.isCollapsed .boExactSidebarFooter button{justify-content:center;padding:0}
-.boExactMobileSidebar,.boExactOverlay{display:none}
-@media(max-width:1023px){
- .boExactSidebar{display:none}
- .boExactMain,.boExactShell.isCollapsed .boExactMain{padding-left:0}
- .boExactMenu{display:grid;place-items:center}
- .boExactTopbar{padding:0 24px}
- .boExactMobileSidebar{position:fixed;inset:0 auto 0 0;z-index:51;width:min(88vw,320px);display:flex;flex-direction:column;transform:translateX(-100%);border-right:1px solid rgba(255,255,255,.08);background:#070708;box-shadow:0 30px 80px rgba(0,0,0,.7);transition:transform .28s ease}
- .boExactMobileSidebar.open{transform:translateX(0)}
- .boExactOverlay{position:fixed;inset:0;z-index:50;display:block;border:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px)}
- .boExactMobileClose{position:absolute;top:20px;right:16px;z-index:2;width:36px;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03);color:#a1a1aa;font-size:22px}
-}
-@media(max-width:680px){
- .boExactTopbar{height:68px;padding:0 14px}
- .boExactContent{min-height:calc(100vh - 68px);padding:18px 14px}
- .boExactLanguage,.boExactProfile>span:last-child{display:none}
- .boExactProfile{height:42px;padding:4px}
+:root{
+  --app-radius-xs:10px;
+  --app-radius-sm:14px;
+  --app-radius-md:18px;
+  --app-radius-lg:24px;
+  --app-radius-xl:30px;
+  --app-ease:cubic-bezier(.2,.8,.2,1);
+  --app-shadow-soft:0 18px 50px rgba(0,0,0,.28);
+  --app-shadow-card:0 22px 70px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.035);
+  --app-glow:0 0 0 1px rgba(225,29,53,.11),0 18px 55px rgba(165,9,29,.12);
 }
 
+html{scroll-behavior:smooth}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:rgba(225,29,53,.34);color:#fff}
+
+/* Unified typography and focus */
+h1,h2,h3,h4,strong,.brand,.primaryButton,.secondaryButton,.ghostButton{
+  font-family:var(--font-geist-sans),Arial,Helvetica,sans-serif;
+}
+h1,h2,h3,h4{letter-spacing:-.035em}
+button,a,input,select,textarea{transition:border-color .22s var(--app-ease),background .22s var(--app-ease),color .22s var(--app-ease),box-shadow .22s var(--app-ease),transform .22s var(--app-ease),opacity .22s var(--app-ease)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:none;box-shadow:0 0 0 3px rgba(225,29,53,.22),0 0 0 1px #e11d35;
+}
+button:not(:disabled):active,.primaryButton:not(:disabled):active,.secondaryButton:not(:disabled):active{transform:translateY(1px) scale(.99)}
+button:disabled{cursor:not-allowed}
+
+/* Brand parity with authentication screens */
+.brand{gap:11px;font-size:15px;line-height:1;white-space:nowrap}
+.brandMark{position:relative;isolation:isolate;overflow:hidden;border:1px solid rgba(255,255,255,.1);box-shadow:0 12px 34px rgba(225,29,53,.28),inset 0 1px 0 rgba(255,255,255,.18)}
+.brandMark:after{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.34) 50%,transparent 62%);transform:translateX(-70%) rotate(15deg);animation:brandSheen 7s ease-in-out infinite;z-index:-1}
+.brandAccent{text-shadow:0 0 22px rgba(225,29,53,.35)}
+@keyframes brandSheen{0%,72%{transform:translateX(-75%) rotate(15deg)}88%,100%{transform:translateX(75%) rotate(15deg)}}
+
+/* Premium app shell while preserving the original background */
+.appFrame{grid-template-columns:272px minmax(0,1fr)}
+.sidebar{width:272px;padding:28px 20px;background:linear-gradient(180deg,rgba(16,16,18,.96),rgba(8,8,9,.985));box-shadow:18px 0 70px rgba(0,0,0,.18);backdrop-filter:blur(20px)}
+.sidebar:after{content:"";position:absolute;inset:0 0 0 auto;width:1px;background:linear-gradient(180deg,transparent,rgba(225,29,53,.35),transparent);opacity:.55}
+.workspaceLabel{margin-top:42px;color:#686871}
+.sidebar nav{gap:7px}
+.sidebar nav a{position:relative;min-height:48px;align-items:center;padding:0 14px;border:1px solid transparent;overflow:hidden}
+.sidebar nav a:before{content:"";position:absolute;inset:8px auto 8px 0;width:3px;border-radius:999px;background:#e11d35;box-shadow:0 0 18px rgba(225,29,53,.8);transform:scaleY(0);transition:transform .22s var(--app-ease)}
+.sidebar nav a:hover{border-color:rgba(255,255,255,.055);background:rgba(255,255,255,.025);transform:translateX(2px)}
+.sidebar nav a.active{border-color:rgba(225,29,53,.18);background:linear-gradient(90deg,rgba(225,29,53,.17),rgba(225,29,53,.035));box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.sidebar nav a.active:before{transform:scaleY(1)}
+.sidebar nav a span{width:24px;height:24px;display:grid;place-items:center;border-radius:8px;color:#b8b8c0;font-size:0;position:relative;flex:0 0 24px}
+.sidebar nav a span:before,.sidebar nav a span:after{content:"";position:absolute;box-sizing:border-box}
+/* Consistent CSS line-icon system; replaces mixed text glyphs visually. */
+.sidebar nav a:nth-child(1) span:before{width:15px;height:13px;border:1.7px solid currentColor;border-top:0;border-radius:2px;bottom:3px}
+.sidebar nav a:nth-child(1) span:after{width:11px;height:11px;border-left:1.7px solid currentColor;border-top:1.7px solid currentColor;transform:rotate(45deg);top:3px;border-radius:2px}
+.sidebar nav a:nth-child(2) span:before{width:16px;height:16px;border:1.7px solid currentColor;border-radius:50%}
+.sidebar nav a:nth-child(2) span:after{width:6px;height:6px;background:currentColor;clip-path:polygon(50% 0,64% 36%,100% 50%,64% 64%,50% 100%,36% 64%,0 50%,36% 36%)}
+.sidebar nav a:nth-child(3) span:before{width:15px;height:15px;border:1.7px solid currentColor;border-radius:50%}
+.sidebar nav a:nth-child(3) span:after{width:6px;height:1.7px;background:currentColor;top:11px;left:5px;box-shadow:3px -4px 0 -0.2px currentColor;transform:rotate(-12deg)}
+.sidebar nav a:nth-child(4) span:before{width:16px;height:14px;border:1.7px solid currentColor;border-radius:3px}
+.sidebar nav a:nth-child(4) span:after{width:5px;height:5px;border:1.5px solid currentColor;border-radius:50%;right:4px;top:4px;box-shadow:-6px 6px 0 -1px currentColor}
+.sidebar nav a:nth-child(5) span:before{width:16px;height:12px;border:1.7px solid currentColor;border-radius:4px}
+.sidebar nav a:nth-child(5) span:after{width:8px;height:1.7px;background:currentColor;left:4px;top:8px;box-shadow:0 4px 0 -0.2px currentColor}
+.sidebar nav a:nth-child(6) span:before{width:15px;height:15px;border:1.7px solid currentColor;border-radius:50%;box-shadow:inset 0 0 0 3px transparent}
+.sidebar nav a:nth-child(6) span:after{width:5px;height:5px;border:1.5px solid currentColor;border-radius:50%}
+.sidebar nav a.active span{color:#fff;background:rgba(225,29,53,.15);box-shadow:0 0 18px rgba(225,29,53,.14)}
+.userMiniCard{border-color:rgba(255,255,255,.075);background:linear-gradient(145deg,#151518,#0d0d0f);box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.userMiniCard:hover{border-color:rgba(225,29,53,.2);transform:translateY(-1px)}
+.userAvatar{box-shadow:0 10px 24px rgba(165,9,29,.24)}
+.logout{border-radius:12px}.logout:hover{background:rgba(225,29,53,.08);color:#ff90a3}
+
+.appContent{padding:38px clamp(24px,4vw,66px) 64px;max-width:1720px;width:100%;margin-left:auto;margin-right:auto}
+.pageEnter{animation:premiumPageEnter .52s var(--app-ease) both}
+@keyframes premiumPageEnter{from{opacity:0;transform:translateY(12px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+.topbar,.sectionHeader{margin-bottom:8px}
+.topbar h1,.sectionHeader h1{background:linear-gradient(180deg,#fff,#d7d7dc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tokenBadge{min-height:62px;border-color:rgba(255,255,255,.085);background:linear-gradient(145deg,rgba(22,22,25,.92),rgba(11,11,13,.94));box-shadow:var(--app-shadow-soft)}
+.tokenBadge:hover{border-color:rgba(225,29,53,.24);transform:translateY(-2px);box-shadow:var(--app-glow)}
+
+/* Shared cards, inputs, tables and buttons across the entire AppWeb */
+.heroAction,.statsGrid article,.quickCard,.moduleCanvas,.accountSummary,.profilePanel,.commercialSection,.commercialCard,.packageCard,.billingHero>div,.billingTable,.jobModal>article{
+  box-shadow:var(--app-shadow-card);
+}
+.statsGrid article,.quickCard,.commercialCard,.packageCard,.billingTable,.profilePanel,.accountSummary{
+  position:relative;overflow:hidden;transition:transform .26s var(--app-ease),border-color .26s var(--app-ease),box-shadow .26s var(--app-ease),background .26s var(--app-ease);
+}
+.statsGrid article:before,.quickCard:before,.commercialCard:before,.packageCard:before,.billingTable:before{
+  content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.035),transparent 32%);opacity:.7;
+}
+.statsGrid article:hover,.quickCard:hover,.commercialCard:hover,.packageCard:hover,.billingTable:hover{
+  transform:translateY(-3px);border-color:rgba(225,29,53,.2);box-shadow:var(--app-glow);
+}
+.primaryButton{position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(165,9,29,.26),inset 0 1px rgba(255,255,255,.16)}
+.primaryButton:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 25%,rgba(255,255,255,.2),transparent 75%);transform:translateX(-120%);transition:transform .65s var(--app-ease)}
+.primaryButton:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 42px rgba(165,9,29,.34),inset 0 1px rgba(255,255,255,.2)}
+.primaryButton:hover:not(:disabled):before{transform:translateX(120%)}
+.secondaryButton:hover,.ghostButton:hover,.billingActions button:hover,.couponBox button:hover{border-color:rgba(225,29,53,.34);background:#1b1417;color:#fff;transform:translateY(-1px)}
+input,select,textarea{background:#0b0b0d!important;border-color:rgba(255,255,255,.09)!important}
+input:hover,select:hover,textarea:hover{border-color:rgba(255,255,255,.16)!important}
+input:focus,select:focus,textarea:focus{border-color:rgba(225,29,53,.72)!important;box-shadow:0 0 0 3px rgba(225,29,53,.11)!important}
+
+/* Billing information architecture and richer motion */
+.billingCenter{gap:24px}
+.billingCenter>*{animation:billingReveal .48s var(--app-ease) both}
+.billingCenter>*:nth-child(2){animation-delay:.04s}.billingCenter>*:nth-child(3){animation-delay:.08s}.billingCenter>*:nth-child(4){animation-delay:.12s}.billingCenter>*:nth-child(5){animation-delay:.16s}.billingCenter>*:nth-child(6){animation-delay:.2s}
+@keyframes billingReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.billingAlert{box-shadow:0 12px 35px rgba(0,0,0,.18);backdrop-filter:blur(14px)}
+.billingHero{grid-template-columns:minmax(300px,.84fr) minmax(420px,1.16fr);gap:18px}
+.billingHero>div{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(145deg,rgba(20,20,23,.96),rgba(10,10,12,.98));box-shadow:var(--app-shadow-card)}
+.billingHero>div:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;right:-110px;top:-120px;background:rgba(225,29,53,.09);filter:blur(35px);pointer-events:none}
+.billingHero>div:first-child>strong{font-variant-numeric:tabular-nums;text-shadow:0 0 32px rgba(225,29,53,.2)}
+.commercialSection{border-radius:24px;padding:28px;background:linear-gradient(145deg,rgba(18,18,21,.94),rgba(10,10,12,.97));border-color:rgba(255,255,255,.075)}
+.commercialHeading{padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,.06)}
+.commercialHeading h2{font-size:28px}
+.planGrid,.packageGrid{gap:14px}
+.commercialCard,.packageCard{background:linear-gradient(150deg,#111114,#0a0a0c);border-color:rgba(255,255,255,.075)}
+.packageCard.selected{transform:translateY(-3px);background:radial-gradient(circle at 100% 0,rgba(225,29,53,.14),transparent 42%),#0e0e11;box-shadow:var(--app-glow)}
+.customTokenCard{position:relative;overflow:hidden;box-shadow:var(--app-shadow-card);transition:border-color .25s var(--app-ease),box-shadow .25s var(--app-ease)}
+.customTokenCard:after{content:"";position:absolute;inset:-1px;pointer-events:none;border-radius:inherit;background:linear-gradient(115deg,transparent 30%,rgba(225,29,53,.11),transparent 65%);transform:translateX(-100%);animation:tokenCardSweep 8s ease-in-out infinite}
+@keyframes tokenCardSweep{0%,72%{transform:translateX(-100%)}88%,100%{transform:translateX(100%)}}
+.customTokenQuick button:hover{transform:translateY(-2px);background:rgba(225,29,53,.09)}
+
+/* Existing history blocks: purchases first, ledger full width, invoices full width. */
+.billingTables{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.billingTable{min-width:0;border-radius:20px;padding:20px;background:linear-gradient(155deg,#111113,#0a0a0c);border-color:rgba(255,255,255,.075)}
+.billingTable h3{font-size:18px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.billingTable h3:before{content:"";width:8px;height:8px;border-radius:50%;background:#e11d35;box-shadow:0 0 16px rgba(225,29,53,.72)}
+.billingTable>div{min-height:66px;padding:14px 4px}
+.billingTable>div:hover{background:linear-gradient(90deg,rgba(225,29,53,.045),transparent);padding-left:8px;padding-right:8px;border-radius:10px}
+.billingTableWide{grid-column:1/-1}
+.billingTables .billingTable:last-child{grid-column:1/-1}
+.invoiceActions a{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border:1px solid rgba(225,29,53,.22);border-radius:9px;background:rgba(225,29,53,.06)}
+.invoiceActions a:hover{background:rgba(225,29,53,.14);border-color:rgba(225,29,53,.42);transform:translateY(-1px)}
+.billingTable .positive,.billingTable .negative{font-variant-numeric:tabular-nums;font-weight:850;padding:6px 9px;border-radius:999px}
+.billingTable .positive{background:rgba(62,190,126,.08)}.billingTable .negative{background:rgba(225,29,53,.08)}
+
+/* Skeleton-like loading pulse without changing component logic */
+.pageLoading{gap:18px;color:#aaa}.pageLoading:before{content:"";width:52px;height:52px;margin:0 auto;border-radius:16px;background:linear-gradient(110deg,#151518 20%,#25252a 42%,#151518 64%);background-size:220% 100%;animation:appShimmer 1.3s linear infinite;box-shadow:var(--app-shadow-soft)}
+@keyframes appShimmer{to{background-position-x:-220%}}
+
+/* Responsive refinements */
+@media(max-width:1100px){
+  .appContent{padding-left:28px;padding-right:28px}
+  .billingHero{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+  .appFrame{display:block}
+  .appContent{max-width:none;padding:26px 20px 52px}
+  .sidebar{width:min(86vw,310px)}
+  .mobileHeader{box-shadow:0 12px 40px rgba(0,0,0,.28)}
+  .billingTables{grid-template-columns:1fr}
+  .billingTables .billingTable:last-child,.billingTableWide{grid-column:auto}
+}
+@media(max-width:700px){
+  .commercialSection{padding:18px;border-radius:20px}
+  .commercialHeading{padding-bottom:15px}
+  .billingHero>div{padding:24px}
+  .billingHero>div:first-child>strong{font-size:58px}
+  .billingTable{padding:16px}
+  .billingTable>div{align-items:flex-start;flex-direction:column}
+  .invoiceActions{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+}
+
+/* 09T3 — Billing layout definitivo */
+.billingCommerceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.billingCommerceCard,
+.billingFullWidthTable {
+  width: 100%;
+  min-width: 0;
+}
+.billingCommerceCard {
+  height: 100%;
+  align-content: start;
+}
+.billingBlockHeading {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  padding-bottom: 16px !important;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.billingBlockHeading h3 { margin: 0; }
+.billingBlockHeading p { margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
+.billingBlockIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid rgba(239,35,64,.32);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(239,35,64,.18), rgba(239,35,64,.04));
+  color: #ff526b;
+  font-size: .72rem;
+  font-weight: 800;
+  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 8px 22px rgba(130,0,20,.12);
+}
+.billingFullWidthTable > .billingTableHeader,
+.billingFullWidthTable > .billingLedgerRow,
+.billingFullWidthTable > .billingInvoiceRow {
+  width: 100%;
+}
+.billingTableHeader {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .35fr) 110px;
+  gap: 22px !important;
+  padding: 9px 14px !important;
+  color: rgba(255,255,255,.42);
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,.018) !important;
+}
+.billingLedgerRow {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .35fr) 110px;
+  align-items: center !important;
+  gap: 22px !important;
+}
+.billingLedgerRow > strong { text-align: right; }
+.billingInvoiceHeader,
+.billingInvoiceRow {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(120px, .55fr) minmax(150px, .65fr) minmax(220px, .9fr);
+  align-items: center !important;
+  gap: 18px !important;
+}
+.billingInvoiceType {
+  width: fit-content;
+  padding: 5px 9px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 999px;
+  color: rgba(255,255,255,.74);
+  background: rgba(255,255,255,.035);
+  font-size: .7rem;
+  white-space: nowrap;
+}
+.billingRowDate { color: var(--muted); }
+.billingInvoiceRow .invoiceActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  text-align: right;
+}
+.billingInvoiceRow .invoiceActions strong { margin-right: 4px; }
+.billingEmptyState {
+  min-height: 86px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+}
+.billingCommerceSection,
+.billingLedgerSection,
+.billingInvoicesSection { position: relative; overflow: hidden; }
+.billingCommerceSection::before,
+.billingLedgerSection::before,
+.billingInvoicesSection::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 42%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(239,35,64,.9), transparent);
+}
+@media (max-width: 980px) {
+  .billingCommerceGrid { grid-template-columns: 1fr; }
+  .billingInvoiceHeader { display: none !important; }
+  .billingInvoiceRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .billingInvoiceRow .billingRowDate { grid-column: 1; }
+  .billingInvoiceRow .invoiceActions { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (max-width: 700px) {
+  .billingTableHeader { display: none !important; }
+  .billingLedgerRow,
+  .billingInvoiceRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 14px !important;
+  }
+  .billingLedgerRow .billingRowDate { grid-column: 1; }
+  .billingLedgerRow > strong { grid-column: 2; grid-row: 1 / span 2; }
+  .billingInvoiceRow .billingInvoiceType { grid-column: 1; }
+  .billingInvoiceRow .billingRowDate { grid-column: 1; }
+  .billingInvoiceRow .invoiceActions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-start;
+    text-align: left;
+    padding-top: 6px;
+  }
+}
+
+
+/* 10B8 — AppWeb shell copied from the BackOffice geometry and visual rules */
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 5%, rgba(125,5,24,.16), transparent 28%),
+    radial-gradient(circle at 90% 18%, rgba(96,4,18,.10), transparent 24%),
+    linear-gradient(180deg, #060606 0%, #030303 100%) !important;
+  color: #f5f5f5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+  display: none !important;
+}
+
+.appFrame {
+  min-height: 100vh !important;
+  display: block !important;
+  background: #040405 !important;
+}
+
+.sidebar {
+  position: fixed !important;
+  inset: 0 auto 0 0 !important;
+  z-index: 40 !important;
+  width: 288px !important;
+  height: 100vh !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
+  background: rgba(7,7,8,.95) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(20px) !important;
+  overflow: hidden !important;
+}
+
+.sidebar::after {
+  display: none !important;
+}
+
+.desktopBrand {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 80px !important;
+  padding: 0 20px !important;
+  border-bottom: 1px solid rgba(255,255,255,.06) !important;
+}
+
+.desktopBrand .brand {
+  gap: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: .22em !important;
+}
+
+.desktopBrand .brandMark {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(239,68,68,.20) !important;
+  background: rgba(69,10,10,.30) !important;
+  color: #f87171 !important;
+  box-shadow: 0 0 28px rgba(150,10,30,.14) !important;
+}
+
+.workspaceLabel {
+  margin: 0 !important;
+  padding: 22px 24px 8px !important;
+  color: #3f3f46 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: .22em !important;
+  text-transform: uppercase !important;
+}
+
+.sidebar nav {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin: 0 !important;
+  padding: 0 12px 20px !important;
+  overflow-y: auto !important;
+}
+
+.sidebar nav a {
+  position: relative !important;
+  min-height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 0 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: #71717a !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+
+.sidebar nav a::before {
+  display: none !important;
+}
+
+.sidebar nav a span {
+  width: 17px !important;
+  height: 17px !important;
+  flex: 0 0 17px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #52525b !important;
+  box-shadow: none !important;
+}
+
+.sidebar nav a strong {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.sidebar nav a:hover {
+  border-color: rgba(255,255,255,.05) !important;
+  background: rgba(255,255,255,.025) !important;
+  color: #e4e4e7 !important;
+}
+
+.sidebar nav a.active {
+  border-color: rgba(239,68,68,.15) !important;
+  background: linear-gradient(90deg, rgba(69,10,10,.45), rgba(69,10,10,.10)) !important;
+  color: #fff !important;
+  box-shadow: 0 0 28px rgba(150,10,30,.12) !important;
+}
+
+.sidebar nav a.active span {
+  color: #f87171 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sidebarBottom {
+  margin-top: auto !important;
+  display: grid !important;
+  gap: 8px !important;
+  padding: 12px !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+}
+
+.userMiniCard {
+  min-height: 54px !important;
+  padding: 8px 10px !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.02) !important;
+}
+
+.userAvatar {
+  width: 34px !important;
+  height: 34px !important;
+  flex: 0 0 34px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(239,68,68,.18) !important;
+  background: rgba(69,10,10,.45) !important;
+  color: #f87171 !important;
+  box-shadow: none !important;
+}
+
+.userMiniCopy strong {
+  color: #f4f4f5 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.userMiniCopy small {
+  color: #71717a !important;
+  font-size: 10px !important;
+}
+
+.logout {
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,.02) !important;
+  color: #71717a !important;
+  font-size: 12px !important;
+}
+
+.logout:hover {
+  background: rgba(255,255,255,.05) !important;
+  color: #fff !important;
+}
+
+.appContent {
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 32px !important;
+  padding-left: 320px !important;
+  background-color: #040405 !important;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px) !important;
+  background-size: 42px 42px !important;
+}
+
+/* Top bar removed completely */
+.appShellTopbar,
+.boTopbar,
+.boExactTopbar,
+.topbarSearch,
+.shellSearch {
+  display: none !important;
+}
+
+/* Preserve the corrected 09T4 Plans/Tokens structure */
+.billingCenter {
+  width: min(100%, 1500px) !important;
+  margin: 0 auto !important;
+}
+
+.planGrid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.packageGrid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.billingHero {
+  display: grid !important;
+  grid-template-columns: minmax(280px,.8fr) minmax(380px,1.2fr) !important;
+  gap: 20px !important;
+}
+
+.billingTables,
+.billingCommerceGrid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  gap: 16px !important;
+}
+
+.commercialSection {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.mobileHeader {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .planGrid {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+
+  .packageGrid,
+  .billingTables,
+  .billingCommerceGrid,
+  .billingHero {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .mobileHeader {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 45 !important;
+    min-height: 68px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 16px !important;
+    border-bottom: 1px solid rgba(255,255,255,.06) !important;
+    background: rgba(5,5,6,.92) !important;
+    backdrop-filter: blur(20px) !important;
+  }
+
+  .sidebar {
+    width: min(88vw,320px) !important;
+    transform: translateX(-100%) !important;
+    transition: transform .28s ease !important;
+  }
+
+  .sidebar.sidebarOpen {
+    transform: translateX(0) !important;
+  }
+
+  .appContent {
+    padding: 24px !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .appContent {
+    padding: 18px 14px !important;
+  }
+
+  .planGrid,
+  .packageGrid,
+  .billingTables,
+  .billingCommerceGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .commercialSection {
+    padding: 20px !important;
+  }
+}
