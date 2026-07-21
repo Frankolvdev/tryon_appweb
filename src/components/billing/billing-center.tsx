@@ -125,7 +125,7 @@ const paymentMethodLabel = (detail?: BillingPayment | null) => {
    ? `${brand} •••• ${detail.payment_method_last4}`
    : brand;
  const wallet = detail.payment_method_wallet
-  ? wallets[detail.wallet_type] || titleFromKey(detail.wallet_type)
+  ? wallets[detail.payment_method_wallet] || titleFromKey(detail.payment_method_wallet)
   : null;
 
  if (wallet && card) return `${wallet} · ${card}`;
