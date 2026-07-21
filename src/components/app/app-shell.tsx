@@ -2,30 +2,30 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { type CSSProperties, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useAppSession } from "@/components/app/app-session";
 import { Brand } from "@/components/ui/brand";
 import { clearSession } from "@/lib/auth-storage";
 
 const items = [
-  ["/dashboard", "Inicio", "Overview", "home"],
-  ["/try-on", "Crear Try-On", "AI Atelier", "spark"],
-  ["/history", "Historial", "Creaciones", "history"],
-  ["/gallery", "Galería", "Editorial", "gallery"],
-  ["/billing", "Tokens y plan", "Membership", "wallet"],
-  ["/settings", "Configuración", "Mi cuenta", "settings"],
+  ["/dashboard", "Inicio", "Resumen de tu estudio", "home"],
+  ["/try-on", "Crear Try-On", "Estudio de creación", "spark"],
+  ["/history", "Historial", "Tus generaciones", "history"],
+  ["/gallery", "Galería", "Colección personal", "gallery"],
+  ["/billing", "Tokens y plan", "Pagos y membresía", "wallet"],
+  ["/settings", "Configuración", "Perfil y preferencias", "settings"],
 ] as const;
 
 type IconName = (typeof items)[number][3];
 
 function NavigationIcon({ name }: { name: IconName }) {
   const common = {
-    width: 20,
-    height: 20,
+    width: 21,
+    height: 21,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.65,
+    strokeWidth: 1.7,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
@@ -56,39 +56,34 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="appFrame fashionFrame">
-      <aside className="sidebar fashionSidebar">
-        <div className="desktopBrand fashionBrand"><Brand /></div>
-        <div className="fashionEditorialMark" aria-hidden="true"><span>AI</span><i>ATELIER</i></div>
-        <nav className="fashionRibbon" aria-label="Navegación principal">
-          {items.map(([href, label, caption, icon], index) => {
+    <div className="appFrame railFrame">
+      <aside className="sidebar fashionRail">
+        <div className="railBrand"><Brand /></div>
+        <nav className="railNavigation" aria-label="Navegación principal">
+          {items.map(([href, label, caption, icon]) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
-              <Link
-                key={href}
-                href={href}
-                className={`fashionNavCard${active ? " active" : ""}`}
-                style={{ "--fashion-index": index } as CSSProperties}
-                aria-current={active ? "page" : undefined}
-              >
-                <span className="fashionNavNumber">{String(index + 1).padStart(2, "0")}</span>
-                <span className="fashionNavIcon"><NavigationIcon name={icon} /></span>
-                <span className="fashionNavCopy"><strong>{label}</strong><small>{caption}</small></span>
-                <span className="fashionNavArrow" aria-hidden="true">↗</span>
+              <Link key={href} href={href} className={`railItem${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
+                <span className="railIcon"><NavigationIcon name={icon} /></span>
+                <span className="railCard">
+                  <strong>{label}</strong>
+                  <small>{caption}</small>
+                  <i aria-hidden="true">↗</i>
+                </span>
               </Link>
             );
           })}
         </nav>
-        <div className="sidebarBottom fashionAccount">
-          <Link href="/settings" className="userMiniCard">
+        <div className="railAccount">
+          <Link href="/settings" className="railProfile" aria-label="Abrir mi cuenta">
             <span className="userAvatar">{initials(user.full_name)}</span>
-            <span className="userMiniCopy"><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span>
+            <span><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span>
           </Link>
-          <button className="logout" onClick={logout} aria-label="Cerrar sesión"><span>↗</span><strong>Cerrar sesión</strong></button>
+          <button className="railLogout" onClick={logout} aria-label="Cerrar sesión">↗</button>
         </div>
       </aside>
-      <header className="mobileHeader fashionMobileHeader"><Brand /></header>
-      <main className="appContent fashionContent">{children}</main>
+      <header className="mobileHeader railMobileHeader"><Brand /></header>
+      <main className="appContent railContent">{children}</main>
     </div>
   );
 }
