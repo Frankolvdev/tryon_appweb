@@ -71,71 +71,6 @@ const subscriptionMovementLabel = (paymentType: string) =>
   ? "Renovación de suscripción"
   : "Compra de suscripción";
 
-const titleFromKey = (value: string) =>
- value
-  .replace(/[_-]+/g, " ")
-  .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-const friendlyTransactionDescription = (
- transaction: TokenTransaction,
- currentPlanName?: string | null,
-) => {
- const description = transaction.description?.trim();
- if (!description) {
-  return transaction.source || transaction.transaction_type;
- }
-
- const subscriptionMatch = description.match(
-  /Subscription tokens for plan\s+([^;]+)(?:;\s*invoice\s+\S+)?/i,
- );
- if (subscriptionMatch) {
-  const planName = currentPlanName || titleFromKey(subscriptionMatch[1]);
-  return `Tokens incluidos en el plan ${planName}`;
- }
-
- return description
-  .replace(/;\s*invoice\s+in_[A-Za-z0-9]+/gi, "")
-  .replace(/\bin_[A-Za-z0-9]+\b/g, "")
-  .trim();
-};
-
-const paymentMethodLabel = (detail?: BillingPayment | null) => {
- if (!detail) return null;
-
- const brands: Record<string, string> = {
-  visa: "Visa",
-  mastercard: "Mastercard",
-  amex: "American Express",
-  discover: "Discover",
-  diners: "Diners Club",
-  jcb: "JCB",
-  unionpay: "UnionPay",
- };
- const wallets: Record<string, string> = {
-  apple_pay: "Apple Pay",
-  google_pay: "Google Pay",
-  link: "Link",
- };
- const brand = detail.payment_method_brand
-  ? brands[detail.payment_method_brand] ||
-    titleFromKey(detail.payment_method_brand)
-  : null;
- const card =
-  brand && detail.payment_method_last4
-   ? `${brand} •••• ${detail.payment_method_last4}`
-   : brand;
- const wallet = detail.payment_method_wallet
-  ? wallets[detail.payment_method_wallet] || titleFromKey(detail.payment_method_wallet)
-  : null;
-
- if (wallet && card) return `${wallet} · ${card}`;
- if (card) return card;
- if (detail.payment_method_type) {
-  return titleFromKey(detail.payment_method_type);
- }
- return null;
-};
-
 export function BillingCenter() {
  const params = useSearchParams();
  const { user, refreshUser } = useAppSession();
@@ -253,26 +188,6 @@ export function BillingCenter() {
      item.payment_type === "subscription" ||
      item.payment_type === "subscription_renewal",
    ),
-  [payments],
- );
-
- const purchasesByPayment = useMemo(
-  () =>
-   new Map(
-    purchases
-     .filter((item) => item.billing_payment_id != null)
-     .map((item) => [item.billing_payment_id as number, item]),
-   ),
-  [purchases],
- );
-
- const visibleInvoices = useMemo(
-  () => invoices.filter((invoice) => invoice.invoice_documents_enabled),
-  [invoices],
- );
-
- const paymentsById = useMemo(
-  () => new Map(payments.map((payment) => [payment.id, payment])),
   [payments],
  );
 
@@ -728,205 +643,121 @@ export function BillingCenter() {
     )}
    </section>
 
-   <section className="commercialSection billingCommerceSection">
+   <section className="commercialSection">
     <div className="commercialHeading">
      <div>
-      <span className="eyebrow">PAGOS Y COMPRAS</span>
-      <h2>Actividad comercial</h2>
+      <span className="eyebrow">ACTIVIDAD DE TOKENS</span>
+      <h2>Compras y movimientos</h2>
      </div>
      <button
       className="ghostButton"
       onClick={() => void load()}
       disabled={!!busy}
      >
-      Actualizar
+      ↻ Actualizar
      </button>
     </div>
 
-    <div className="billingCommerceGrid">
-     <div className="billingTable billingCommerceCard">
-      <div className="billingBlockHeading">
-       <span className="billingBlockIcon" aria-hidden="true">S</span>
-       <div>
-        <h3>Pagos de suscripción</h3>
-        <p>Altas, renovaciones y cambios de plan.</p>
-       </div>
+    <div className="backofficeTablePanel">
+     <div className="backofficeTableTitle">
+      <div>
+       <span className="tableTitleIcon">◈</span>
+       <div><strong>Movimientos de tokens</strong><small>Entradas y consumos registrados en tu cuenta.</small></div>
       </div>
-      {subscriptionPayments.length ? (
-       subscriptionPayments.map((item) => (
-        <div key={item.id}>
-         <span>
-          <b>{currentPlan?.name || "Plan de suscripción"}</b>
-          <small>
-           {subscriptionMovementLabel(item.payment_type)} · {statusLabel(item.status)}
-          </small>
-          {paymentMethodLabel(item) && <small>{paymentMethodLabel(item)}</small>}
-          <small>{date(item.paid_at || item.created_at)}</small>
-         </span>
-         <strong>{money(item.amount, item.currency)}</strong>
-        </div>
-       ))
-      ) : (
-       <p className="billingEmptyState">Sin pagos de suscripción.</p>
-      )}
+      <span>{transactions.length} registros</span>
      </div>
-
-     <div className="billingTable billingCommerceCard">
-      <div className="billingBlockHeading">
-       <span className="billingBlockIcon" aria-hidden="true">T</span>
-       <div>
-        <h3>Compras de tokens</h3>
-        <p>Paquetes y compras personalizadas.</p>
+     <div className="backofficeTableScroll">
+      <div className="backofficeTable tokenMovementTable">
+       <div className="backofficeTableHead">
+        <span>Movimiento</span><span>Fecha</span><span>Estado</span><span className="alignRight">Tokens</span>
        </div>
+       {transactions.length ? transactions.map((item) => (
+        <div className="backofficeTableRow" key={item.id}>
+         <span className="tablePrimaryCell"><i className={item.amount >= 0 ? "tableIcon positiveIcon" : "tableIcon negativeIcon"}>{item.amount >= 0 ? "↗" : "↘"}</i><span><b>{item.description || item.source || item.transaction_type}</b><small>{item.source || item.transaction_type}</small></span></span>
+         <span className="tableDateCell">◷ {date(item.created_at)}</span>
+         <span><em className={item.amount >= 0 ? "statusBadge success" : "statusBadge neutral"}>{item.amount >= 0 ? "Acreditado" : "Consumido"}</em></span>
+         <strong className={`alignRight ${item.amount >= 0 ? "positive" : "negative"}`}>{item.amount >= 0 ? "+" : ""}{item.amount.toLocaleString("es-MX")}</strong>
+        </div>
+       )) : <div className="backofficeEmptyRow">Sin movimientos de tokens.</div>}
       </div>
-      {purchases.length ? (
-       purchases.map((item) => {
-        const tokenPackage = packages.find(
-         (packageItem) => packageItem.id === item.token_package_id,
-        );
-        const purchaseTitle =
-         tokenPackage?.name ||
-         (item.token_package_id === null
-          ? "Compra personalizada"
-          : "Paquete de tokens");
+     </div>
+    </div>
 
-        return (
-         <div key={item.id}>
-          <span>
-           <b>{purchaseTitle}</b>
-           <small>
-            {item.total_tokens.toLocaleString("es-MX")} tokens · {statusLabel(item.status)}
-           </small>
-           {paymentMethodLabel(
-            item.billing_payment_id
-             ? paymentsById.get(item.billing_payment_id)
-             : undefined,
-           ) && (
-            <small>
-             {paymentMethodLabel(
-              item.billing_payment_id
-               ? paymentsById.get(item.billing_payment_id)
-               : undefined,
-             )}
-            </small>
-           )}
-           <small>{date(item.paid_at || item.created_at)}</small>
-          </span>
-          <strong>{money(item.amount, item.currency)}</strong>
-         </div>
-        );
-       })
-      ) : (
-       <p className="billingEmptyState">Sin compras de tokens.</p>
-      )}
+    <div className="backofficeTablePanel">
+     <div className="backofficeTableTitle">
+      <div><span className="tableTitleIcon">◎</span><div><strong>Compras de tokens</strong><small>Paquetes y compras personalizadas confirmadas.</small></div></div>
+      <span>{purchases.length} registros</span>
+     </div>
+     <div className="backofficeTableScroll">
+      <div className="backofficeTable tokenPurchaseTable">
+       <div className="backofficeTableHead">
+        <span>Compra</span><span>Tokens</span><span>Bonificación</span><span>Estado</span><span>Fecha</span><span className="alignRight">Total</span>
+       </div>
+       {purchases.length ? purchases.map((item) => {
+        const tokenPackage = packages.find((packageItem) => packageItem.id === item.token_package_id);
+        const purchaseTitle = tokenPackage?.name || (item.token_package_id === null ? "Compra personalizada" : "Paquete de tokens");
+        const bonusPercent = item.total_tokens > 0 ? Math.round((item.bonus_tokens / item.total_tokens) * 100) : 0;
+        return <div className="backofficeTableRow" key={item.id}>
+         <span className="tablePrimaryCell"><i className="tableIcon packageIcon">◇</i><span><b>{purchaseTitle}</b><small>{item.token_package_id === null ? "Cantidad personalizada" : "Paquete configurado"}</small></span></span>
+         <strong>{item.total_tokens.toLocaleString("es-MX")}</strong>
+         <span className="bonusCell"><span><b>{item.bonus_tokens.toLocaleString("es-MX")}</b><small>{bonusPercent}% extra</small></span><i><u style={{ width: `${Math.min(100, bonusPercent)}%` }} /></i></span>
+         <span><em className={`statusBadge ${["paid","completed","succeeded","credited"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("fail") ? "danger" : "warning"}`}>{statusLabel(item.status)}</em></span>
+         <span className="tableDateCell">◷ {date(item.paid_at || item.created_at)}</span>
+         <strong className="alignRight">{money(item.amount, item.currency)}</strong>
+        </div>;
+       }) : <div className="backofficeEmptyRow">Sin compras de tokens.</div>}
+      </div>
      </div>
     </div>
    </section>
 
-   <section className="commercialSection billingLedgerSection">
+   <section className="commercialSection">
     <div className="commercialHeading">
-     <div>
-      <span className="eyebrow">CONTABILIDAD DE TOKENS</span>
-      <h2>Movimientos de tokens</h2>
-     </div>
-     <p>Entradas, consumos, bonificaciones y ajustes de saldo.</p>
+     <div><span className="eyebrow">SUSCRIPCIONES</span><h2>Pagos y facturas del plan</h2></div>
+     <p>Consulta tus cargos, renovaciones y documentos sin identificadores técnicos de Stripe.</p>
     </div>
 
-    <div className="billingTable billingFullWidthTable">
-     <div className="billingTableHeader" aria-hidden="true">
-      <span>Movimiento</span>
-      <span>Fecha</span>
-      <span>Tokens</span>
+    <div className="backofficeTablePanel">
+     <div className="backofficeTableTitle">
+      <div><span className="tableTitleIcon">▣</span><div><strong>Pagos de suscripción</strong><small>Cargos iniciales y renovaciones del plan.</small></div></div>
+      <span>{subscriptionPayments.length} registros</span>
      </div>
-     {transactions.length ? (
-      transactions.map((item) => (
-       <div className="billingLedgerRow" key={item.id}>
-        <span>
-         <b>{friendlyTransactionDescription(item, currentPlan?.name)}</b>
-         <small>{item.source || item.transaction_type}</small>
-        </span>
-        <small className="billingRowDate">{date(item.created_at)}</small>
-        <strong className={item.amount >= 0 ? "positive" : "negative"}>
-         {item.amount >= 0 ? "+" : ""}
-         {item.amount.toLocaleString("es-MX")}
-        </strong>
-       </div>
-      ))
-     ) : (
-      <p className="billingEmptyState">Sin movimientos de tokens.</p>
-     )}
-    </div>
-   </section>
-
-   <section className="commercialSection billingInvoicesSection">
-    <div className="commercialHeading">
-     <div>
-      <span className="eyebrow">DOCUMENTOS DE PAGO</span>
-      <h2>Facturas</h2>
-     </div>
-     <p>Facturas de suscripciones y compras reunidas en un solo lugar.</p>
-    </div>
-
-    <div className="billingTable billingFullWidthTable billingInvoiceTable">
-     <div className="billingTableHeader billingInvoiceHeader" aria-hidden="true">
-      <span>Factura</span>
-      <span>Tipo</span>
-      <span>Fecha</span>
-      <span>Total y acciones</span>
-     </div>
-     {visibleInvoices.length ? (
-      visibleInvoices.map((item) => {
-       const relatedPurchase = item.billing_payment_id
-        ? purchasesByPayment.get(item.billing_payment_id)
-        : undefined;
-       const relatedPackage = relatedPurchase?.token_package_id
-        ? packages.find(
-           (packageItem) => packageItem.id === relatedPurchase.token_package_id,
-          )
-        : undefined;
-       const invoiceType = relatedPurchase ? "Compra de tokens" : "Suscripción";
-       const invoiceTitle = relatedPurchase
-        ? relatedPackage?.name
-         ? `Factura de ${relatedPackage.name}`
-         : "Factura de compra personalizada"
-        : currentPlan?.name
-         ? `Factura de ${currentPlan.name}`
-         : "Factura de suscripción";
-
-       return (
-        <div className="billingInvoiceRow" key={item.id}>
-         <span>
-          <b>{invoiceTitle}</b>
-          <small>
-           {item.invoice_number ? `N.º ${item.invoice_number} · ` : ""}
-           {statusLabel(item.status)}
-          </small>
-         </span>
-         <span className="billingInvoiceType">{invoiceType}</span>
-         <small className="billingRowDate">{date(item.created_at)}</small>
-         <span className="invoiceActions">
-          <strong>{money(item.total, item.currency)}</strong>
-          {item.hosted_invoice_url && (
-           <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">
-            Ver factura
-           </a>
-          )}
-          {item.invoice_pdf_url && (
-           <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">
-            Descargar PDF
-           </a>
-          )}
-         </span>
+     <div className="backofficeTableScroll">
+      <div className="backofficeTable subscriptionPaymentTable">
+       <div className="backofficeTableHead"><span>Concepto</span><span>Tipo</span><span>Estado</span><span>Fecha</span><span className="alignRight">Importe</span></div>
+       {subscriptionPayments.length ? subscriptionPayments.map((item) => (
+        <div className="backofficeTableRow" key={item.id}>
+         <span className="tablePrimaryCell"><i className="tableIcon paymentIcon">▤</i><span><b>{currentPlan?.name || "Plan de suscripción"}</b><small>{item.description || "Pago procesado mediante Stripe"}</small></span></span>
+         <span>{subscriptionMovementLabel(item.payment_type)}</span>
+         <span><em className={`statusBadge ${["paid","completed","succeeded"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("fail") ? "danger" : "warning"}`}>{statusLabel(item.status)}</em></span>
+         <span className="tableDateCell">◷ {date(item.paid_at || item.created_at)}</span>
+         <strong className="alignRight">{money(item.amount, item.currency)}</strong>
         </div>
-       );
-      })
-     ) : (
-      <p className="billingEmptyState">
-       {invoices.length
-        ? "Las facturas existentes no están habilitadas para publicación."
-        : "Sin facturas disponibles."}
-      </p>
-     )}
+       )) : <div className="backofficeEmptyRow">Sin pagos de suscripción.</div>}
+      </div>
+     </div>
+    </div>
+
+    <div className="backofficeTablePanel">
+     <div className="backofficeTableTitle">
+      <div><span className="tableTitleIcon">▧</span><div><strong>Facturas</strong><small>Documentos fiscales y comprobantes disponibles.</small></div></div>
+      <span>{invoices.length} registros</span>
+     </div>
+     <div className="backofficeTableScroll">
+      <div className="backofficeTable invoiceTable">
+       <div className="backofficeTableHead"><span>Factura</span><span>Número</span><span>Estado</span><span>Fecha</span><span className="alignRight">Total</span><span className="alignRight">Acciones</span></div>
+       {invoices.length ? invoices.map((item) => (
+        <div className="backofficeTableRow" key={item.id}>
+         <span className="tablePrimaryCell"><i className="tableIcon invoiceIcon">▧</i><span><b>{currentPlan?.name ? `Factura de ${currentPlan.name}` : "Factura de suscripción"}</b><small>Documento emitido por Stripe</small></span></span>
+         <span>{item.invoice_number || "—"}</span>
+         <span><em className={`statusBadge ${["paid","completed"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("void") ? "neutral" : "warning"}`}>{statusLabel(item.status)}</em></span>
+         <span className="tableDateCell">◷ {date(item.created_at)}</span>
+         <strong className="alignRight">{money(item.total, item.currency)}</strong>
+         <span className="invoiceRowActions">{item.hosted_invoice_url && <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">◉ Ver</a>}{item.invoice_pdf_url && <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">⇩ PDF</a>}</span>
+        </div>
+       )) : <div className="backofficeEmptyRow">Sin facturas.</div>}
+      </div>
+     </div>
     </div>
    </section>
   </div>
