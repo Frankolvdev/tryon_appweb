@@ -71,6 +71,23 @@ const subscriptionMovementLabel = (paymentType: string) =>
   ? "Renovación de suscripción"
   : "Compra de suscripción";
 
+const BillingIcon = ({ name }: { name: "tokens" | "purchase" | "payment" | "invoice" | "calendar" }) => {
+ const paths = {
+  tokens: "M12 3c4.97 0 9 1.79 9 4s-4.03 4-9 4-9-1.79-9-4 4.03-4 9-4Zm-9 4v5c0 2.21 4.03 4 9 4s9-1.79 9-4V7m-18 5v5c0 2.21 4.03 4 9 4s9-1.79 9-4v-5",
+  purchase: "M4 4h2l2.4 10.2a2 2 0 0 0 1.95 1.54h6.9a2 2 0 0 0 1.94-1.5L21 7H7m4 13h.01M18 20h.01",
+  payment: "M3 6h18v12H3zM3 10h18M7 15h4",
+  invoice: "M6 3h9l3 3v15H6zM14 3v4h4M9 12h6M9 16h6",
+  calendar: "M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z",
+ } as const;
+ return (
+  <span className="billingIcon" aria-hidden="true">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d={paths[name]} />
+   </svg>
+  </span>
+ );
+};
+
 export function BillingCenter() {
  const params = useSearchParams();
  const { user, refreshUser } = useAppSession();
@@ -646,7 +663,9 @@ export function BillingCenter() {
    <section className="commercialSection">
     <div className="commercialHeading">
      <div>
-      <span className="eyebrow">ACTIVIDAD DE TOKENS</span>
+      <span className="eyebrow">
+       ACTIVIDAD DE TOKENS
+      </span>
       <h2>Compras y movimientos</h2>
      </div>
      <button
@@ -654,109 +673,185 @@ export function BillingCenter() {
       onClick={() => void load()}
       disabled={!!busy}
      >
-      ↻ Actualizar
+      Actualizar
      </button>
     </div>
 
-    <div className="backofficeTablePanel">
-     <div className="backofficeTableTitle">
-      <div>
-       <span className="tableTitleIcon">◈</span>
-       <div><strong>Movimientos de tokens</strong><small>Entradas y consumos registrados en tu cuenta.</small></div>
-      </div>
-      <span>{transactions.length} registros</span>
-     </div>
-     <div className="backofficeTableScroll">
-      <div className="backofficeTable tokenMovementTable">
-       <div className="backofficeTableHead">
-        <span>Movimiento</span><span>Fecha</span><span>Estado</span><span className="alignRight">Tokens</span>
-       </div>
-       {transactions.length ? transactions.map((item) => (
-        <div className="backofficeTableRow" key={item.id}>
-         <span className="tablePrimaryCell"><i className={item.amount >= 0 ? "tableIcon positiveIcon" : "tableIcon negativeIcon"}>{item.amount >= 0 ? "↗" : "↘"}</i><span><b>{item.description || item.source || item.transaction_type}</b><small>{item.source || item.transaction_type}</small></span></span>
-         <span className="tableDateCell">◷ {date(item.created_at)}</span>
-         <span><em className={item.amount >= 0 ? "statusBadge success" : "statusBadge neutral"}>{item.amount >= 0 ? "Acreditado" : "Consumido"}</em></span>
-         <strong className={`alignRight ${item.amount >= 0 ? "positive" : "negative"}`}>{item.amount >= 0 ? "+" : ""}{item.amount.toLocaleString("es-MX")}</strong>
+    <div className="billingTables">
+     <div className="billingTable">
+      <h3><BillingIcon name="tokens" />Movimientos de tokens</h3>
+      <div className="billingTableHeader"><span>Movimiento</span><span>Tokens</span></div>
+      {transactions.length ? (
+       transactions.map((item) => (
+        <div key={item.id}>
+         <span>
+          <b>
+           {item.description ||
+            item.source ||
+            item.transaction_type}
+          </b>
+          <small className="billingDate"><BillingIcon name="calendar" />{date(item.created_at)}</small>
+         </span>
+         <strong
+          className={
+           item.amount >= 0
+            ? "positive"
+            : "negative"
+          }
+         >
+          {item.amount >= 0 ? "+" : ""}
+          {item.amount.toLocaleString("es-MX")}
+         </strong>
         </div>
-       )) : <div className="backofficeEmptyRow">Sin movimientos de tokens.</div>}
-      </div>
+       ))
+      ) : (
+       <p>Sin movimientos de tokens.</p>
+      )}
      </div>
-    </div>
 
-    <div className="backofficeTablePanel">
-     <div className="backofficeTableTitle">
-      <div><span className="tableTitleIcon">◎</span><div><strong>Compras de tokens</strong><small>Paquetes y compras personalizadas confirmadas.</small></div></div>
-      <span>{purchases.length} registros</span>
-     </div>
-     <div className="backofficeTableScroll">
-      <div className="backofficeTable tokenPurchaseTable">
-       <div className="backofficeTableHead">
-        <span>Compra</span><span>Tokens</span><span>Bonificación</span><span>Estado</span><span>Fecha</span><span className="alignRight">Total</span>
-       </div>
-       {purchases.length ? purchases.map((item) => {
-        const tokenPackage = packages.find((packageItem) => packageItem.id === item.token_package_id);
-        const purchaseTitle = tokenPackage?.name || (item.token_package_id === null ? "Compra personalizada" : "Paquete de tokens");
-        const bonusPercent = item.total_tokens > 0 ? Math.round((item.bonus_tokens / item.total_tokens) * 100) : 0;
-        return <div className="backofficeTableRow" key={item.id}>
-         <span className="tablePrimaryCell"><i className="tableIcon packageIcon">◇</i><span><b>{purchaseTitle}</b><small>{item.token_package_id === null ? "Cantidad personalizada" : "Paquete configurado"}</small></span></span>
-         <strong>{item.total_tokens.toLocaleString("es-MX")}</strong>
-         <span className="bonusCell"><span><b>{item.bonus_tokens.toLocaleString("es-MX")}</b><small>{bonusPercent}% extra</small></span><i><u style={{ width: `${Math.min(100, bonusPercent)}%` }} /></i></span>
-         <span><em className={`statusBadge ${["paid","completed","succeeded","credited"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("fail") ? "danger" : "warning"}`}>{statusLabel(item.status)}</em></span>
-         <span className="tableDateCell">◷ {date(item.paid_at || item.created_at)}</span>
-         <strong className="alignRight">{money(item.amount, item.currency)}</strong>
-        </div>;
-       }) : <div className="backofficeEmptyRow">Sin compras de tokens.</div>}
-      </div>
+     <div className="billingTable billingTableWide">
+      <h3><BillingIcon name="purchase" />Compras de tokens</h3>
+      <div className="billingTableHeader billingTableHeaderWide"><span>Compra</span><span>Total</span></div>
+      {purchases.length ? (
+       purchases.map((item) => {
+        const tokenPackage = packages.find(
+         (packageItem) =>
+          packageItem.id === item.token_package_id,
+        );
+        const purchaseTitle =
+         tokenPackage?.name ||
+         (item.token_package_id === null
+          ? "Compra personalizada"
+          : "Paquete de tokens");
+
+        return (
+         <div key={item.id}>
+          <span>
+           <b>{purchaseTitle}</b>
+           <small>
+            {item.total_tokens.toLocaleString(
+             "es-MX",
+            )}{" "}
+            tokens · {statusLabel(item.status)} ·{" "}
+            {date(item.paid_at || item.created_at)}
+           </small>
+           {item.bonus_tokens > 0 && (
+            <small>
+             Incluye{" "}
+             {item.bonus_tokens.toLocaleString(
+              "es-MX",
+             )}{" "}
+             tokens de bonificación
+            </small>
+           )}
+          </span>
+          <strong>
+           {money(item.amount, item.currency)}
+          </strong>
+         </div>
+        );
+       })
+      ) : (
+       <p>Sin compras de tokens.</p>
+      )}
      </div>
     </div>
    </section>
 
    <section className="commercialSection">
     <div className="commercialHeading">
-     <div><span className="eyebrow">SUSCRIPCIONES</span><h2>Pagos y facturas del plan</h2></div>
-     <p>Consulta tus cargos, renovaciones y documentos sin identificadores técnicos de Stripe.</p>
+     <div>
+      <span className="eyebrow">SUSCRIPCIONES</span>
+      <h2>Pagos y facturas del plan</h2>
+     </div>
+     <p>
+      Consulta tus cargos, renovaciones y documentos sin
+      identificadores técnicos de Stripe.
+     </p>
     </div>
 
-    <div className="backofficeTablePanel">
-     <div className="backofficeTableTitle">
-      <div><span className="tableTitleIcon">▣</span><div><strong>Pagos de suscripción</strong><small>Cargos iniciales y renovaciones del plan.</small></div></div>
-      <span>{subscriptionPayments.length} registros</span>
-     </div>
-     <div className="backofficeTableScroll">
-      <div className="backofficeTable subscriptionPaymentTable">
-       <div className="backofficeTableHead"><span>Concepto</span><span>Tipo</span><span>Estado</span><span>Fecha</span><span className="alignRight">Importe</span></div>
-       {subscriptionPayments.length ? subscriptionPayments.map((item) => (
-        <div className="backofficeTableRow" key={item.id}>
-         <span className="tablePrimaryCell"><i className="tableIcon paymentIcon">▤</i><span><b>{currentPlan?.name || "Plan de suscripción"}</b><small>{item.description || "Pago procesado mediante Stripe"}</small></span></span>
-         <span>{subscriptionMovementLabel(item.payment_type)}</span>
-         <span><em className={`statusBadge ${["paid","completed","succeeded"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("fail") ? "danger" : "warning"}`}>{statusLabel(item.status)}</em></span>
-         <span className="tableDateCell">◷ {date(item.paid_at || item.created_at)}</span>
-         <strong className="alignRight">{money(item.amount, item.currency)}</strong>
+    <div className="billingTables">
+     <div className="billingTable">
+      <h3><BillingIcon name="payment" />Pagos de suscripción</h3>
+      <div className="billingTableHeader"><span>Movimiento</span><span>Importe</span></div>
+      {subscriptionPayments.length ? (
+       subscriptionPayments.map((item) => (
+        <div key={item.id}>
+         <span>
+          <b>
+           {currentPlan?.name ||
+            "Plan de suscripción"}
+          </b>
+          <small>
+           {subscriptionMovementLabel(
+            item.payment_type,
+           )}{" "}
+           <span className={`billingStatus status-${(item.status || "unknown").toLowerCase()}`}>
+            {statusLabel(item.status)}
+           </span>
+          </small>
+          <small>
+           {date(item.paid_at || item.created_at)}
+          </small>
+         </span>
+         <strong>
+          {money(item.amount, item.currency)}
+         </strong>
         </div>
-       )) : <div className="backofficeEmptyRow">Sin pagos de suscripción.</div>}
-      </div>
+       ))
+      ) : (
+       <p>Sin pagos de suscripción.</p>
+      )}
      </div>
-    </div>
 
-    <div className="backofficeTablePanel">
-     <div className="backofficeTableTitle">
-      <div><span className="tableTitleIcon">▧</span><div><strong>Facturas</strong><small>Documentos fiscales y comprobantes disponibles.</small></div></div>
-      <span>{invoices.length} registros</span>
-     </div>
-     <div className="backofficeTableScroll">
-      <div className="backofficeTable invoiceTable">
-       <div className="backofficeTableHead"><span>Factura</span><span>Número</span><span>Estado</span><span>Fecha</span><span className="alignRight">Total</span><span className="alignRight">Acciones</span></div>
-       {invoices.length ? invoices.map((item) => (
-        <div className="backofficeTableRow" key={item.id}>
-         <span className="tablePrimaryCell"><i className="tableIcon invoiceIcon">▧</i><span><b>{currentPlan?.name ? `Factura de ${currentPlan.name}` : "Factura de suscripción"}</b><small>Documento emitido por Stripe</small></span></span>
-         <span>{item.invoice_number || "—"}</span>
-         <span><em className={`statusBadge ${["paid","completed"].includes(item.status.toLowerCase()) ? "success" : item.status.toLowerCase().includes("void") ? "neutral" : "warning"}`}>{statusLabel(item.status)}</em></span>
-         <span className="tableDateCell">◷ {date(item.created_at)}</span>
-         <strong className="alignRight">{money(item.total, item.currency)}</strong>
-         <span className="invoiceRowActions">{item.hosted_invoice_url && <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">◉ Ver</a>}{item.invoice_pdf_url && <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">⇩ PDF</a>}</span>
+     <div className="billingTable">
+      <h3><BillingIcon name="invoice" />Facturas</h3>
+      <div className="billingTableHeader"><span>Documento</span><span>Total y acciones</span></div>
+      {invoices.length ? (
+       invoices.map((item) => (
+        <div key={item.id}>
+         <span>
+          <b>
+           {currentPlan?.name
+            ? `Factura de ${currentPlan.name}`
+            : "Factura de suscripción"}
+          </b>
+          <small>
+           {item.invoice_number
+            ? `N.º ${item.invoice_number} · `
+            : ""}
+           {statusLabel(item.status)}
+          </small>
+          <small className="billingDate"><BillingIcon name="calendar" />{date(item.created_at)}</small>
+         </span>
+         <span className="invoiceActions">
+          <strong>
+           {money(item.total, item.currency)}
+          </strong>
+          {item.hosted_invoice_url && (
+           <a
+            href={item.hosted_invoice_url}
+            target="_blank"
+            rel="noreferrer"
+           >
+            <BillingIcon name="invoice" />Ver factura
+           </a>
+          )}
+          {item.invoice_pdf_url && (
+           <a
+            href={item.invoice_pdf_url}
+            target="_blank"
+            rel="noreferrer"
+           >
+            <BillingIcon name="invoice" />Descargar PDF
+           </a>
+          )}
+         </span>
         </div>
-       )) : <div className="backofficeEmptyRow">Sin facturas.</div>}
-      </div>
+       ))
+      ) : (
+       <p>Sin facturas.</p>
+      )}
      </div>
     </div>
    </section>
