@@ -3,25 +3,26 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+
 import { useAppSession } from "@/components/app/app-session";
 import { Brand } from "@/components/ui/brand";
 import { clearSession } from "@/lib/auth-storage";
 
-const items = [
-  ["/dashboard", "Inicio", "home"],
-  ["/try-on", "Crear Try-On", "spark"],
-  ["/history", "Historial", "history"],
-  ["/gallery", "Galería", "gallery"],
-  ["/billing", "Tokens y plan", "wallet"],
-  ["/settings", "Configuración", "settings"],
+const navigation = [
+  { href: "/dashboard", label: "Inicio", icon: "home" },
+  { href: "/try-on", label: "Crear Try-On", icon: "spark" },
+  { href: "/history", label: "Historial", icon: "history" },
+  { href: "/gallery", label: "Galería", icon: "gallery" },
+  { href: "/billing", label: "Tokens y plan", icon: "wallet" },
+  { href: "/settings", label: "Configuración", icon: "settings" },
 ] as const;
 
-type IconName = (typeof items)[number][2];
+type IconName = (typeof navigation)[number]["icon"];
 
 function AppIcon({ name }: { name: IconName }) {
-  const common = {
-    width: 19,
-    height: 19,
+  const props = {
+    width: 17,
+    height: 17,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -32,26 +33,60 @@ function AppIcon({ name }: { name: IconName }) {
   };
 
   if (name === "home") {
-    return <svg {...common}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>;
+    return (
+      <svg {...props}>
+        <path d="m3 10 9-7 9 7" />
+        <path d="M5 9v11h14V9" />
+        <path d="M9 20v-6h6v6" />
+      </svg>
+    );
   }
 
   if (name === "spark") {
-    return <svg {...common}><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m18.5 15 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></svg>;
+    return (
+      <svg {...props}>
+        <path d="m12 3 1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3Z" />
+        <path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z" />
+      </svg>
+    );
   }
 
   if (name === "history") {
-    return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>;
+    return (
+      <svg {...props}>
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+        <path d="M3 3v5h5" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
   }
 
   if (name === "gallery") {
-    return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>;
+    return (
+      <svg {...props}>
+        <rect x="3" y="4" width="18" height="16" rx="3" />
+        <circle cx="9" cy="9" r="2" />
+        <path d="m5 18 5-5 3 3 2-2 4 4" />
+      </svg>
+    );
   }
 
   if (name === "wallet") {
-    return <svg {...common}><path d="M3 7h15a3 3 0 0 1 3 3v8H6a3 3 0 0 1-3-3V7Z"/><path d="M3 7V6a2 2 0 0 1 2-2h12"/><path d="M16 12h5"/><circle cx="16" cy="12" r=".7" fill="currentColor" stroke="none"/></svg>;
+    return (
+      <svg {...props}>
+        <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 17.5v-11Z" />
+        <path d="M4 8h16" />
+        <path d="M15 13h3" />
+      </svg>
+    );
   }
 
-  return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>;
+  return (
+    <svg {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+    </svg>
+  );
 }
 
 function initials(name?: string | null) {
@@ -76,108 +111,137 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className={`boShell${collapsed ? " boShellCollapsed" : ""}`}>
-      {mobileOpen && (
-        <button
-          type="button"
-          className="boOverlay"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Cerrar menú"
-        />
-      )}
-
-      <aside className={`boSidebar${mobileOpen ? " boSidebarOpen" : ""}`}>
-        <div className="boSidebarHeader">
-          <div className="boBrandWrap">
-            <Brand />
-          </div>
-          <button
-            type="button"
-            className="boMobileClose"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Cerrar navegación"
-          >
-            ×
-          </button>
+    <div className={`boExactShell${collapsed ? " isCollapsed" : ""}`}>
+      <aside className="boExactSidebar">
+        <div className="boExactBrand">
+          <Brand />
         </div>
 
-        <div className="boWorkspaceLabel">MI ESTUDIO</div>
+        <nav className="boExactNav" aria-label="Navegación principal">
+          <section>
+            {!collapsed && <p>MI ESTUDIO</p>}
+            <div>
+              {navigation.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
 
-        <nav className="boNav" aria-label="Navegación principal">
-          {items.map(([href, label, icon]) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`boNavItem${active ? " boNavItemActive" : ""}`}
-                onClick={() => setMobileOpen(false)}
-                aria-current={active ? "page" : undefined}
-                title={collapsed ? label : undefined}
-              >
-                <span className="boNavIcon"><AppIcon name={icon} /></span>
-                <span className="boNavText">{label}</span>
-              </Link>
-            );
-          })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={active ? "active" : ""}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <AppIcon name={item.icon} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
         </nav>
 
-        <div className="boSidebarFooter">
-          <Link href="/settings" className="boUserCard" onClick={() => setMobileOpen(false)}>
-            <span className="boAvatar">{initials(user.full_name)}</span>
-            <span className="boUserCopy">
-              <strong>{user.full_name || "Mi cuenta"}</strong>
-              <small>{user.email}</small>
-            </span>
-          </Link>
-
-          <button type="button" className="boLogout" onClick={logout}>
-            <span aria-hidden="true">↗</span>
-            <span className="boNavText">Cerrar sesión</span>
-          </button>
-
+        <div className="boExactSidebarFooter">
           <button
             type="button"
-            className="boCollapse"
             onClick={() => setCollapsed((value) => !value)}
             aria-label={collapsed ? "Expandir panel" : "Contraer panel"}
           >
-            <span>{collapsed ? "›" : "‹"}</span>
-            <span className="boNavText">Contraer panel</span>
+            {!collapsed && <span>Contraer panel</span>}
+            <b aria-hidden="true">{collapsed ? "›" : "‹"}</b>
           </button>
         </div>
       </aside>
 
-      <section className="boMain">
-        <header className="boTopbar">
+      {mobileOpen && (
+        <button
+          type="button"
+          className="boExactOverlay"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside className={`boExactMobileSidebar${mobileOpen ? " open" : ""}`}>
+        <button
+          type="button"
+          className="boExactMobileClose"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileOpen(false)}
+        >
+          ×
+        </button>
+
+        <div className="boExactBrand">
+          <Brand />
+        </div>
+
+        <nav className="boExactNav" aria-label="Navegación móvil">
+          <section>
+            <p>MI ESTUDIO</p>
+            <div>
+              {navigation.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={active ? "active" : ""}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <AppIcon name={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        </nav>
+      </aside>
+
+      <div className="boExactMain">
+        <header className="boExactTopbar">
           <button
             type="button"
-            className="boMenuButton"
+            className="boExactMenu"
+            aria-label="Abrir menú"
             onClick={() => setMobileOpen(true)}
-            aria-label="Abrir navegación"
           >
             ☰
           </button>
 
-          <div className="boSearch">
-            <span aria-hidden="true">⌕</span>
-            <span>Próximamente</span>
-          </div>
+          <div className="boExactTopbarActions">
+            <span className="boExactLanguage">ES</span>
 
-          <div className="boTopbarActions">
-            <button type="button" className="boLang">ES</button>
-            <Link href="/settings" className="boTopUser">
-              <span className="boAvatar boAvatarSmall">{initials(user.full_name)}</span>
-              <span className="boTopUserCopy">
+            <Link href="/settings" className="boExactProfile">
+              <span className="boExactAvatar">
+                {initials(user.full_name)}
+              </span>
+              <span>
                 <strong>{user.full_name || "Mi cuenta"}</strong>
                 <small>{user.email}</small>
               </span>
             </Link>
+
+            <button
+              type="button"
+              className="boExactLogout"
+              onClick={logout}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+            >
+              ↗
+            </button>
           </div>
         </header>
 
-        <main className="boContent">{children}</main>
-      </section>
+        <main className="boExactContent">{children}</main>
+      </div>
     </div>
   );
 }

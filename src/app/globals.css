@@ -348,477 +348,58 @@
 /* 10B3 · BackOffice visual parity and final commercial polish */
 .billingCenter{gap:22px}.billingCenter .commercialSection{border-radius:18px;padding:22px;background:rgba(13,13,15,.94);box-shadow:0 18px 46px rgba(0,0,0,.22)}.billingCenter .commercialHeading{margin-bottom:18px;align-items:center}.billingCenter .commercialHeading h2{font-size:22px;letter-spacing:-.025em;margin-top:5px}.billingCenter .commercialHeading p{font-size:12px;line-height:1.55}.billingCenter .billingHero{gap:14px}.billingCenter .billingHero>div{border-radius:18px;padding:22px}.billingCenter .billingHero>div:first-child>strong{font-size:52px;margin:12px 0 6px}.billingCenter .subscriptionSummary h2{font-size:21px}.billingCenter .billingActions button,.billingCenter .ghostButton{min-height:36px;padding:8px 12px;border-radius:9px;font-size:12px}.billingCenter .planGrid{gap:12px}.billingCenter .commercialCard{border-radius:14px;padding:18px;transition:border-color .18s ease,transform .18s ease,background .18s ease}.billingCenter .commercialCard:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.14);background:#101012}.billingCenter .commercialCard h3{font-size:19px;margin:13px 0 6px}.billingCenter .commercialCard>p{font-size:12px}.billingCenter .commercialCard>strong{font-size:23px;margin:16px 0}.billingCenter .commercialCard ul{font-size:12px;gap:7px;min-height:72px}.billingCenter .commercialMeta{margin:14px 0}.billingCenter .commercialMeta span{padding:6px 8px}.billingCenter .packageGrid{gap:10px}.billingCenter .packageCard{border-radius:14px;padding:17px;transition:border-color .18s ease,transform .18s ease}.billingCenter .packageCard:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.16)}.billingCenter .packageCard>strong{font-size:31px;margin:13px 0 3px}.billingCenter .packageCard>b{font-size:17px;margin-top:14px}.billingCenter .packageCard p{font-size:11px}.billingCenter .customTokenCard{border-radius:16px;padding:20px;gap:18px;margin-bottom:22px}.billingCenter .customTokenCard h3{font-size:20px}.billingCenter .customTokenControls>input{min-height:46px;border-radius:10px;font-size:20px}.billingCenter .customTokenSummary>strong{font-size:24px}.billingTables{gap:12px}.billingTable{padding:0;border-radius:14px;overflow:hidden;background:#0c0c0e}.billingTable h3{display:flex;align-items:center;gap:9px;margin:0;padding:15px 16px;border-bottom:1px solid var(--line);font-size:14px;letter-spacing:-.01em;background:rgba(255,255,255,.018)}.billingIcon{width:27px;height:27px;border:1px solid rgba(255,255,255,.09);border-radius:8px;display:inline-grid;place-items:center;color:#c8c8ce;background:#141416;flex:0 0 auto}.billingIcon svg{width:14px;height:14px}.billingTableHeader{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:9px 16px!important;border-top:0!important;border-bottom:1px solid var(--line);background:#101012;color:#65656d;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.billingTableHeader span:last-child{text-align:right}.billingTable>div:not(.billingTableHeader){min-height:68px;padding:12px 16px;border-top:0;border-bottom:1px solid rgba(255,255,255,.06);transition:background .15s ease}.billingTable>div:not(.billingTableHeader):last-child{border-bottom:0}.billingTable>div:not(.billingTableHeader):hover{background:rgba(255,255,255,.025)}.billingTable>div span:first-child{gap:5px;min-width:0}.billingTable b{font-size:12px;font-weight:680;color:#ededf0}.billingTable small{font-size:10px;line-height:1.4}.billingTable>div>strong,.invoiceActions>strong{font-size:12px;white-space:nowrap}.billingDate{display:flex!important;grid-template-columns:none!important;align-items:center;gap:5px}.billingDate .billingIcon{width:18px;height:18px;border:0;background:transparent;color:#686870}.billingDate .billingIcon svg{width:11px;height:11px}.billingStatus{display:inline-flex;align-items:center;margin-left:4px;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.09);font-size:9px;font-weight:800;letter-spacing:.03em;color:#b6b6bd;background:#151517}.billingStatus.status-succeeded,.billingStatus.status-paid,.billingStatus.status-active,.billingStatus.status-completed{color:#78dba7;border-color:rgba(68,190,126,.28);background:rgba(68,190,126,.08)}.billingStatus.status-pending,.billingStatus.status-processing,.billingStatus.status-open{color:#e7bf69;border-color:rgba(231,191,105,.26);background:rgba(231,191,105,.07)}.billingStatus.status-failed,.billingStatus.status-canceled,.billingStatus.status-cancelled{color:#ff8197;border-color:rgba(225,29,53,.3);background:rgba(225,29,53,.08)}.invoiceActions{justify-content:flex-end;flex-wrap:wrap}.invoiceActions a{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:#d7d7dc;background:#141416}.invoiceActions a:hover{border-color:rgba(225,29,53,.35);color:#fff}.invoiceActions .billingIcon{width:17px;height:17px;border:0;background:transparent;color:#ff7895}.invoiceActions .billingIcon svg{width:11px;height:11px}.billingTable>p{margin:0;padding:24px 16px;color:#6f6f77;font-size:12px}.billingAlert{border-radius:12px;font-size:12px}.couponBox{border-radius:14px;padding:16px}.couponBox input{border-radius:9px}.billingCenter button:focus-visible,.billingCenter a:focus-visible,.billingCenter input:focus-visible{outline:2px solid rgba(225,29,53,.72);outline-offset:2px}@media(max-width:700px){.billingCenter .commercialSection{padding:16px}.billingCenter .commercialHeading h2{font-size:20px}.billingCenter .billingHero>div{padding:18px}.billingCenter .billingHero>div:first-child>strong{font-size:44px}.billingTable{overflow-x:auto}.billingTable>div{min-width:520px}.billingTable h3{min-width:0}.billingTable>p{min-width:0}.invoiceActions{justify-content:flex-end}}
 
-/* 10B4 — restauración exacta de la base visual del BackOffice */
-:root {
-  --background: #050505;
-  --foreground: #f5f5f5;
-  --surface-1: #090909;
-  --surface-2: #0d0d0e;
-  --surface-3: #121214;
-  --surface-4: #19191c;
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text-primary: #f7f7f8;
-  --text-secondary: #a0a0a7;
-  --text-muted: #66666f;
-  --red-primary: #a5091d;
-  --red-bright: #e11d35;
-  --red-dark: #4d0711;
-  --red-glow: rgba(225, 29, 53, 0.22);
-  --success: #28c76f;
-  --warning: #ffb020;
-  --danger: #ff4d5e;
+/* 10B7 — Shell visual equivalente al BackOffice, sin alterar Billing */
+.boExactShell{min-height:100vh;background:#040405;color:#f7f7f8}
+.boExactSidebar{position:fixed;inset:0 auto 0 0;z-index:40;width:288px;display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,.06);background:rgba(7,7,8,.95);backdrop-filter:blur(20px);transition:width .3s ease}
+.boExactBrand{min-height:80px;display:flex;align-items:center;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.06);overflow:hidden}
+.boExactNav{flex:1;overflow-y:auto;padding:20px 12px}
+.boExactNav section>p{margin:0 0 8px;padding:0 12px;color:#3f3f46;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase}
+.boExactNav section>div{display:grid;gap:4px}
+.boExactNav a{height:40px;display:flex;align-items:center;gap:12px;padding:0 12px;border:1px solid transparent;border-radius:12px;color:#71717a;font-size:14px;transition:.2s ease}
+.boExactNav a svg{flex:0 0 auto;color:#52525b;transition:.2s ease}
+.boExactNav a:hover{border-color:rgba(255,255,255,.05);background:rgba(255,255,255,.025);color:#e4e4e7}
+.boExactNav a:hover svg{color:#d4d4d8}
+.boExactNav a.active{border-color:rgba(239,68,68,.15);background:linear-gradient(90deg,rgba(69,10,10,.45),rgba(69,10,10,.1));color:#fff;box-shadow:0 0 28px rgba(150,10,30,.12)}
+.boExactNav a.active svg{color:#f87171}
+.boExactSidebarFooter{display:block;padding:12px;border-top:1px solid rgba(255,255,255,.06)}
+.boExactSidebarFooter button{width:100%;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid rgba(255,255,255,.06);border-radius:12px;background:rgba(255,255,255,.02);color:#71717a;font-size:12px}
+.boExactSidebarFooter button:hover{background:rgba(255,255,255,.05);color:#fff}
+.boExactSidebarFooter b{font-size:19px;font-weight:400}
+.boExactMain{min-height:100vh;padding-left:288px;transition:padding-left .3s ease}
+.boExactTopbar{position:sticky;top:0;z-index:30;height:80px;display:flex;align-items:center;padding:0 32px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(5,5,6,.8);backdrop-filter:blur(20px)}
+.boExactTopbarActions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.boExactLanguage{height:40px;display:flex;align-items:center;padding:0 12px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a;font-size:12px}
+.boExactProfile{height:48px;display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
+.boExactProfile>span:last-child{min-width:0;display:grid;gap:2px}
+.boExactProfile strong,.boExactProfile small{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.boExactProfile strong{font-size:12px;color:#f4f4f5}
+.boExactProfile small{font-size:10px;color:#71717a}
+.boExactAvatar{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(239,68,68,.18);border-radius:10px;background:rgba(69,10,10,.45);color:#f87171;font-size:11px;font-weight:800}
+.boExactLogout{width:40px;height:40px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a}
+.boExactLogout:hover{background:rgba(255,255,255,.05);color:#fff}
+.boExactMenu{display:none;width:40px;height:40px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025);color:#71717a}
+.boExactContent{min-height:calc(100vh - 80px);padding:32px;background-color:#040405;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:42px 42px}
+.boExactShell.isCollapsed .boExactSidebar{width:80px}
+.boExactShell.isCollapsed .boExactMain{padding-left:80px}
+.boExactShell.isCollapsed .boExactBrand{justify-content:center;padding:0 12px}
+.boExactShell.isCollapsed .boExactBrand .brandName,.boExactShell.isCollapsed .boExactBrand .brandText,.boExactShell.isCollapsed .boExactBrand span:not(.brandMark){display:none}
+.boExactShell.isCollapsed .boExactNav a{justify-content:center;padding:0}
+.boExactShell.isCollapsed .boExactSidebarFooter button{justify-content:center;padding:0}
+.boExactMobileSidebar,.boExactOverlay{display:none}
+@media(max-width:1023px){
+ .boExactSidebar{display:none}
+ .boExactMain,.boExactShell.isCollapsed .boExactMain{padding-left:0}
+ .boExactMenu{display:grid;place-items:center}
+ .boExactTopbar{padding:0 24px}
+ .boExactMobileSidebar{position:fixed;inset:0 auto 0 0;z-index:51;width:min(88vw,320px);display:flex;flex-direction:column;transform:translateX(-100%);border-right:1px solid rgba(255,255,255,.08);background:#070708;box-shadow:0 30px 80px rgba(0,0,0,.7);transition:transform .28s ease}
+ .boExactMobileSidebar.open{transform:translateX(0)}
+ .boExactOverlay{position:fixed;inset:0;z-index:50;display:block;border:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px)}
+ .boExactMobileClose{position:absolute;top:20px;right:16px;z-index:2;width:36px;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03);color:#a1a1aa;font-size:22px}
 }
-
-html {
-  min-height: 100%;
-  background: var(--background);
-  color-scheme: dark;
-}
-
-html,
-body,
-body button,
-body input,
-body textarea,
-body select {
-  font-family: Arial, Helvetica, sans-serif !important;
-}
-
-body {
-  min-height: 100vh;
-  margin: 0;
-  background:
-    radial-gradient(circle at 15% 5%, rgba(125, 5, 24, 0.16), transparent 28%),
-    radial-gradient(circle at 90% 18%, rgba(96, 4, 18, 0.10), transparent 24%),
-    linear-gradient(180deg, #060606 0%, #030303 100%) !important;
-  background-attachment: fixed !important;
-  color: var(--foreground);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: 42px 42px;
-}
-
-body > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* =========================================================
-   APPWEB BACKOFFICE SHELL — SELF-CONTAINED, NO TAILWIND
-   ========================================================= */
-html, body { background: #040405 !important; }
-
-.boShell {
-  min-height: 100vh;
-  background: #040405;
-  color: #f7f7f8;
-}
-
-.boSidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 60;
-  width: 288px;
-  display: flex;
-  flex-direction: column;
-  background: rgba(8, 8, 10, .98);
-  border-right: 1px solid rgba(255,255,255,.08);
-  box-shadow: 22px 0 65px rgba(0,0,0,.34);
-  transition: width .28s ease, transform .28s ease;
-}
-
-.boSidebarHeader {
-  min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 22px;
-  border-bottom: 1px solid rgba(255,255,255,.07);
-}
-
-.boBrandWrap {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.boMobileClose {
-  display: none;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 10px;
-  background: rgba(255,255,255,.035);
-  color: #fff;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.boWorkspaceLabel {
-  padding: 22px 24px 10px;
-  color: #6f7078;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .18em;
-}
-
-.boNav {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 0 14px;
-}
-
-.boNavItem {
-  position: relative;
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 0 13px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: #a7a8af;
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 650;
-  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
-}
-
-.boNavItem:hover {
-  color: #fff;
-  background: rgba(255,255,255,.045);
-  border-color: rgba(255,255,255,.07);
-  transform: translateX(1px);
-}
-
-.boNavItemActive {
-  color: #fff;
-  background: linear-gradient(90deg, rgba(164,9,30,.24), rgba(164,9,30,.07));
-  border-color: rgba(209,31,59,.24);
-}
-
-.boNavItemActive::before {
-  content: "";
-  position: absolute;
-  left: -14px;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: #c91535;
-  box-shadow: 0 0 16px rgba(201,21,53,.72);
-}
-
-.boNavIcon {
-  width: 21px;
-  height: 21px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 21px;
-  color: currentColor;
-}
-
-.boNavText {
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.boSidebarFooter {
-  margin-top: auto;
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-top: 1px solid rgba(255,255,255,.07);
-}
-
-.boUserCard {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 11px;
-  background: rgba(255,255,255,.025);
-  color: inherit;
-  text-decoration: none;
-}
-
-.boAvatar {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 36px;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #b20d2a, #6d0717);
-  border: 1px solid rgba(255,255,255,.12);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  box-shadow: 0 8px 24px rgba(160,8,34,.26);
-}
-
-.boAvatarSmall {
-  width: 32px;
-  height: 32px;
-  flex-basis: 32px;
-  border-radius: 9px;
-}
-
-.boUserCopy,
-.boTopUserCopy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.boUserCopy strong,
-.boTopUserCopy strong {
-  overflow: hidden;
-  color: #f4f4f5;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.boUserCopy small,
-.boTopUserCopy small {
-  overflow: hidden;
-  color: #777881;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.boLogout,
-.boCollapse {
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: #8e8f97;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.boLogout:hover,
-.boCollapse:hover {
-  background: rgba(255,255,255,.04);
-  color: #fff;
-}
-
-.boMain {
-  min-height: 100vh;
-  padding-left: 288px;
-  transition: padding-left .28s ease;
-}
-
-.boTopbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 0 28px;
-  border-bottom: 1px solid rgba(255,255,255,.07);
-  background: rgba(4,4,5,.88);
-  backdrop-filter: blur(18px);
-}
-
-.boMenuButton {
-  display: none;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 10px;
-  background: rgba(255,255,255,.035);
-  color: #fff;
-  font-size: 18px;
-}
-
-.boSearch {
-  width: min(430px, 46vw);
-  height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 11px;
-  background: rgba(255,255,255,.03);
-  color: #686972;
-  font-size: 12px;
-}
-
-.boTopbarActions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.boLang {
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 9px;
-  background: rgba(255,255,255,.03);
-  color: #dddde1;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.boTopUser {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 190px;
-  padding: 6px 9px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 11px;
-  background: rgba(255,255,255,.025);
-  color: inherit;
-  text-decoration: none;
-}
-
-.boContent {
-  min-height: calc(100vh - 80px);
-  padding: 28px;
-  background-color: #050506;
-  background-image:
-    linear-gradient(rgba(255,255,255,.027) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.027) 1px, transparent 1px);
-  background-size: 42px 42px;
-}
-
-.boShellCollapsed .boSidebar {
-  width: 80px;
-}
-
-.boShellCollapsed .boMain {
-  padding-left: 80px;
-}
-
-.boShellCollapsed .boBrandWrap,
-.boShellCollapsed .boWorkspaceLabel,
-.boShellCollapsed .boNavText,
-.boShellCollapsed .boUserCopy {
-  display: none;
-}
-
-.boShellCollapsed .boSidebarHeader {
-  justify-content: center;
-  padding: 0 10px;
-}
-
-.boShellCollapsed .boNav {
-  padding-inline: 10px;
-}
-
-.boShellCollapsed .boNavItem {
-  justify-content: center;
-  padding-inline: 0;
-}
-
-.boShellCollapsed .boNavItemActive::before {
-  left: -10px;
-}
-
-.boShellCollapsed .boUserCard {
-  justify-content: center;
-  padding: 8px;
-}
-
-.boShellCollapsed .boLogout,
-.boShellCollapsed .boCollapse {
-  justify-content: center;
-  padding-inline: 0;
-}
-
-.boOverlay {
-  display: none;
-}
-
-@media (max-width: 1023px) {
-  .boSidebar,
-  .boShellCollapsed .boSidebar {
-    width: 288px;
-    transform: translateX(-100%);
-  }
-
-  .boSidebarOpen {
-    transform: translateX(0);
-  }
-
-  .boMain,
-  .boShellCollapsed .boMain {
-    padding-left: 0;
-  }
-
-  .boMenuButton,
-  .boMobileClose {
-    display: grid;
-    place-items: center;
-  }
-
-  .boOverlay {
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    display: block;
-    border: 0;
-    background: rgba(0,0,0,.72);
-    backdrop-filter: blur(4px);
-  }
-
-  .boCollapse {
-    display: none;
-  }
-}
-
-@media (max-width: 680px) {
-  .boTopbar {
-    height: 68px;
-    padding: 0 14px;
-  }
-
-  .boSearch {
-    display: none;
-  }
-
-  .boTopUser {
-    min-width: 0;
-    padding: 5px;
-  }
-
-  .boTopUserCopy {
-    display: none;
-  }
-
-  .boContent {
-    min-height: calc(100vh - 68px);
-    padding: 18px 14px;
-  }
+@media(max-width:680px){
+ .boExactTopbar{height:68px;padding:0 14px}
+ .boExactContent{min-height:calc(100vh - 68px);padding:18px 14px}
+ .boExactLanguage,.boExactProfile>span:last-child{display:none}
+ .boExactProfile{height:42px;padding:4px}
 }
 
