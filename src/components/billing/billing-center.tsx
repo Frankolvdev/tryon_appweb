@@ -71,6 +71,71 @@ const subscriptionMovementLabel = (paymentType: string) =>
   ? "Renovación de suscripción"
   : "Compra de suscripción";
 
+const titleFromKey = (value: string) =>
+ value
+  .replace(/[_-]+/g, " ")
+  .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const friendlyTransactionDescription = (
+ transaction: TokenTransaction,
+ currentPlanName?: string | null,
+) => {
+ const description = transaction.description?.trim();
+ if (!description) {
+  return transaction.source || transaction.transaction_type;
+ }
+
+ const subscriptionMatch = description.match(
+  /Subscription tokens for plan\s+([^;]+)(?:;\s*invoice\s+\S+)?/i,
+ );
+ if (subscriptionMatch) {
+  const planName = currentPlanName || titleFromKey(subscriptionMatch[1]);
+  return `Tokens incluidos en el plan ${planName}`;
+ }
+
+ return description
+  .replace(/;\s*invoice\s+in_[A-Za-z0-9]+/gi, "")
+  .replace(/\bin_[A-Za-z0-9]+\b/g, "")
+  .trim();
+};
+
+const paymentMethodLabel = (detail?: BillingPayment | null) => {
+ if (!detail) return null;
+
+ const brands: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners Club",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+ };
+ const wallets: Record<string, string> = {
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
+  link: "Link",
+ };
+ const brand = detail.payment_method_brand
+  ? brands[detail.payment_method_brand] ||
+    titleFromKey(detail.payment_method_brand)
+  : null;
+ const card =
+  brand && detail.payment_method_last4
+   ? `${brand} •••• ${detail.payment_method_last4}`
+   : brand;
+ const wallet = detail.payment_method_wallet
+  ? wallets[detail.wallet_type] || titleFromKey(detail.wallet_type)
+  : null;
+
+ if (wallet && card) return `${wallet} · ${card}`;
+ if (card) return card;
+ if (detail.payment_method_type) {
+  return titleFromKey(detail.payment_method_type);
+ }
+ return null;
+};
+
 export function BillingCenter() {
  const params = useSearchParams();
  const { user, refreshUser } = useAppSession();
@@ -188,6 +253,26 @@ export function BillingCenter() {
      item.payment_type === "subscription" ||
      item.payment_type === "subscription_renewal",
    ),
+  [payments],
+ );
+
+ const purchasesByPayment = useMemo(
+  () =>
+   new Map(
+    purchases
+     .filter((item) => item.billing_payment_id != null)
+     .map((item) => [item.billing_payment_id as number, item]),
+   ),
+  [purchases],
+ );
+
+ const visibleInvoices = useMemo(
+  () => invoices.filter((invoice) => invoice.invoice_documents_enabled),
+  [invoices],
+ );
+
+ const paymentsById = useMemo(
+  () => new Map(payments.map((payment) => [payment.id, payment])),
   [payments],
  );
 
@@ -668,9 +753,10 @@ export function BillingCenter() {
         <div key={item.id}>
          <span>
           <b>
-           {item.description ||
-            item.source ||
-            item.transaction_type}
+           {friendlyTransactionDescription(
+            item,
+            currentPlan?.name,
+           )}
           </b>
           <small>{date(item.created_at)}</small>
          </span>
@@ -716,6 +802,19 @@ export function BillingCenter() {
             tokens · {statusLabel(item.status)} ·{" "}
             {date(item.paid_at || item.created_at)}
            </small>
+           {paymentMethodLabel(
+            item.billing_payment_id
+             ? paymentsById.get(item.billing_payment_id)
+             : undefined,
+           ) && (
+            <small>
+             {paymentMethodLabel(
+              item.billing_payment_id
+               ? paymentsById.get(item.billing_payment_id)
+               : undefined,
+             )}
+            </small>
+           )}
            {item.bonus_tokens > 0 && (
             <small>
              Incluye{" "}
@@ -768,6 +867,9 @@ export function BillingCenter() {
            )}{" "}
            · {statusLabel(item.status)}
           </small>
+          {paymentMethodLabel(item) && (
+           <small>{paymentMethodLabel(item)}</small>
+          )}
           <small>
            {date(item.paid_at || item.created_at)}
           </small>
@@ -784,15 +886,29 @@ export function BillingCenter() {
 
      <div className="billingTable">
       <h3>Facturas</h3>
-      {invoices.length ? (
-       invoices.map((item) => (
+      {visibleInvoices.length ? (
+       visibleInvoices.map((item) => {
+        const relatedPurchase = item.billing_payment_id
+         ? purchasesByPayment.get(item.billing_payment_id)
+         : undefined;
+        const relatedPackage = relatedPurchase?.token_package_id
+         ? packages.find(
+            (packageItem) =>
+             packageItem.id === relatedPurchase.token_package_id,
+           )
+         : undefined;
+        const invoiceTitle = relatedPurchase
+         ? relatedPackage?.name
+           ? `Factura de ${relatedPackage.name}`
+           : "Factura de compra personalizada"
+         : currentPlan?.name
+           ? `Factura de ${currentPlan.name}`
+           : "Factura de suscripción";
+
+        return (
         <div key={item.id}>
          <span>
-          <b>
-           {currentPlan?.name
-            ? `Factura de ${currentPlan.name}`
-            : "Factura de suscripción"}
-          </b>
+          <b>{invoiceTitle}</b>
           <small>
            {item.invoice_number
             ? `N.º ${item.invoice_number} · `
@@ -825,9 +941,14 @@ export function BillingCenter() {
           )}
          </span>
         </div>
-       ))
+        );
+       })
       ) : (
-       <p>Sin facturas.</p>
+       <p>
+        {invoices.length
+         ? "Las facturas existentes no están habilitadas para publicación."
+         : "Sin facturas disponibles."}
+       </p>
       )}
      </div>
     </div>
