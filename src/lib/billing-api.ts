@@ -16,8 +16,8 @@ export const listPlans = () => apiFetch<SubscriptionPlan[]>("/api/v1/subscriptio
 export const listTokenPackages = () => apiFetch<TokenPackage[]>("/api/v1/tokens/packages");
 export const listTokenTransactions = () => apiFetch<TokenTransaction[]>("/api/v1/tokens/transactions?limit=25");
 export const listTokenPurchases = () => apiFetch<TokenPurchaseList>("/api/v1/billing/token-purchases?limit=25");
-export const listPayments = () => apiFetch<BillingPaymentList>("/api/v1/billing-history/payments?limit=25");
-export const listInvoices = () => apiFetch<BillingInvoiceList>("/api/v1/billing-history/invoices?limit=25");
+export const listPayments = () => apiFetch<BillingPaymentList>("/api/v1/billing/history/payments?limit=25");
+export const listInvoices = () => apiFetch<BillingInvoiceList>("/api/v1/billing/history/invoices?limit=25");
 export const getCurrentSubscription = () => apiFetch<UserSubscription>("/api/v1/billing/subscriptions/current");
 
 export async function checkoutTokenPackage(tokenPackageId: number) {

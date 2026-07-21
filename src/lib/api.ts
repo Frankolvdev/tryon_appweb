@@ -33,7 +33,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers.set("Content-Type", "application/json");
   }
 
-  const target = path.startsWith("/api/") ? path : `${env.apiBaseUrl}${path}`;
+  // Next.js owns only the local `/api/auth/*` routes. All `/api/v1/*`
+  // requests belong to FastAPI and must use the configured backend URL.
+  const target = path.startsWith("/api/v1/")
+    ? `${env.apiBaseUrl}${path}`
+    : path.startsWith("/api/")
+      ? path
+      : `${env.apiBaseUrl}${path}`;
   let response: Response;
   const timeoutController = new AbortController();
   const timeoutId = window.setTimeout(() => timeoutController.abort(), 30_000);
