@@ -3,123 +3,72 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
-
+import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, X } from "lucide-react";
 import { useAppSession } from "@/components/app/app-session";
-import { Brand } from "@/components/ui/brand";
 import { clearSession } from "@/lib/auth-storage";
 
 const items = [
-  ["/dashboard", "Inicio", "⌂"],
-  ["/try-on", "Crear Try-On", "✦"],
-  ["/history", "Historial", "◫"],
-  ["/gallery", "Galería", "▦"],
-  ["/billing", "Tokens y plan", "◇"],
-  ["/settings", "Configuración", "⚙"],
+  { href: "/dashboard", label: "Inicio", icon: Home },
+  { href: "/try-on", label: "Crear Try-On", icon: Sparkles },
+  { href: "/history", label: "Historial", icon: History },
+  { href: "/gallery", label: "Galería", icon: GalleryVerticalEnd },
+  { href: "/billing", label: "Tokens y plan", icon: Coins },
+  { href: "/settings", label: "Configuración", icon: Settings },
 ] as const;
 
 function initials(name?: string | null) {
-  const value = name?.trim() || "Usuario";
+  return (name?.trim() || "Usuario").split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+}
 
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
+function AppBrand({ collapsed = false }: { collapsed?: boolean }) {
+  return (
+    <Link href="/dashboard" className={`appBrand${collapsed ? " appBrandCollapsed" : ""}`} aria-label="TryOn AI">
+      <span className="appBrandMark"><Sparkles size={20} strokeWidth={1.8}/></span>
+      {!collapsed && <span className="appBrandCopy"><strong>TRYON AI</strong><small>VIRTUAL STUDIO</small></span>}
+    </Link>
+  );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAppSession();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   function logout() {
-    setOpen(false);
+    setMobileOpen(false);
     clearSession();
     router.replace("/login");
     router.refresh();
   }
 
+  const sidebar = (
+    <div className="appSidebarInner">
+      <AppBrand collapsed={collapsed}/>
+      <nav className="appNav" aria-label="Navegación principal">
+        {!collapsed && <p className="appNavGroup">MI ESTUDIO</p>}
+        {items.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return <Link key={href} href={href} title={collapsed ? label : undefined} className={`appNavItem${active ? " appNavItemActive" : ""}`} onClick={()=>setMobileOpen(false)}><Icon size={17} strokeWidth={1.8}/>{!collapsed && <span>{label}</span>}</Link>;
+        })}
+      </nav>
+      <div className="appSidebarBottom">
+        <Link href="/settings" className={`appUserCard${collapsed ? " appUserCardCollapsed" : ""}`} onClick={()=>setMobileOpen(false)}>
+          <span className="appAvatar">{initials(user.full_name)}</span>
+          {!collapsed && <span className="appUserCopy"><strong>{user.full_name || "Mi cuenta"}</strong><small>{user.email}</small></span>}
+        </Link>
+        <button type="button" className={`appLogout${collapsed ? " appLogoutCollapsed" : ""}`} onClick={logout} title="Cerrar sesión"><LogOut size={17}/>{!collapsed && <span>Cerrar sesión</span>}</button>
+        <button type="button" className="appCollapse" onClick={()=>setCollapsed((value)=>!value)}>{collapsed ? <ChevronRight size={16}/> : <><span>Contraer panel</span><ChevronLeft size={16}/></>}</button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="appFrame">
-      <header className="mobileHeader">
-        <Brand />
-
-        <button
-          type="button"
-          className="menuButton"
-          onClick={() => setOpen((value) => !value)}
-          aria-label="Abrir navegación"
-          aria-expanded={open}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-      </header>
-
-      {open && (
-        <button
-          type="button"
-          className="sidebarBackdrop"
-          onClick={() => setOpen(false)}
-          aria-label="Cerrar navegación"
-        />
-      )}
-
-      <aside className={`sidebar${open ? " sidebarOpen" : ""}`}>
-        <div className="desktopBrand">
-          <Brand />
-        </div>
-
-        <div className="workspaceLabel">MI ESTUDIO</div>
-
-        <nav aria-label="Navegación principal">
-          {items.map(([href, label, icon]) => {
-            const active =
-              pathname === href ||
-              pathname.startsWith(`${href}/`);
-
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={active ? "active" : ""}
-                onClick={() => setOpen(false)}
-              >
-                <span aria-hidden="true">{icon}</span>
-                <strong>{label}</strong>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebarBottom">
-          <Link
-            href="/settings"
-            className="userMiniCard"
-            onClick={() => setOpen(false)}
-          >
-            <span className="userAvatar">
-              {initials(user.full_name)}
-            </span>
-
-            <span className="userMiniCopy">
-              <strong>{user.full_name || "Mi cuenta"}</strong>
-              <small>{user.email}</small>
-            </span>
-          </Link>
-
-          <button
-            type="button"
-            className="logout"
-            onClick={logout}
-          >
-            ↗ <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
-
+    <div className={`appFrame${collapsed ? " appFrameCollapsed" : ""}`}>
+      <header className="appMobileHeader"><AppBrand/><button type="button" className="appMenuButton" onClick={()=>setMobileOpen(true)} aria-label="Abrir navegación"><Menu size={20}/></button></header>
+      <aside className="appDesktopSidebar">{sidebar}</aside>
+      {mobileOpen && <div className="appMobileLayer"><button type="button" className="appSidebarBackdrop" onClick={()=>setMobileOpen(false)} aria-label="Cerrar navegación"/><aside className="appMobileSidebar"><button type="button" className="appMobileClose" onClick={()=>setMobileOpen(false)} aria-label="Cerrar menú"><X size={18}/></button>{sidebar}</aside></div>}
       <main className="appContent">{children}</main>
     </div>
   );
