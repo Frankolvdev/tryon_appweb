@@ -799,6 +799,17 @@ export function BillingCenter() {
          (item.token_package_id === null
           ? "Compra personalizada"
           : "Paquete de tokens");
+        const purchaseTokens = Number(item.total_tokens) || 0;
+        const purchaseProgress =
+         largestTokenPurchase > 0
+          ? Math.min(
+             100,
+             Math.max(
+              0,
+              (purchaseTokens / largestTokenPurchase) * 100,
+             ),
+            )
+          : 0;
 
         return (
          <div key={item.id}>
@@ -826,29 +837,18 @@ export function BillingCenter() {
            <strong>{money(item.amount, item.currency)}</strong>
            <span
             className="tokenPurchaseProgress"
-            aria-label={`${largestTokenPurchase > 0
-             ? Math.round((item.total_tokens / largestTokenPurchase) * 100)
-             : 0}% respecto a la mayor compra de tokens`}
+            aria-label={`${Math.round(purchaseProgress)}% respecto a la mayor compra de tokens`}
            >
-            <span
+            <i
+             aria-hidden="true"
              style={{
-              width: `${largestTokenPurchase > 0
-               ? Math.max(
-                  4,
-                  Math.min(
-                   100,
-                   (item.total_tokens / largestTokenPurchase) * 100,
-                  ),
-                 )
-               : 0}%`,
+              width: `${purchaseProgress}%`,
              }}
             />
            </span>
            <small>
             {largestTokenPurchase > 0
-             ? `${Math.round(
-                (item.total_tokens / largestTokenPurchase) * 100,
-               )}% de tu mayor compra`
+             ? `${Math.round(purchaseProgress)}% de tu mayor compra`
              : "Sin referencia histórica"}
            </small>
           </span>
