@@ -27,3 +27,8 @@ export const listGenerationExecutions = (params?: { moduleId?: number; status?: 
   return apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/execution-history?${query.toString()}`);
 };
 export const retryGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/retry`, { method: "POST", body: JSON.stringify({}) });
+
+export const listActiveGenerationExecutions = (moduleId?: number) => {
+  const query = moduleId ? `?module_id=${moduleId}` : "";
+  return apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/active-executions${query}`);
+};

@@ -6,6 +6,8 @@ import { useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, X } from "lucide-react";
 import { useAppSession } from "@/components/app/app-session";
 import { clearSession } from "@/lib/auth-storage";
+import { GenerationJobsProvider } from "@/components/generation/generation-jobs-provider";
+import { ActiveGenerationJobs } from "@/components/generation/active-generation-jobs";
 
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
@@ -65,11 +67,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
+    <GenerationJobsProvider>
     <div className={`appFrame${collapsed ? " appFrameCollapsed" : ""}`}>
       <header className="appMobileHeader"><AppBrand/><button type="button" className="appMenuButton" onClick={()=>setMobileOpen(true)} aria-label="Abrir navegación"><Menu size={20}/></button></header>
       <aside className="appDesktopSidebar">{sidebar}</aside>
       {mobileOpen && <div className="appMobileLayer"><button type="button" className="appSidebarBackdrop" onClick={()=>setMobileOpen(false)} aria-label="Cerrar navegación"/><aside className="appMobileSidebar"><button type="button" className="appMobileClose" onClick={()=>setMobileOpen(false)} aria-label="Cerrar menú"><X size={18}/></button>{sidebar}</aside></div>}
-      <main className="appContent">{children}</main>
+      <main className="appContent"><ActiveGenerationJobs/>{children}</main>
     </div>
+    </GenerationJobsProvider>
   );
 }
