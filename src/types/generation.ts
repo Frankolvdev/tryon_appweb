@@ -1,4 +1,4 @@
-export type GenerationInputType = "image" | "file" | "text" | "integer" | "float" | "boolean" | "json";
+export type GenerationInputType = "image" | "file" | "text" | "textarea" | "select" | "integer" | "float" | "boolean" | "json";
 export type GenerationExecutionStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 export interface GenerationInput { id: number; key: string; name: string; description?: string | null; input_type: GenerationInputType; position: number; is_required: boolean; default_value?: unknown; validation?: Record<string, unknown>; }
 export interface GenerationOutput { id: number; key: string; name: string; output_type: string; position: number; is_required: boolean; }
