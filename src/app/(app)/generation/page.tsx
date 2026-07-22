@@ -1,2 +1,2 @@
 import { GenerationStudio } from "@/components/generation/generation-studio";
-export default function TryOnPage(){return <GenerationStudio/>}
+export default function GenerationPage(){return <GenerationStudio/>}
