@@ -986,3 +986,201 @@ body::before {
     padding: 20px !important;
   }
 }
+
+
+/* 10B9 — Paridad fina con BackOffice y actividad comercial sin tarjetas animadas */
+.appContent {
+  width: calc(100% - 288px) !important;
+  max-width: none !important;
+  margin-left: 288px !important;
+  margin-right: 0 !important;
+  padding: 38px clamp(28px, 4vw, 72px) 64px !important;
+}
+
+.appContent > * {
+  width: min(100%, 1540px) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Los encabezados de cada historial ya no se comportan como registros. */
+.billingCommerceCard > .billingBlockHeading {
+  min-height: auto !important;
+  margin: 0 0 8px !important;
+  padding: 0 0 18px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.billingCommerceCard > .billingBlockHeading:hover {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  background: transparent !important;
+}
+
+.billingBlockHeading h3 {
+  margin: 0 0 5px !important;
+}
+
+.billingBlockHeading h3::before {
+  display: none !important;
+}
+
+.billingBlockHeading p {
+  margin: 0 !important;
+  color: #71717a !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+/* Nada debe levantarse, desplazarse ni escalar al pasar el cursor. */
+.statsGrid article,
+.quickCard,
+.commercialCard,
+.packageCard,
+.billingTable,
+.profilePanel,
+.accountSummary,
+.tokenBadge,
+.primaryButton,
+.secondaryButton,
+.ghostButton,
+.billingActions button,
+.couponBox button,
+.invoiceActions a,
+.sidebar nav a {
+  transform: none !important;
+}
+
+.statsGrid article:hover,
+.quickCard:hover,
+.commercialCard:hover,
+.packageCard:hover,
+.billingTable:hover,
+.tokenBadge:hover,
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover,
+.ghostButton:hover,
+.billingActions button:hover,
+.couponBox button:hover,
+.invoiceActions a:hover,
+.sidebar nav a:hover {
+  transform: none !important;
+}
+
+.billingTable > div {
+  transition:
+    background-color .18s ease,
+    border-color .18s ease !important;
+}
+
+.billingTable > div:hover {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  background: rgba(255,255,255,.018) !important;
+}
+
+/* Progreso real de cada compra frente a la mayor compra histórica. */
+.tokenPurchaseResult {
+  width: min(220px, 42%);
+  min-width: 150px;
+  display: grid !important;
+  justify-items: end;
+  gap: 7px;
+}
+
+.tokenPurchaseResult > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.tokenPurchaseResult > small {
+  color: #71717a !important;
+  font-size: 10px !important;
+}
+
+.tokenPurchaseProgress {
+  width: 100%;
+  height: 6px;
+  display: block !important;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  background: rgba(255,255,255,.045);
+}
+
+.tokenPurchaseProgress > span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #188554, #35d38a);
+  box-shadow: 0 0 14px rgba(53,211,138,.28);
+}
+
+/* Sidebar: medidas, densidad y estados del BackOffice. */
+.sidebar {
+  width: 288px !important;
+}
+
+.desktopBrand {
+  min-height: 80px !important;
+}
+
+.workspaceLabel {
+  padding-top: 22px !important;
+}
+
+.sidebar nav {
+  gap: 4px !important;
+}
+
+.sidebar nav a {
+  min-height: 40px !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+}
+
+.sidebar nav a::before {
+  display: none !important;
+}
+
+.sidebar nav a.active {
+  border-color: rgba(239,68,68,.15) !important;
+  background: linear-gradient(
+    90deg,
+    rgba(69,10,10,.45),
+    rgba(69,10,10,.10)
+  ) !important;
+  box-shadow: 0 0 28px rgba(150,10,30,.12) !important;
+}
+
+.sidebar nav a span {
+  width: 20px !important;
+  height: 20px !important;
+  flex-basis: 20px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sidebar nav a strong {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+@media (max-width: 1023px) {
+  .appContent {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 26px 20px 52px !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .tokenPurchaseResult {
+    width: 100%;
+    min-width: 0;
+    justify-items: start;
+  }
+}

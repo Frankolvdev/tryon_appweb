@@ -276,6 +276,16 @@ export function BillingCenter() {
   [payments],
  );
 
+ const largestTokenPurchase = useMemo(
+  () =>
+   purchases.reduce(
+    (largest, purchase) =>
+     Math.max(largest, Number(purchase.total_tokens) || 0),
+    0,
+   ),
+  [purchases],
+ );
+
  async function redirect(
   action: () => Promise<{
    checkout_url?: string;
@@ -812,7 +822,36 @@ export function BillingCenter() {
            )}
            <small>{date(item.paid_at || item.created_at)}</small>
           </span>
-          <strong>{money(item.amount, item.currency)}</strong>
+          <span className="tokenPurchaseResult">
+           <strong>{money(item.amount, item.currency)}</strong>
+           <span
+            className="tokenPurchaseProgress"
+            aria-label={`${largestTokenPurchase > 0
+             ? Math.round((item.total_tokens / largestTokenPurchase) * 100)
+             : 0}% respecto a la mayor compra de tokens`}
+           >
+            <span
+             style={{
+              width: `${largestTokenPurchase > 0
+               ? Math.max(
+                  4,
+                  Math.min(
+                   100,
+                   (item.total_tokens / largestTokenPurchase) * 100,
+                  ),
+                 )
+               : 0}%`,
+             }}
+            />
+           </span>
+           <small>
+            {largestTokenPurchase > 0
+             ? `${Math.round(
+                (item.total_tokens / largestTokenPurchase) * 100,
+               )}% de tu mayor compra`
+             : "Sin referencia histórica"}
+           </small>
+          </span>
          </div>
         );
        })
