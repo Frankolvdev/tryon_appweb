@@ -6,3 +6,4 @@ export interface GenerationModule { id: number; key: string; name: string; descr
 export interface GenerationModuleList { items: GenerationModule[]; total: number; skip: number; limit: number; }
 export interface GenerationLog { timestamp: string; level: "info" | "warning" | "error"; step_key?: string | null; message: string; }
 export interface GenerationExecution { id: string; module_id: number; module_key: string; engine: "simulated" | "local_docker" | "runpod_serverless"; status: GenerationExecutionStatus; progress: number; inputs: Record<string, unknown>; outputs: Record<string, unknown>; logs: GenerationLog[]; error?: string | null; created_at: string; cancel_requested: boolean; }
+export interface GenerationExecutionList { items: GenerationExecution[]; total: number; skip: number; limit: number; }
