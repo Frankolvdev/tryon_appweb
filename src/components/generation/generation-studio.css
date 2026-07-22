@@ -59,3 +59,5 @@
   font-size: 10px;
   color: rgba(255,255,255,.42);
 }
+
+.generationQueueMeta{display:grid;gap:8px;margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.025)}.generationQueueMeta div{display:flex;justify-content:space-between;gap:12px;font-size:11px}.generationQueueMeta span{color:#71717a}.generationQueueMeta strong{max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e4e4e7;text-align:right}

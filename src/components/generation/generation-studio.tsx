@@ -100,6 +100,20 @@ function ExecutionInputAssets({
   );
 }
 
+function executionEngineLabel(engine: GenerationExecution["engine"]) {
+  if (engine === "local_docker") return "Local";
+  if (engine === "runpod_serverless") return "RunPod Serverless";
+  return "Simulado";
+}
+
+function executionQueueText(execution: GenerationExecution) {
+  if (execution.queue_position) return `Posición ${execution.queue_position}`;
+  if (execution.provider_status === "IN_QUEUE") return "En cola de RunPod";
+  if (execution.status === "queued" && execution.engine === "local_docker") return "Esperando GPU local";
+  if (execution.status === "queued") return "Esperando despacho";
+  return execution.provider_status || execution.status;
+}
+
 export function GenerationStudio() {
   const { track } = useGenerationJobs();
   const [modules, setModules] = useState<GenerationModule[]>([]);
@@ -248,21 +262,14 @@ export function GenerationStudio() {
               />
               <button
                 className="primaryButton generationRun"
-                disabled={
-                  busy ||
-                  restoring ||
-                  !selected.pricing?.is_active ||
-                  Boolean(execution && ACTIVE.includes(execution.status))
-                }
+                disabled={busy || restoring || !selected.pricing?.is_active}
                 onClick={run}
               >
                 {restoring
                   ? "Recuperando ejecución…"
-                  : execution && ACTIVE.includes(execution.status)
-                    ? `Procesando ${execution.progress}%`
-                    : selected.pricing?.is_active
-                      ? `Ejecutar por ${selected.pricing.required_tokens} tokens ✦`
-                      : "Precio no configurado"}
+                  : selected.pricing?.is_active
+                    ? `${execution && ACTIVE.includes(execution.status) ? "Agregar otro a la cola" : "Ejecutar"} por ${selected.pricing.required_tokens} tokens ✦`
+                    : "Precio no configurado"}
               </button>
             </>
           )}
@@ -280,6 +287,11 @@ export function GenerationStudio() {
               </div>
               <div className="generationProgress">
                 <i style={{ width: `${execution.progress}%` }} />
+              </div>
+              <div className="generationQueueMeta">
+                <div><span>Proveedor</span><strong>{executionEngineLabel(execution.engine)}</strong></div>
+                <div><span>Cola</span><strong>{execution.queue_name || executionQueueText(execution)}</strong></div>
+                {execution.provider_job_id && <div><span>Job remoto</span><strong>{execution.provider_job_id}</strong></div>}
               </div>
               <ExecutionInputAssets
                 execution={execution}
