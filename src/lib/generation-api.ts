@@ -6,7 +6,6 @@ export const getGenerationModule = (id: number) => apiFetch<GenerationModule>(`/
 export const executeGenerationModule = (
   id: number,
   inputs: Record<string, unknown>,
-  engine?: GenerationExecution["engine"],
 ) => {
   const form = new FormData();
   const serialized: Record<string, unknown> = {};
@@ -18,7 +17,7 @@ export const executeGenerationModule = (
       serialized[key] = value;
     }
   }
-  form.append("payload", JSON.stringify({ inputs: serialized, engine }));
+  form.append("payload", JSON.stringify({ inputs: serialized }));
   return apiFetch<GenerationExecution>(`/api/v1/generation-modules/${id}/executions`, { method: "POST", body: form });
 };
 export const getGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/status`);
