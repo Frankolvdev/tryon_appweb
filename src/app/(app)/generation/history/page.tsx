@@ -30,6 +30,7 @@ export default function GenerationHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,8 +58,20 @@ export default function GenerationHistoryPage() {
   }
 
   async function cancel(id: string) {
-    await cancelGenerationExecution(id);
-    await load();
+    setCancellingIds((current) => new Set(current).add(id));
+    setError("");
+    try {
+      await cancelGenerationExecution(id);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "No fue posible solicitar la cancelación.");
+    } finally {
+      setCancellingIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
   }
 
   return (
@@ -95,7 +108,9 @@ export default function GenerationHistoryPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-semibold text-white">{item.module_key}</h2>
-                  <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] uppercase text-zinc-400">{item.status}</span>
+                  <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] uppercase text-zinc-400">
+                    {item.cancel_requested && active.has(item.status) ? "cancelando" : item.status}
+                  </span>
                   <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] text-zinc-500">{providerLabel(item.engine)}</span>
                 </div>
                 <p className="mt-2 font-mono text-xs text-zinc-600">{item.id}</p>
@@ -104,7 +119,15 @@ export default function GenerationHistoryPage() {
                 {item.provider_job_id && <p className="mt-1 font-mono text-xs text-zinc-600">Remoto: {item.provider_job_id}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
-                {active.has(item.status) && <button onClick={() => void cancel(item.id)} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300">Cancelar</button>}
+                {active.has(item.status) && (
+                  <button
+                    disabled={cancellingIds.has(item.id) || item.cancel_requested}
+                    onClick={() => void cancel(item.id)}
+                    className="rounded-xl border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {cancellingIds.has(item.id) || item.cancel_requested ? "Cancelando…" : "Cancelar"}
+                  </button>
+                )}
                 {terminal.has(item.status) && <button onClick={() => void retry(item.id)} className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white">Reintentar</button>}
               </div>
             </div>

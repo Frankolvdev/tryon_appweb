@@ -116,8 +116,11 @@ function executionEngineLabel(engine: GenerationExecution["engine"]) {
   return "Simulado";
 }
 
-function executionStatusLabel(status: string) {
-  return STATUS_LABELS[status] ?? status;
+function executionStatusLabel(execution: GenerationExecution) {
+  if (execution.cancel_requested && ACTIVE.includes(execution.status)) {
+    return "Cancelando…";
+  }
+  return STATUS_LABELS[execution.status] ?? execution.status;
 }
 
 export function GenerationStudio() {
@@ -293,7 +296,7 @@ export function GenerationStudio() {
           ) : execution ? (
             <>
               <div className="generationStatus">
-                <strong>{executionStatusLabel(execution.status)}</strong>
+                <strong>{executionStatusLabel(execution)}</strong>
                 <span>{execution.progress}%</span>
               </div>
               <div className="generationProgress">
@@ -325,7 +328,7 @@ export function GenerationStudio() {
               </div>
               {ACTIVE.includes(execution.status) && (
                 <button
-                  disabled={cancelling}
+                  disabled={cancelling || execution.cancel_requested}
                   onClick={async () => {
                     setCancelling(true);
                     setError(null);
@@ -347,7 +350,9 @@ export function GenerationStudio() {
                     }
                   }}
                 >
-                  {cancelling ? "Cancelando en Modal…" : "Cancelar"}
+                  {cancelling || execution.cancel_requested
+                    ? "Cancelando…"
+                    : "Cancelar"}
                 </button>
               )}
               {execution.status === "completed" && (
