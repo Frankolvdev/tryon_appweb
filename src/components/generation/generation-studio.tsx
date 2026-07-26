@@ -6,6 +6,7 @@ import {
   cancelGenerationExecution,
   executeGenerationModule,
   getGenerationExecution,
+  getGenerationModule,
   listGenerationExecutions,
   listGenerationModules,
 } from "@/lib/generation-api";
@@ -190,7 +191,19 @@ export function GenerationStudio() {
           normalized[input.key] = JSON.parse(normalized[input.key] as string);
         }
       }
-      const job = await executeGenerationModule(selected.id, normalized);
+      // Refresh the module immediately before creating the execution so a
+      // provider change made in BackOffice is never taken from stale AppWeb state.
+      const freshModule = await getGenerationModule(selected.id);
+      setModules((current) =>
+        current.map((module) =>
+          module.id === freshModule.id ? freshModule : module,
+        ),
+      );
+      const job = await executeGenerationModule(
+        freshModule.id,
+        normalized,
+        freshModule.default_execution_engine,
+      );
       setExecution(job);
       track(job);
       setValues(initialGenerationValues(selected.inputs));
