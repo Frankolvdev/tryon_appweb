@@ -130,6 +130,7 @@ export function GenerationStudio() {
   const [error, setError] = useState<string | null>(null);
   const [pollFailures, setPollFailures] = useState(0);
   const [restoring, setRestoring] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     listGenerationModules()
@@ -167,7 +168,7 @@ export function GenerationStudio() {
           setPollFailures(0);
         })
         .catch(() => setPollFailures((value) => value + 1));
-    }, 1000);
+    }, 2000);
     return () => window.clearInterval(timer);
   }, [execution?.id, execution?.status, track]);
 
@@ -324,14 +325,29 @@ export function GenerationStudio() {
               </div>
               {ACTIVE.includes(execution.status) && (
                 <button
-                  onClick={() =>
-                    cancelGenerationExecution(execution.id).then((item) => {
+                  disabled={cancelling}
+                  onClick={async () => {
+                    setCancelling(true);
+                    setError(null);
+                    try {
+                      const item = await cancelGenerationExecution(execution.id);
                       setExecution(item);
                       track(item);
-                    })
-                  }
+                    } catch (cause) {
+                      setError(normalizeGenerationError(cause));
+                      try {
+                        const latest = await getGenerationExecution(execution.id);
+                        setExecution(latest);
+                        track(latest);
+                      } catch {
+                        // Keep the last known execution when status refresh also fails.
+                      }
+                    } finally {
+                      setCancelling(false);
+                    }
+                  }}
                 >
-                  Cancelar
+                  {cancelling ? "Cancelando en Modal…" : "Cancelar"}
                 </button>
               )}
               {execution.status === "completed" && (
