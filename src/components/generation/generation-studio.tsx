@@ -2,7 +2,6 @@
 
 import "./generation-studio.css";
 import { useEffect, useMemo, useState } from "react";
-
 import {
   cancelGenerationExecution,
   executeGenerationModule,
@@ -25,6 +24,14 @@ import { GenerationResults } from "@/components/generation/generation-results";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 
 const ACTIVE = ["queued", "running"];
+
+const STATUS_LABELS: Record<string, string> = {
+  queued: "En cola",
+  running: "Procesando",
+  completed: "Completado",
+  failed: "Fallido",
+  cancelled: "Cancelado",
+};
 
 type StoredInputFile = {
   __generation_file__?: boolean;
@@ -90,7 +97,9 @@ function ExecutionInputAssets({
               )}
               <div>
                 <strong>{label}</strong>
-                <span>{file.filename ?? `Archivo #${file.storage_file_id ?? "—"}`}</span>
+                <span>
+                  {file.filename ?? `Archivo #${file.storage_file_id ?? "—"}`}
+                </span>
               </div>
             </article>
           );
@@ -101,17 +110,14 @@ function ExecutionInputAssets({
 }
 
 function executionEngineLabel(engine: GenerationExecution["engine"]) {
+  if (engine === "modal") return "Modal";
   if (engine === "local_docker") return "Local";
   if (engine === "runpod_serverless") return "RunPod Serverless";
   return "Simulado";
 }
 
-function executionQueueText(execution: GenerationExecution) {
-  if (execution.queue_position) return `Posición ${execution.queue_position}`;
-  if (execution.provider_status === "IN_QUEUE") return "En cola de RunPod";
-  if (execution.status === "queued" && execution.engine === "local_docker") return "Esperando GPU local";
-  if (execution.status === "queued") return "Esperando despacho";
-  return execution.provider_status || execution.status;
+function executionStatusLabel(status: string) {
+  return STATUS_LABELS[status] ?? status;
 }
 
 export function GenerationStudio() {
@@ -172,6 +178,7 @@ export function GenerationStudio() {
       setError(validationError);
       return;
     }
+
     setBusy(true);
     setError(null);
     try {
@@ -186,8 +193,6 @@ export function GenerationStudio() {
       const job = await executeGenerationModule(selected.id, normalized);
       setExecution(job);
       track(job);
-      // Clear only the new-job form. The immutable files used by this job are
-      // persisted in execution.inputs and remain visible in the progress card.
       setValues(initialGenerationValues(selected.inputs));
     } catch (cause) {
       setError(normalizeGenerationError(cause));
@@ -216,6 +221,7 @@ export function GenerationStudio() {
           {error}
         </div>
       )}
+
       {pollFailures >= 3 && (
         <div className="generationError" role="status">
           La conexión está inestable. Seguiremos intentando automáticamente.
@@ -254,12 +260,14 @@ export function GenerationStudio() {
                   </span>
                 </div>
               </div>
+
               <DynamicGenerationForm
                 inputs={selected.inputs}
                 values={values}
                 onChange={setValues}
                 disabled={busy || restoring}
               />
+
               <button
                 className="primaryButton generationRun"
                 disabled={busy || restoring || !selected.pricing?.is_active}
@@ -282,16 +290,23 @@ export function GenerationStudio() {
           ) : execution ? (
             <>
               <div className="generationStatus">
-                <strong>{execution.status}</strong>
+                <strong>{executionStatusLabel(execution.status)}</strong>
                 <span>{execution.progress}%</span>
               </div>
               <div className="generationProgress">
                 <i style={{ width: `${execution.progress}%` }} />
               </div>
               <div className="generationQueueMeta">
-                <div><span>Proveedor</span><strong>{executionEngineLabel(execution.engine)}</strong></div>
-                <div><span>Cola</span><strong>{execution.queue_name || executionQueueText(execution)}</strong></div>
-                {execution.provider_job_id && <div><span>Job remoto</span><strong>{execution.provider_job_id}</strong></div>}
+                <div>
+                  <span>Proveedor</span>
+                  <strong>{executionEngineLabel(execution.engine)}</strong>
+                </div>
+                {execution.provider_job_id && (
+                  <div>
+                    <span>Job remoto</span>
+                    <strong>{execution.provider_job_id}</strong>
+                  </div>
+                )}
               </div>
               <ExecutionInputAssets
                 execution={execution}
