@@ -13,6 +13,8 @@ const terminal = new Set(["completed", "failed", "cancelled"]);
 const active = new Set(["queued", "running"]);
 
 function providerLabel(engine: GenerationExecution["engine"]) {
+  if (engine === "modal") return "Modal";
+  if (engine === "beam") return "Beam";
   if (engine === "local_docker") return "Local";
   if (engine === "runpod_serverless") return "RunPod Serverless";
   return "Simulado";
@@ -80,7 +82,7 @@ export default function GenerationHistoryPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[.28em] text-red-400">Generaciones</p>
           <h1 className="mt-2 text-3xl font-semibold text-white">Historial unificado de trabajos</h1>
-          <p className="mt-2 text-sm text-zinc-500">Local, RunPod Serverless y Simulado comparten el mismo historial, control y recuperación.</p>
+          <p className="mt-2 text-sm text-zinc-500">Local, RunPod Serverless, Modal, Beam y Simulado comparten el mismo historial, control y recuperación.</p>
         </div>
         <div className="flex gap-2">
           <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-sm text-white">

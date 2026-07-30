@@ -111,6 +111,7 @@ function ExecutionInputAssets({
 
 function executionEngineLabel(engine: GenerationExecution["engine"]) {
   if (engine === "modal") return "Modal";
+  if (engine === "beam") return "Beam";
   if (engine === "local_docker") return "Local";
   if (engine === "runpod_serverless") return "RunPod Serverless";
   return "Simulado";
