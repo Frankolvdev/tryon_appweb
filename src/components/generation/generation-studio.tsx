@@ -124,6 +124,21 @@ function executionStatusLabel(execution: GenerationExecution) {
   return STATUS_LABELS[execution.status] ?? execution.status;
 }
 
+function formatDuration(seconds?: number | null) {
+  if (seconds == null || !Number.isFinite(seconds)) return "—";
+  const rounded = Math.max(0, Math.round(seconds));
+  if (rounded < 60) return `${rounded} s`;
+  const minutes = Math.floor(rounded / 60);
+  const remainder = rounded % 60;
+  return remainder > 0 ? `${minutes} min ${remainder} s` : `${minutes} min`;
+}
+
+function estimationSourceLabel(source?: string | null) {
+  return source === "historical_average"
+    ? "Promedio de ejecuciones recientes"
+    : "Estimación inicial configurada";
+}
+
 export function GenerationStudio() {
   const { track } = useGenerationJobs();
   const [modules, setModules] = useState<GenerationModule[]>([]);
@@ -275,6 +290,26 @@ export function GenerationStudio() {
                 disabled={busy || restoring}
               />
 
+              {selected.pricing?.is_active && (
+                <section className="generationEstimate" aria-label="Estimación de la ejecución">
+                  <div>
+                    <span>Tiempo estimado</span>
+                    <strong>{formatDuration(selected.pricing.estimated_duration_seconds)}</strong>
+                    <small>{estimationSourceLabel(selected.pricing.estimated_duration_source)}</small>
+                  </div>
+                  <div>
+                    <span>Tokens estimados</span>
+                    <strong>{selected.pricing.required_tokens} ✦</strong>
+                    <small>El cobro final se ajusta al tiempo real.</small>
+                  </div>
+                  <div>
+                    <span>Infraestructura</span>
+                    <strong>{selected.pricing.provider ? executionEngineLabel(selected.pricing.provider as GenerationExecution["engine"]) : executionEngineLabel(selected.default_execution_engine)}</strong>
+                    <small>{selected.pricing.gpu_key || "GPU definida por el proveedor"}</small>
+                  </div>
+                </section>
+              )}
+
               <button
                 className="primaryButton generationRun"
                 disabled={busy || restoring || !selected.pricing?.is_active}
@@ -358,6 +393,36 @@ export function GenerationStudio() {
               )}
               {execution.status === "completed" && (
                 <GenerationResults outputs={execution.outputs} />
+              )}
+              {!ACTIVE.includes(execution.status) && (
+                <section className="generationFinalCost" aria-label="Resultado de tiempo y tokens">
+                  <small>RESULTADO DE LA EJECUCIÓN</small>
+                  <div>
+                    <span>Tiempo real</span>
+                    <strong>{formatDuration(
+                      execution.billing_breakdown?.real_provider_seconds ??
+                        (execution.real_provider_duration_ms != null
+                          ? execution.real_provider_duration_ms / 1000
+                          : execution.duration_ms != null
+                            ? execution.duration_ms / 1000
+                            : null),
+                    )}</strong>
+                  </div>
+                  <div>
+                    <span>Tokens finales</span>
+                    <strong>{execution.billing_breakdown?.final_tokens ?? execution.tokens_charged} ✦</strong>
+                  </div>
+                  {execution.billing_breakdown?.estimated_tokens_before_execution != null && (
+                    <p>
+                      Estimación inicial: {execution.billing_breakdown.estimated_tokens_before_execution} tokens.
+                      {Number(execution.billing_breakdown.tokens_refunded || 0) > 0
+                        ? ` Se devolvieron ${execution.billing_breakdown.tokens_refunded} tokens.`
+                        : Number(execution.billing_breakdown.extra_tokens_debited || 0) > 0
+                          ? ` Se ajustaron ${execution.billing_breakdown.extra_tokens_debited} tokens adicionales.`
+                          : " No fue necesario ajustar el cobro."}
+                    </p>
+                  )}
+                </section>
               )}
               {execution.error && (
                 <div className="generationError">{execution.error}</div>
