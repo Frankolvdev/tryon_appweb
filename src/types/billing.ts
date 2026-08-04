@@ -9,6 +9,11 @@ export type SubscriptionPlan = {
  calculated_price_amount: string | number;
  commercial_token_value: string | number;
  price_is_automatic: boolean;
+ nominal_price_amount: string | number;
+ requested_discount_percent: string | number;
+ effective_discount_percent: string | number;
+ discount_amount: string | number;
+ protected_discount_percent: string | number;
  tokens_per_period: number;
  max_generations_per_period?: number | null;
  features: string[];
@@ -25,6 +30,11 @@ export type TokenPackage = {
  calculated_price_cents: number;
  commercial_token_value: number;
  price_is_automatic: boolean;
+ nominal_price_cents: number;
+ requested_discount_percent: number;
+ effective_discount_percent: number;
+ discount_amount_cents: number;
+ protected_discount_percent: number;
  currency: string;
  stripe_price_id?: string | null;
  is_active: boolean;

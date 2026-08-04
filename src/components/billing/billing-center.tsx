@@ -151,6 +151,8 @@ export function BillingCenter() {
  const [error, setError] = useState<string | null>(null);
  const [notice, setNotice] = useState<string | null>(null);
  const [couponCode, setCouponCode] = useState("");
+ const [customCouponCode, setCustomCouponCode] = useState("");
+ const [customCouponMessage, setCustomCouponMessage] = useState<string | null>(null);
  const [couponMessage, setCouponMessage] = useState<string | null>(null);
  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
  const [customTokens, setCustomTokens] = useState(1);
@@ -346,9 +348,27 @@ export function BillingCenter() {
   const amount = normalizeCustomTokens(customTokens);
   setCustomTokens(amount);
   await redirect(
-   () => checkoutCustomTokens(amount),
+   () => checkoutCustomTokens(amount, customCouponCode),
    "custom-tokens",
   );
+ }
+
+ async function checkCustomCoupon() {
+  if (!customCouponCode.trim()) return;
+  setBusy("custom-coupon");
+  setCustomCouponMessage(null);
+  try {
+   const result = await validateCoupon(
+    customCouponCode.trim(),
+    customTotal,
+    "free_token_purchase",
+   );
+   setCustomCouponMessage(result.message);
+  } catch (value) {
+   setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+  } finally {
+   setBusy(null);
+  }
  }
 
  async function checkCoupon() {
@@ -505,18 +525,18 @@ export function BillingCenter() {
        </div>
        <h3>{plan.name}</h3>
        <p>{plan.description}</p>
-       <strong>
-        {money(
-         plan.calculated_price_amount,
-         plan.currency,
+       <div className="protectedPrice">
+        {Number(plan.effective_discount_percent) > 0 && (
+         <span className="originalPrice">{money(plan.nominal_price_amount, plan.currency)}</span>
         )}
-        <small>
-         /
-         {plan.billing_interval === "year"
-          ? "año"
-          : "mes"}
-        </small>
-       </strong>
+        <strong>
+         {money(plan.calculated_price_amount, plan.currency)}
+         <small>/{plan.billing_interval === "year" ? "año" : "mes"}</small>
+        </strong>
+        {Number(plan.effective_discount_percent) > 0 && (
+         <em>Ahorras {Number(plan.effective_discount_percent).toFixed(0)}% · {money(plan.discount_amount, plan.currency)}</em>
+        )}
+       </div>
        <ul>
         {plan.features.map((feature) => (
          <li key={feature}>✓ {feature}</li>
@@ -645,6 +665,20 @@ export function BillingCenter() {
      </div>
     </article>
 
+    <div className="couponBox">
+     <div>
+      <strong>Cupón para compra libre de tokens</strong>
+      <p>El backend aplicará únicamente el descuento seguro permitido.</p>
+     </div>
+     <div>
+      <input value={customCouponCode} onChange={(event) => setCustomCouponCode(event.target.value.toUpperCase())} placeholder="CÓDIGO" />
+      <button onClick={checkCustomCoupon} disabled={busy === "custom-coupon" || !customCouponCode.trim()}>
+       {busy === "custom-coupon" ? "Validando…" : "Validar"}
+      </button>
+     </div>
+     {customCouponMessage && <span>{customCouponMessage}</span>}
+    </div>
+
     <div className="commercialHeading packageHeading">
      <div>
       <span className="eyebrow">PAQUETES</span>
@@ -672,12 +706,15 @@ export function BillingCenter() {
         {item.tokens_amount.toLocaleString("es-MX")}
        </strong>
        <span>tokens</span>
-       <b>
-        {money(
-         item.calculated_price_cents / 100,
-         item.currency,
+       <div className="protectedPrice compact">
+        {item.effective_discount_percent > 0 && (
+         <span className="originalPrice">{money(item.nominal_price_cents / 100, item.currency)}</span>
         )}
-       </b>
+        <b>{money(item.calculated_price_cents / 100, item.currency)}</b>
+        {item.effective_discount_percent > 0 && (
+         <em>Ahorras {item.effective_discount_percent.toFixed(0)}%</em>
+        )}
+       </div>
        <p>{item.description}</p>
        <button
         className="primaryButton"
@@ -685,7 +722,7 @@ export function BillingCenter() {
         onClick={(event) => {
          event.stopPropagation();
          void redirect(
-          () => checkoutTokenPackage(item.id),
+          () => checkoutTokenPackage(item.id, selectedPackage?.id === item.id ? couponCode : undefined),
           `package-${item.id}`,
          );
         }}
@@ -707,9 +744,7 @@ export function BillingCenter() {
         Validar cupón para {selectedPackage.name}
        </strong>
        <p>
-        Stripe permitirá aplicar códigos promocionales
-        durante el checkout. Aquí puedes comprobar su
-        elegibilidad antes de continuar.
+        El backend validará el cupón y limitará automáticamente el descuento para proteger el costo de infraestructura.
        </p>
       </div>
       <div>
