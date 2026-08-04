@@ -24,8 +24,8 @@ export function AppSession({ children }: { children: ReactNode }) {
     router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [pathname, router]);
 
-  const loadUser = useCallback(async () => {
-    setLoading(true);
+  const fetchUser = useCallback(async (blocking: boolean) => {
+    if (blocking) setLoading(true);
     setTemporaryError(null);
     try {
       const usableToken = await getUsableAccessToken();
@@ -41,31 +41,34 @@ export function AppSession({ children }: { children: ReactNode }) {
       }
       setTemporaryError("No pudimos abrir tu estudio porque el servidor no está disponible.");
     } finally {
-      setLoading(false);
+      if (blocking) setLoading(false);
     }
   }, [redirectToLogin]);
 
-  useEffect(() => { void loadUser(); }, [loadUser]);
+  const restoreSession = useCallback(() => fetchUser(true), [fetchUser]);
+  const refreshUser = useCallback(() => fetchUser(false), [fetchUser]);
+
+  useEffect(() => { void restoreSession(); }, [restoreSession]);
   useEffect(() => subscribeToSessionChanges(() => {
     if (!getAccessToken() && !getRefreshToken()) redirectToLogin();
   }), [redirectToLogin]);
   useEffect(() => {
-    const revalidate = () => { if (document.visibilityState === "visible") void loadUser(); };
+    const revalidate = () => { if (document.visibilityState === "visible") void refreshUser(); };
     window.addEventListener("focus", revalidate);
     document.addEventListener("visibilitychange", revalidate);
     return () => {
       window.removeEventListener("focus", revalidate);
       document.removeEventListener("visibilitychange", revalidate);
     };
-  }, [loadUser]);
+  }, [refreshUser]);
 
-  const value = useMemo<AppSessionValue | null>(() => user ? { user, refreshUser: loadUser } : null, [loadUser, user]);
+  const value = useMemo<AppSessionValue | null>(() => user ? { user, refreshUser } : null, [refreshUser, user]);
 
   if (loading) return <div className="pageLoading" role="status"><div className="spinner" /><p>Abriendo tu estudio…</p></div>;
   if (temporaryError && !value) return (
     <div className="pageLoading sessionRecoveryState" role="alert">
       <p>{temporaryError}</p>
-      <button type="button" onClick={() => void loadUser()}>Reintentar</button>
+      <button type="button" onClick={() => void restoreSession()}>Reintentar</button>
     </div>
   );
   if (!value) return null;
