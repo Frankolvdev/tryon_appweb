@@ -24,6 +24,7 @@ import { GenerationResults } from "@/components/generation/generation-results";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 
 const ACTIVE = ["queued", "running"];
+const EXECUTION_HISTORY_LIMIT = 20;
 
 const STATUS_LABELS: Record<string, string> = {
   queued: "En cola",
@@ -139,17 +140,129 @@ function estimationSourceLabel(source?: string | null) {
     : "Estimación inicial configurada";
 }
 
+function upsertExecution(
+  current: GenerationExecution[],
+  incoming: GenerationExecution,
+): GenerationExecution[] {
+  const withoutIncoming = current.filter((item) => item.id !== incoming.id);
+  return [incoming, ...withoutIncoming].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+function ExecutionCard({
+  execution,
+  definitions,
+  cancelling,
+  onCancel,
+}: {
+  execution: GenerationExecution;
+  definitions: GenerationInput[];
+  cancelling: boolean;
+  onCancel: (execution: GenerationExecution) => Promise<void>;
+}) {
+  return (
+    <article className="generationExecutionCard">
+      <header className="generationExecutionCardHeader">
+        <div>
+          <small>{new Date(execution.created_at).toLocaleString()}</small>
+          <strong>{executionStatusLabel(execution)}</strong>
+        </div>
+        <span>{execution.progress}%</span>
+      </header>
+
+      <div className="generationProgress">
+        <i style={{ width: `${execution.progress}%` }} />
+      </div>
+
+      <div className="generationQueueMeta">
+        <div>
+          <span>Proveedor</span>
+          <strong>{executionEngineLabel(execution.engine)}</strong>
+        </div>
+        <div>
+          <span>Ejecución</span>
+          <strong>{execution.id}</strong>
+        </div>
+        {execution.provider_job_id && (
+          <div>
+            <span>Job remoto</span>
+            <strong>{execution.provider_job_id}</strong>
+          </div>
+        )}
+      </div>
+
+      <ExecutionInputAssets execution={execution} definitions={definitions} />
+
+      <div className="generationLogs">
+        {execution.logs.slice(-6).map((log, index) => (
+          <p key={`${log.timestamp}-${index}`}>
+            <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+            {log.message}
+          </p>
+        ))}
+      </div>
+
+      {ACTIVE.includes(execution.status) && (
+        <button
+          disabled={cancelling || execution.cancel_requested}
+          onClick={() => void onCancel(execution)}
+        >
+          {cancelling || execution.cancel_requested ? "Cancelando…" : "Cancelar"}
+        </button>
+      )}
+
+      {execution.status === "completed" && (
+        <GenerationResults outputs={execution.outputs} />
+      )}
+
+      {!ACTIVE.includes(execution.status) && (
+        <section className="generationFinalCost" aria-label="Resultado de tiempo y tokens">
+          <small>RESULTADO DE LA EJECUCIÓN</small>
+          <div>
+            <span>Tiempo real</span>
+            <strong>{formatDuration(
+              execution.billing_breakdown?.real_provider_seconds ??
+                (execution.real_provider_duration_ms != null
+                  ? execution.real_provider_duration_ms / 1000
+                  : execution.duration_ms != null
+                    ? execution.duration_ms / 1000
+                    : null),
+            )}</strong>
+          </div>
+          <div>
+            <span>Tokens finales</span>
+            <strong>{execution.billing_breakdown?.final_tokens ?? execution.tokens_charged} ✦</strong>
+          </div>
+          {execution.billing_breakdown?.estimated_tokens_before_execution != null && (
+            <p>
+              Estimación inicial: {execution.billing_breakdown.estimated_tokens_before_execution} tokens.
+              {Number(execution.billing_breakdown.tokens_refunded || 0) > 0
+                ? ` Se devolvieron ${execution.billing_breakdown.tokens_refunded} tokens.`
+                : Number(execution.billing_breakdown.extra_tokens_debited || 0) > 0
+                  ? ` Se ajustaron ${execution.billing_breakdown.extra_tokens_debited} tokens adicionales.`
+                  : " No fue necesario ajustar el cobro."}
+            </p>
+          )}
+        </section>
+      )}
+
+      {execution.error && <div className="generationError">{execution.error}</div>}
+    </article>
+  );
+}
+
 export function GenerationStudio() {
   const { track } = useGenerationJobs();
   const [modules, setModules] = useState<GenerationModule[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
-  const [execution, setExecution] = useState<GenerationExecution | null>(null);
+  const [executions, setExecutions] = useState<GenerationExecution[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pollFailures, setPollFailures] = useState(0);
   const [restoring, setRestoring] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     listGenerationModules()
@@ -169,27 +282,44 @@ export function GenerationStudio() {
   useEffect(() => {
     if (!selected) return;
     setValues(initialGenerationValues(selected.inputs));
+    setExecutions([]);
     setRestoring(true);
-    listGenerationExecutions({ moduleId: selected.id, limit: 1 })
-      .then((response) => setExecution(response.items[0] ?? null))
+    listGenerationExecutions({ moduleId: selected.id, limit: EXECUTION_HISTORY_LIMIT })
+      .then((response) => setExecutions(response.items))
       .catch((cause) => setError(normalizeGenerationError(cause)))
       .finally(() => setRestoring(false));
   }, [selected]);
 
+  const activeExecutionIds = useMemo(
+    () => executions.filter((item) => ACTIVE.includes(item.status)).map((item) => item.id),
+    [executions],
+  );
+  const activeExecutionKey = activeExecutionIds.join("|");
+
   useEffect(() => {
-    if (!execution || !ACTIVE.includes(execution.status)) return;
-    track(execution);
-    const timer = window.setInterval(() => {
-      getGenerationExecution(execution.id)
-        .then((item) => {
-          setExecution(item);
-          track(item);
-          setPollFailures(0);
-        })
-        .catch(() => setPollFailures((value) => value + 1));
-    }, 2000);
+    const ids = activeExecutionKey ? activeExecutionKey.split("|") : [];
+    if (ids.length === 0) return;
+
+    const refresh = () => {
+      Promise.allSettled(ids.map((id) => getGenerationExecution(id))).then(
+        (results) => {
+          let hadFailure = false;
+          results.forEach((result) => {
+            if (result.status === "fulfilled") {
+              setExecutions((current) => upsertExecution(current, result.value));
+              track(result.value);
+            } else {
+              hadFailure = true;
+            }
+          });
+          setPollFailures((value) => (hadFailure ? value + 1 : 0));
+        },
+      );
+    };
+
+    const timer = window.setInterval(refresh, 2000);
     return () => window.clearInterval(timer);
-  }, [execution?.id, execution?.status, track]);
+  }, [activeExecutionKey, track]);
 
   async function run() {
     if (!selected) return;
@@ -213,7 +343,7 @@ export function GenerationStudio() {
       // The Backend is the only source of truth for the execution engine.
       // AppWeb sends only the inputs and displays the engine returned in the job.
       const job = await executeGenerationModule(selected.id, normalized);
-      setExecution(job);
+      setExecutions((current) => upsertExecution(current, job));
       track(job);
       setValues(initialGenerationValues(selected.inputs));
     } catch (cause) {
@@ -318,116 +448,55 @@ export function GenerationStudio() {
                 {restoring
                   ? "Recuperando ejecución…"
                   : selected.pricing?.is_active
-                    ? `${execution && ACTIVE.includes(execution.status) ? "Agregar otro a la cola" : "Ejecutar"} por ${selected.pricing.required_tokens} tokens ✦`
+                    ? `${activeExecutionIds.length > 0 ? "Agregar otro a la cola" : "Ejecutar"} por ${selected.pricing.required_tokens} tokens ✦`
                     : "Precio no configurado"}
               </button>
             </>
           )}
         </main>
 
-        <aside className="generationExecution">
-          <small>EJECUCIÓN</small>
+        <aside className="generationExecution generationExecutionStack">
+          <div className="generationExecutionStackTitle">
+            <small>EJECUCIONES</small>
+            <span>{executions.length}</span>
+          </div>
           {restoring ? (
-            <p>Recuperando el estado más reciente…</p>
-          ) : execution ? (
-            <>
-              <div className="generationStatus">
-                <strong>{executionStatusLabel(execution)}</strong>
-                <span>{execution.progress}%</span>
-              </div>
-              <div className="generationProgress">
-                <i style={{ width: `${execution.progress}%` }} />
-              </div>
-              <div className="generationQueueMeta">
-                <div>
-                  <span>Proveedor</span>
-                  <strong>{executionEngineLabel(execution.engine)}</strong>
-                </div>
-                {execution.provider_job_id && (
-                  <div>
-                    <span>Job remoto</span>
-                    <strong>{execution.provider_job_id}</strong>
-                  </div>
-                )}
-              </div>
-              <ExecutionInputAssets
-                execution={execution}
-                definitions={selected?.inputs ?? []}
-              />
-              <div className="generationLogs">
-                {execution.logs.slice(-8).map((log, index) => (
-                  <p key={`${log.timestamp}-${index}`}>
-                    <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                    {log.message}
-                  </p>
-                ))}
-              </div>
-              {ACTIVE.includes(execution.status) && (
-                <button
-                  disabled={cancelling || execution.cancel_requested}
-                  onClick={async () => {
-                    setCancelling(true);
+            <p>Recuperando ejecuciones recientes…</p>
+          ) : executions.length > 0 ? (
+            <div className="generationExecutionCards">
+              {executions.map((item) => (
+                <ExecutionCard
+                  key={item.id}
+                  execution={item}
+                  definitions={selected?.inputs ?? []}
+                  cancelling={cancellingIds.has(item.id)}
+                  onCancel={async (target) => {
+                    setCancellingIds((current) => new Set(current).add(target.id));
                     setError(null);
                     try {
-                      const item = await cancelGenerationExecution(execution.id);
-                      setExecution(item);
-                      track(item);
+                      const updated = await cancelGenerationExecution(target.id);
+                      setExecutions((current) => upsertExecution(current, updated));
+                      track(updated);
                     } catch (cause) {
                       setError(normalizeGenerationError(cause));
                       try {
-                        const latest = await getGenerationExecution(execution.id);
-                        setExecution(latest);
+                        const latest = await getGenerationExecution(target.id);
+                        setExecutions((current) => upsertExecution(current, latest));
                         track(latest);
                       } catch {
                         // Keep the last known execution when status refresh also fails.
                       }
                     } finally {
-                      setCancelling(false);
+                      setCancellingIds((current) => {
+                        const next = new Set(current);
+                        next.delete(target.id);
+                        return next;
+                      });
                     }
                   }}
-                >
-                  {cancelling || execution.cancel_requested
-                    ? "Cancelando…"
-                    : "Cancelar"}
-                </button>
-              )}
-              {execution.status === "completed" && (
-                <GenerationResults outputs={execution.outputs} />
-              )}
-              {!ACTIVE.includes(execution.status) && (
-                <section className="generationFinalCost" aria-label="Resultado de tiempo y tokens">
-                  <small>RESULTADO DE LA EJECUCIÓN</small>
-                  <div>
-                    <span>Tiempo real</span>
-                    <strong>{formatDuration(
-                      execution.billing_breakdown?.real_provider_seconds ??
-                        (execution.real_provider_duration_ms != null
-                          ? execution.real_provider_duration_ms / 1000
-                          : execution.duration_ms != null
-                            ? execution.duration_ms / 1000
-                            : null),
-                    )}</strong>
-                  </div>
-                  <div>
-                    <span>Tokens finales</span>
-                    <strong>{execution.billing_breakdown?.final_tokens ?? execution.tokens_charged} ✦</strong>
-                  </div>
-                  {execution.billing_breakdown?.estimated_tokens_before_execution != null && (
-                    <p>
-                      Estimación inicial: {execution.billing_breakdown.estimated_tokens_before_execution} tokens.
-                      {Number(execution.billing_breakdown.tokens_refunded || 0) > 0
-                        ? ` Se devolvieron ${execution.billing_breakdown.tokens_refunded} tokens.`
-                        : Number(execution.billing_breakdown.extra_tokens_debited || 0) > 0
-                          ? ` Se ajustaron ${execution.billing_breakdown.extra_tokens_debited} tokens adicionales.`
-                          : " No fue necesario ajustar el cobro."}
-                    </p>
-                  )}
-                </section>
-              )}
-              {execution.error && (
-                <div className="generationError">{execution.error}</div>
-              )}
-            </>
+                />
+              ))}
+            </div>
           ) : (
             <p>No hay ejecuciones previas para este módulo.</p>
           )}
