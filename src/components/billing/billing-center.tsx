@@ -534,7 +534,7 @@ export function BillingCenter() {
          <small>/{plan.billing_interval === "year" ? "año" : "mes"}</small>
         </strong>
         {Number(plan.effective_discount_percent) > 0 && (
-         <em>Ahorras {Number(plan.effective_discount_percent).toFixed(0)}% · {money(plan.discount_amount, plan.currency)}</em>
+         <em>Ahorro real {Number(plan.effective_discount_percent).toFixed(0)}% · {money(plan.discount_amount, plan.currency)}</em>
         )}
        </div>
        <ul>
@@ -712,7 +712,7 @@ export function BillingCenter() {
         )}
         <b>{money(item.calculated_price_cents / 100, item.currency)}</b>
         {item.effective_discount_percent > 0 && (
-         <em>Ahorras {item.effective_discount_percent.toFixed(0)}%</em>
+         <em>Ahorro real {item.effective_discount_percent.toFixed(0)}%</em>
         )}
        </div>
        <p>{item.description}</p>
