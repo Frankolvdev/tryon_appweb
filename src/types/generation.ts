@@ -35,6 +35,12 @@ export interface GenerationBillingBreakdown {
   token_value_usd?: number | null;
   estimated_tokens_before_execution?: number | null;
   final_tokens?: number | null;
+  estimated_final_tokens?: number | null;
+  estimated_pending_tokens?: number | null;
+  pending_tokens_not_charged?: number | null;
+  settlement_pending?: boolean;
+  result_locked?: boolean;
+  billing_access_status?: string | null;
   extra_tokens_debited?: number | null;
   tokens_refunded?: number | null;
   termination_status?: string | null;
@@ -44,5 +50,5 @@ export interface GenerationBillingBreakdown {
 export interface GenerationModule { id: number; key: string; name: string; description?: string | null; version: number; category: string; default_execution_engine: GenerationExecutionEngine; metadata: Record<string, unknown>; is_active: boolean; pricing_rule_id?:number|null; pricing?:GenerationPricing|null; inputs: GenerationInput[]; outputs: GenerationOutput[]; steps: Array<{ id: number; key: string; name: string; step_type: string; position: number; is_enabled: boolean }>; created_at: string; updated_at: string; }
 export interface GenerationModuleList { items: GenerationModule[]; total: number; skip: number; limit: number; }
 export interface GenerationLog { timestamp: string; level: "info" | "warning" | "error"; step_key?: string | null; message: string; }
-export interface GenerationExecution { id: string; module_id: number; module_key: string; engine: GenerationExecutionEngine; status: GenerationExecutionStatus; progress: number; inputs: Record<string, unknown>; outputs: Record<string, unknown>; logs: GenerationLog[]; error?: string | null; created_at: string; started_at?: string | null; finished_at?: string | null; duration_ms?: number | null; cancel_requested: boolean; pricing_rule_id?:number|null; tokens_charged:number; tokens_refunded:boolean; currency?:string|null; commercial_price?:number|null; queue_name?:string|null; queue_position?:number|null; provider_status?:string|null; provider_job_id?:string|null; provider_endpoint_id?:string|null; dispatch_attempts?:number; heartbeat_at?:string|null; runtime_metrics?:Record<string, unknown>; provider_metrics?:Record<string, unknown>; real_provider_duration_ms?:number|null; estimated_duration_seconds?:number|null; estimated_duration_source?:string|null; billing_breakdown?:GenerationBillingBreakdown; recovery_count?:number; recovered_at?:string|null; }
+export interface GenerationExecution { id: string; module_id: number; module_key: string; engine: GenerationExecutionEngine; status: GenerationExecutionStatus; progress: number; inputs: Record<string, unknown>; outputs: Record<string, unknown>; logs: GenerationLog[]; error?: string | null; created_at: string; started_at?: string | null; finished_at?: string | null; duration_ms?: number | null; cancel_requested: boolean; pricing_rule_id?:number|null; tokens_charged:number; tokens_refunded:boolean; currency?:string|null; commercial_price?:number|null; queue_name?:string|null; queue_position?:number|null; provider_status?:string|null; provider_job_id?:string|null; provider_endpoint_id?:string|null; dispatch_attempts?:number; heartbeat_at?:string|null; runtime_metrics?:Record<string, unknown>; provider_metrics?:Record<string, unknown>; real_provider_duration_ms?:number|null; estimated_duration_seconds?:number|null; estimated_duration_source?:string|null; billing_breakdown?:GenerationBillingBreakdown; result_locked?:boolean; billing_access_status?:string|null; estimated_pending_tokens?:number|null; recovery_count?:number; recovered_at?:string|null; }
 export interface GenerationExecutionList { items: GenerationExecution[]; total: number; skip: number; limit: number; }

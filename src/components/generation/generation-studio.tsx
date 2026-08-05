@@ -4,6 +4,7 @@ import "./generation-studio.css";
 import { useEffect, useMemo, useState } from "react";
 import {
   cancelGenerationExecution,
+  settlePendingGenerationBilling,
   executeGenerationModule,
   getGenerationExecution,
   listGenerationExecutions,
@@ -496,6 +497,24 @@ export function GenerationStudio() {
                   execution={item}
                   definitions={selected?.inputs ?? []}
                   cancelling={cancellingIds.has(item.id)}
+                  settling={settlingIds.has(item.id)}
+                  onSettle={async (target) => {
+                    setSettlingIds((current) => new Set(current).add(target.id));
+                    setError(null);
+                    try {
+                      const updated = await settlePendingGenerationBilling(target.id);
+                      setExecutions((current) => upsertExecution(current, updated));
+                      track(updated);
+                    } catch (cause) {
+                      setError(normalizeGenerationError(cause));
+                    } finally {
+                      setSettlingIds((current) => {
+                        const next = new Set(current);
+                        next.delete(target.id);
+                        return next;
+                      });
+                    }
+                  }}
                   onCancel={async (target) => {
                     setCancellingIds((current) => new Set(current).add(target.id));
                     setError(null);

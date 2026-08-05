@@ -11,7 +11,48 @@ function collectFiles(value: unknown, found: Array<Record<string, unknown>> = []
   return found;
 }
 
-export function GenerationResults({ outputs }: { outputs: Record<string, unknown> }) {
+function containsLockedFile(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsLockedFile);
+  if (value && typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    if (item.locked === true) return true;
+    return Object.values(item).some(containsLockedFile);
+  }
+  return false;
+}
+
+export function GenerationResults({
+  outputs,
+  locked = false,
+  pendingTokens,
+  settling = false,
+  onSettle,
+}: {
+  outputs: Record<string, unknown>;
+  locked?: boolean;
+  pendingTokens?: number | null;
+  settling?: boolean;
+  onSettle?: () => void;
+}) {
+  if (locked || containsLockedFile(outputs)) {
+    return (
+      <section className="generationLockedResult" aria-label="Resultado bloqueado">
+        <div aria-hidden="true" style={{fontSize:32}}>🔒</div>
+        <div>
+          <strong>Resultado generado y bloqueado</strong>
+          <p>
+            La generación terminó correctamente, pero el costo real superó los tokens disponibles.
+            {pendingTokens ? ` Faltan aproximadamente ${pendingTokens} tokens para desbloquearla.` : ""}
+          </p>
+        </div>
+        {onSettle && (
+          <button type="button" disabled={settling} onClick={onSettle}>
+            {settling ? "Verificando saldo…" : "Desbloquear resultado"}
+          </button>
+        )}
+      </section>
+    );
+  }
   const files = collectFiles(outputs);
   if (!files.length) return <pre>{JSON.stringify(outputs, null, 2)}</pre>;
   return <div style={{display:"grid",gap:12}}>{files.map((file,index)=>{

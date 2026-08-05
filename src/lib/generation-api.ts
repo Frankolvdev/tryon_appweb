@@ -22,6 +22,7 @@ export const executeGenerationModule = (
 };
 export const getGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/status`);
 export const cancelGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/cancel`, { method: "POST" });
+export const settlePendingGenerationBilling = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/settle-pending-billing`, { method: "POST" });
 export const listGenerationExecutions = (params?: { moduleId?: number; status?: string; skip?: number; limit?: number }) => {
   const query = new URLSearchParams();
   if (params?.moduleId) query.set("module_id", String(params.moduleId));
