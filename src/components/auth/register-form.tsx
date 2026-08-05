@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { register } from "@/lib/auth-api";
 import { SocialProviders } from "@/components/auth/social-providers";
+import { LegalConsentModal } from "@/components/legal/legal-consent-modal";
+import type { LegalAcceptanceBundle } from "@/types/legal";
 
 function SvgIcon({ type }: { type: "user" | "mail" | "lock" | "eye" | "eyeoff" | "alert" }) {
   const props = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -22,6 +24,8 @@ export function RegisterForm() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [legalOpen,setLegalOpen]=useState(false);
+  const [legalBundle,setLegalBundle]=useState<LegalAcceptanceBundle|null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +42,7 @@ export function RegisterForm() {
     if (!password) { setError("Crea una contraseña."); return; }
     if (password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres."); return; }
     if (password !== confirmPassword) { setError("Las contraseñas no coinciden."); return; }
-    if (!data.get("terms")) { setError("Debes aceptar los términos y la política de privacidad."); return; }
+    if (!legalBundle) { setLegalOpen(true); setError("Debes revisar y aceptar las políticas vigentes."); return; }
 
     setLoading(true);
     try {
@@ -49,6 +53,7 @@ export function RegisterForm() {
         terms_accepted: true,
         terms_version: "v1",
         age_confirmed: true,
+        legal: legalBundle,
       });
       router.replace(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
@@ -98,13 +103,11 @@ export function RegisterForm() {
           </div>
         </div>
 
-        <label className="exactTerms">
-          <input name="terms" type="checkbox" disabled={loading}/>
-          <span>Acepto los <Link href="/terms">Términos de uso</Link> y la <Link href="/privacy">Política de privacidad</Link>.</span>
-        </label>
+        <button type="button" className="legalReviewButton" onClick={()=>setLegalOpen(true)} disabled={loading}>{legalBundle?"✓ Políticas aceptadas":"Revisar y aceptar políticas"}</button>
 
         <button className="exactSubmit" disabled={loading}>{loading ? "Creando cuenta…" : "Crear mi cuenta"}</button>
       </form>
+      <LegalConsentModal open={legalOpen} persist={false} onClose={()=>setLegalOpen(false)} onAccepted={b=>{setLegalBundle(b);setLegalOpen(false);setError("")}}/>
       <p className="exactSwitch">¿Ya tienes cuenta? <Link href="/login">Iniciar sesión</Link></p>
     </>
   );

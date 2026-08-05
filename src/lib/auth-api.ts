@@ -13,6 +13,7 @@ type RegisterInput = {
   terms_accepted: boolean;
   terms_version?: string;
   age_confirmed: boolean;
+  legal?: import("@/types/legal").LegalAcceptanceBundle;
 };
 
 export type VerificationResponse = {
