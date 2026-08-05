@@ -1,5 +1,1 @@
-import { redirect } from "next/navigation";
-
-export default function LegacyHistoryPage() {
-  redirect("/generation/history");
-}
+export { default } from "../generation/history/page";

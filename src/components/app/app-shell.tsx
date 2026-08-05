@@ -12,7 +12,7 @@ import { ActiveGenerationJobs } from "@/components/generation/active-generation-
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/try-on", label: "Crear Try-On", icon: Sparkles },
-  { href: "/history", label: "Historial", icon: History },
+  { href: "/generation/history", label: "Historial", icon: History },
   { href: "/gallery", label: "Galería", icon: GalleryVerticalEnd },
   { href: "/billing", label: "Tokens y plan", icon: Coins },
   { href: "/settings", label: "Configuración", icon: Settings },
