@@ -1,15 +1,17 @@
-# FIX AppWeb — modal legal y páginas de políticas
+# FIX — Resultado bloqueado y conciliación pendiente
 
-- Elimina el bloque permanente de casillas en Billing.
-- Muestra un modal breve solo cuando faltan aceptaciones o existe una versión nueva.
-- Guarda la aceptación mediante el Backend.
-- Obliga a aceptar las políticas reales antes del registro por correo.
-- Los usuarios creados fuera del registro normal reciben el modal al entrar.
-- Cada política se abre en una página nueva con el diseño de la AppWeb.
+Este parche corrige exclusivamente la presentación y los datos del caso de facturación pendiente.
 
-```powershell
-cd "F:\PROYECTOS PERSONALES\TRYON\appweb"
-Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
-npm run build
-npm run dev
-```
+## Qué corrige
+- Conserva los tokens realmente cobrados inicialmente.
+- Guarda `estimated_final_tokens` y los tokens pendientes cuando la conciliación no puede completarse.
+- AppWeb muestra una tarjeta de resultado bloqueado, el costo estimado y el pendiente.
+- AppWeb permite reintentar el desbloqueo con el endpoint existente.
+- BackOffice diferencia tokens cobrados de tokens pendientes y muestra el estado bloqueado.
+- No modifica Modal, Beam, RunPod, Stripe ni el FIFO de bolsas.
+
+## Aplicación
+Copiar el contenido de cada carpeta sobre la raíz del proyecto correspondiente:
+- `backend/` sobre el backend.
+- `appweb/` sobre el AppWeb.
+- `backoffice/` sobre el BackOffice.
