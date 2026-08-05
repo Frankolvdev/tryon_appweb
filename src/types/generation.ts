@@ -11,7 +11,10 @@ export interface GenerationPricing {
   currency: string;
   is_active: boolean;
   estimated_duration_seconds?: number | null;
-  estimated_duration_source?: "initial" | "historical_average" | string | null;
+  estimated_duration_source?: "initial" | "historical_average" | "historical_weighted_average" | string | null;
+  historical_samples_used?: number;
+  estimate_confidence?: "low" | "medium" | "high" | string;
+  estimate_updated_at?: string | null;
   estimated_billable_seconds?: number | null;
   provider?: string | null;
   gpu_key?: string | null;

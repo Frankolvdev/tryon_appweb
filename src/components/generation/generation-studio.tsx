@@ -134,10 +134,23 @@ function formatDuration(seconds?: number | null) {
   return remainder > 0 ? `${minutes} min ${remainder} s` : `${minutes} min`;
 }
 
-function estimationSourceLabel(source?: string | null) {
-  return source === "historical_average"
-    ? "Promedio de ejecuciones recientes"
-    : "Estimación inicial configurada";
+function estimationSourceLabel(
+  source?: string | null,
+  samples = 0,
+  confidence?: string | null,
+) {
+  if (source === "historical_average" || source === "historical_weighted_average") {
+    const basis = samples === 1
+      ? "Basado en la última generación completada."
+      : `Basado en las últimas ${samples} generaciones completadas.`;
+    const confidenceLabel = confidence === "high"
+      ? "Confianza alta"
+      : confidence === "medium"
+        ? "Confianza media"
+        : "Confianza inicial";
+    return `${basis} ${confidenceLabel}.`;
+  }
+  return "Estimación inicial configurada por el administrador.";
 }
 
 function upsertExecution(
@@ -264,6 +277,12 @@ export function GenerationStudio() {
   const [restoring, setRestoring] = useState(false);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
 
+  const refreshModuleEstimates = () => {
+    void listGenerationModules().then((response) => {
+      setModules(response.items);
+    }).catch(() => undefined);
+  };
+
   useEffect(() => {
     listGenerationModules()
       .then((response) => {
@@ -288,7 +307,7 @@ export function GenerationStudio() {
       .then((response) => setExecutions(response.items))
       .catch((cause) => setError(normalizeGenerationError(cause)))
       .finally(() => setRestoring(false));
-  }, [selected]);
+  }, [selectedId]);
 
   const activeExecutionIds = useMemo(
     () => executions.filter((item) => ACTIVE.includes(item.status)).map((item) => item.id),
@@ -308,6 +327,9 @@ export function GenerationStudio() {
             if (result.status === "fulfilled") {
               setExecutions((current) => upsertExecution(current, result.value));
               track(result.value);
+              if (result.value.status === "completed") {
+                refreshModuleEstimates();
+              }
             } else {
               hadFailure = true;
             }
@@ -425,7 +447,11 @@ export function GenerationStudio() {
                   <div>
                     <span>Tiempo estimado</span>
                     <strong>{formatDuration(selected.pricing.estimated_duration_seconds)}</strong>
-                    <small>{estimationSourceLabel(selected.pricing.estimated_duration_source)}</small>
+                    <small>{estimationSourceLabel(
+                      selected.pricing.estimated_duration_source,
+                      selected.pricing.historical_samples_used ?? 0,
+                      selected.pricing.estimate_confidence,
+                    )}</small>
                   </div>
                   <div>
                     <span>Tokens estimados</span>
