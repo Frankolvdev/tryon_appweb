@@ -132,6 +132,10 @@ export type BillingInvoiceList = {
 export type CouponValidation = {
  valid: boolean;
  message: string;
+ discount_amount?: string | number | null;
+ final_amount?: string | number | null;
+ requested_discount_percent?: string | number | null;
+ effective_discount_percent?: string | number | null;
  coupon?: {
   id: number;
   code: string;
@@ -141,8 +145,4 @@ export type CouponValidation = {
   amount_off?: string | number | null;
   currency?: string | null;
  } | null;
- discount_amount?: string | number | null;
- final_amount?: string | number | null;
- requested_discount_percent?: string | number | null;
- effective_discount_percent?: string | number | null;
 };

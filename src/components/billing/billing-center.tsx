@@ -154,10 +154,6 @@ export function BillingCenter() {
  const [customCouponCode, setCustomCouponCode] = useState("");
  const [customCouponMessage, setCustomCouponMessage] = useState<string | null>(null);
  const [couponMessage, setCouponMessage] = useState<string | null>(null);
- const [appliedPackageCoupon, setAppliedPackageCoupon] = useState<string | null>(null);
- const [packageCouponFinal, setPackageCouponFinal] = useState<number | null>(null);
- const [appliedCustomCoupon, setAppliedCustomCoupon] = useState<string | null>(null);
- const [customCouponFinal, setCustomCouponFinal] = useState<number | null>(null);
  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
  const [customTokens, setCustomTokens] = useState(1);
 
@@ -351,10 +347,21 @@ export function BillingCenter() {
  async function buyCustomTokens() {
   const amount = normalizeCustomTokens(customTokens);
   setCustomTokens(amount);
-  await redirect(
-   () => checkoutCustomTokens(amount, appliedCustomCoupon || undefined),
-   "custom-tokens",
-  );
+  const code = customCouponCode.trim();
+  if (code) {
+   setBusy("custom-coupon");
+   try {
+    const validation = await validateCoupon(code, amount * commercialTokenValue, "free_token_purchase", undefined, amount);
+    setCustomCouponMessage(validation.message);
+    if (!validation.valid) return;
+   } catch (value) {
+    setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+    return;
+   } finally {
+    setBusy(null);
+   }
+  }
+  await redirect(() => checkoutCustomTokens(amount, code || undefined), "custom-tokens");
  }
 
  async function checkCustomCoupon() {
@@ -367,16 +374,9 @@ export function BillingCenter() {
     customTotal,
     "free_token_purchase",
     undefined,
-    customTokens,
+    normalizeCustomTokens(customTokens),
    );
    setCustomCouponMessage(result.message);
-   if (result.valid) {
-    setAppliedCustomCoupon(customCouponCode.trim().toUpperCase());
-    setCustomCouponFinal(result.final_amount == null ? null : Number(result.final_amount));
-   } else {
-    setAppliedCustomCoupon(null);
-    setCustomCouponFinal(null);
-   }
   } catch (value) {
    setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
   } finally {
@@ -399,13 +399,6 @@ export function BillingCenter() {
     selectedPackage.tokens_amount,
    );
    setCouponMessage(result.message);
-   if (result.valid) {
-    setAppliedPackageCoupon(couponCode.trim().toUpperCase());
-    setPackageCouponFinal(result.final_amount == null ? null : Number(result.final_amount));
-   } else {
-    setAppliedPackageCoupon(null);
-    setPackageCouponFinal(null);
-   }
   } catch (value) {
    setCouponMessage(
     value instanceof Error
@@ -415,6 +408,24 @@ export function BillingCenter() {
   } finally {
    setBusy(null);
   }
+ }
+
+ async function buyPackage(item: TokenPackage) {
+  const code = couponCode.trim();
+  if (code) {
+   setBusy("coupon");
+   try {
+    const validation = await validateCoupon(code, item.calculated_price_cents / 100, "token_package", item.id, item.tokens_amount);
+    setCouponMessage(validation.message);
+    if (!validation.valid) return;
+   } catch (value) {
+    setCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+    return;
+   } finally {
+    setBusy(null);
+   }
+  }
+  await redirect(() => checkoutTokenPackage(item.id, code || undefined), `package-${item.id}`);
  }
 
  if (loading) {
@@ -661,8 +672,8 @@ export function BillingCenter() {
       <small>PRECIO ESTIMADO</small>
       <strong>
        {commercialTokenValue > 0
-        ? money(customCouponFinal ?? customTotal, customCurrency)
-        : "Calculado por el backend"}
+        ? money(customTotal, customCurrency)
+        : "Calculado en Stripe"}
       </strong>
       <span>
        {commercialTokenValue > 0
@@ -692,12 +703,12 @@ export function BillingCenter() {
       <p>El backend aplicará únicamente el descuento seguro permitido.</p>
      </div>
      <div>
-      <input value={customCouponCode} onChange={(event) => { setCustomCouponCode(event.target.value.toUpperCase()); setAppliedCustomCoupon(null); setCustomCouponFinal(null); }} placeholder="CÓDIGO" />
+      <input value={customCouponCode} onChange={(event) => { setCustomCouponCode(event.target.value.toUpperCase()); setCustomCouponMessage(null); }} placeholder="CÓDIGO" />
       <button onClick={checkCustomCoupon} disabled={busy === "custom-coupon" || !customCouponCode.trim()}>
        {busy === "custom-coupon" ? "Validando…" : "Validar"}
       </button>
      </div>
-     {customCouponMessage && <span>{customCouponMessage}{appliedCustomCoupon && customCouponFinal != null ? ` Precio final: ${money(customCouponFinal, customCurrency)}` : ""}</span>}
+     {customCouponMessage && <span>{customCouponMessage}</span>}
     </div>
 
     <div className="commercialHeading packageHeading">
@@ -720,7 +731,7 @@ export function BillingCenter() {
          : ""
        }`}
        key={item.id}
-       onClick={() => setSelectedPackage(item)}
+       onClick={() => { setSelectedPackage(item); setCouponMessage(null); }}
       >
        <small>{item.name}</small>
        <strong>
@@ -742,10 +753,7 @@ export function BillingCenter() {
         disabled={!!busy || !item.stripe_price_id}
         onClick={(event) => {
          event.stopPropagation();
-         void redirect(
-          () => checkoutTokenPackage(item.id, selectedPackage?.id === item.id ? appliedPackageCoupon || undefined : undefined),
-          `package-${item.id}`,
-         );
+         void buyPackage(item);
         }}
        >
         {busy === `package-${item.id}`
@@ -773,8 +781,7 @@ export function BillingCenter() {
         value={couponCode}
         onChange={(event) => {
          setCouponCode(event.target.value.toUpperCase());
-         setAppliedPackageCoupon(null);
-         setPackageCouponFinal(null);
+         setCouponMessage(null);
         }}
         placeholder="CÓDIGO"
        />
@@ -789,7 +796,7 @@ export function BillingCenter() {
          : "Validar"}
        </button>
       </div>
-      {couponMessage && <span>{couponMessage}{appliedPackageCoupon && packageCouponFinal != null ? ` Precio final: ${money(packageCouponFinal, selectedPackage.currency)}` : ""}</span>}
+      {couponMessage && <span>{couponMessage}</span>}
      </div>
     )}
    </section>
