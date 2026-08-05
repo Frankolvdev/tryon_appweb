@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import type { LegalAcceptanceBundle } from "@/types/legal";
 import type {
  BillingInvoiceList,
  BillingPaymentList,
@@ -27,7 +28,7 @@ export const listInvoices = () =>
 export const getCurrentSubscription = () =>
  apiFetch<UserSubscription>("/api/v1/billing/subscriptions/current");
 
-export async function checkoutTokenPackage(tokenPackageId: number, couponCode?: string) {
+export async function checkoutTokenPackage(tokenPackageId: number, couponCode: string | undefined, legal: LegalAcceptanceBundle) {
  return apiFetch<{ checkout_url: string }>("/api/v1/billing/checkout/tokens", {
   method: "POST",
   body: JSON.stringify({
@@ -36,11 +37,12 @@ export async function checkoutTokenPackage(tokenPackageId: number, couponCode?: 
    cancel_url: currentUrl("/billing?checkout=cancelled&type=tokens"),
    allow_promotion_codes: false,
    coupon_code: couponCode?.trim() || undefined,
+   legal,
   }),
  });
 }
 
-export async function checkoutCustomTokens(tokensAmount: number, couponCode?: string) {
+export async function checkoutCustomTokens(tokensAmount: number, couponCode: string | undefined, legal: LegalAcceptanceBundle) {
  return apiFetch<{ checkout_url: string }>("/api/v1/billing/checkout/tokens", {
   method: "POST",
   body: JSON.stringify({
@@ -49,11 +51,12 @@ export async function checkoutCustomTokens(tokensAmount: number, couponCode?: st
    cancel_url: currentUrl("/billing?checkout=cancelled&type=custom-tokens"),
    allow_promotion_codes: false,
    coupon_code: couponCode?.trim() || undefined,
+   legal,
   }),
  });
 }
 
-export async function checkoutSubscription(planKey: string) {
+export async function checkoutSubscription(planKey: string, legal: LegalAcceptanceBundle) {
  return apiFetch<{ checkout_url: string }>(
   "/api/v1/billing/subscriptions/checkout",
   {
@@ -63,6 +66,7 @@ export async function checkoutSubscription(planKey: string) {
     success_url: currentUrl("/billing?checkout=success&type=subscription"),
     cancel_url: currentUrl("/billing?checkout=cancelled&type=subscription"),
     allow_promotion_codes: false,
+    legal,
    }),
   },
  );

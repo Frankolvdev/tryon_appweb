@@ -1,0 +1,1 @@
+import {apiFetch} from "@/lib/api";import type {LegalPolicy,PublicTokenBag} from "@/types/legal";export const listLegalPolicies=()=>apiFetch<LegalPolicy[]>("/api/v1/legal/policies?language=es");export const listMyTokenBags=()=>apiFetch<PublicTokenBag[]>("/api/v1/legal/my-token-bags");

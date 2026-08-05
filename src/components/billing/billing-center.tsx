@@ -1,5 +1,7 @@
 "use client";
 
+import { listLegalPolicies, listMyTokenBags } from "@/lib/legal-api";
+import type { LegalPolicy, PublicTokenBag, LegalAcceptanceBundle } from "@/types/legal";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppSession } from "@/components/app/app-session";
@@ -161,6 +163,11 @@ export function BillingCenter() {
  const [packageCouponPreviewing, setPackageCouponPreviewing] = useState(false);
  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
  const [customTokens, setCustomTokens] = useState(1);
+ const [legalPolicies,setLegalPolicies]=useState<LegalPolicy[]>([]);
+ const [acceptedLegalIds,setAcceptedLegalIds]=useState<number[]>([]);
+ const [immediateStart,setImmediateStart]=useState(false);
+ const [firstUseAck,setFirstUseAck]=useState(false);
+ const [tokenBags,setTokenBags]=useState<PublicTokenBag[]>([]);
 
  const load = useCallback(async () => {
   setError(null);
@@ -193,6 +200,7 @@ export function BillingCenter() {
    setSubscription(null);
   }
 
+  try { setLegalPolicies(await listLegalPolicies()); setTokenBags(await listMyTokenBags()); } catch { /* legal panel stays unavailable until backend is ready */ }
   await refreshUser();
  }, [refreshUser]);
 
@@ -443,6 +451,12 @@ export function BillingCenter() {
   return Math.max(1, Math.floor(value));
  }
 
+ function legalBundle(): LegalAcceptanceBundle {
+  const required=legalPolicies.filter(p=>p.is_required);
+  if(required.length===0) throw new Error("No hay políticas legales publicadas disponibles.");
+  if(required.some(p=>!acceptedLegalIds.includes(p.id))||!immediateStart||!firstUseAck) throw new Error("Debes aceptar todas las políticas y condiciones del servicio digital antes de pagar.");
+  return {acceptances:required.map(p=>({document_id:p.id,version:p.version})),immediate_service_start:immediateStart,first_token_activation_acknowledged:firstUseAck};
+ }
  async function buyCustomTokens() {
   const amount = normalizeCustomTokens(customTokens);
   setCustomTokens(amount);
@@ -460,7 +474,7 @@ export function BillingCenter() {
     setBusy(null);
    }
   }
-  await redirect(() => checkoutCustomTokens(amount, code || undefined), "custom-tokens");
+  await redirect(() => checkoutCustomTokens(amount, code || undefined, legalBundle()), "custom-tokens");
  }
 
  async function checkCustomCoupon() {
@@ -524,7 +538,7 @@ export function BillingCenter() {
     setBusy(null);
    }
   }
-  await redirect(() => checkoutTokenPackage(item.id, code || undefined), `package-${item.id}`);
+  await redirect(() => checkoutTokenPackage(item.id, code || undefined, legalBundle()), `package-${item.id}`);
  }
 
  if (loading) {
@@ -695,7 +709,7 @@ export function BillingCenter() {
         }
         onClick={() =>
          redirect(
-          () => checkoutSubscription(plan.key),
+          () => checkoutSubscription(plan.key, legalBundle()),
           `plan-${plan.id}`,
          )
         }
@@ -1173,6 +1187,14 @@ export function BillingCenter() {
      )}
     </div>
    </section>
+
+   <section className="commercialSection">
+    <div className="commercialHeading"><div><span className="eyebrow">CONDICIONES DE COMPRA</span><h2>Políticas y comienzo del servicio digital</h2><p>Debes aceptar la versión vigente antes de abrir Stripe. La evidencia queda ligada a esta compra.</p></div></div>
+    <div className="legalPolicyGrid">{legalPolicies.map(policy=><label key={policy.id} className="legalPolicyItem"><input type="checkbox" checked={acceptedLegalIds.includes(policy.id)} onChange={e=>setAcceptedLegalIds(ids=>e.target.checked?[...ids,policy.id]:ids.filter(id=>id!==policy.id))}/><span><b>{policy.title}</b><small>Versión {policy.version}</small><details><summary>Leer documento</summary><p>{policy.content}</p></details></span></label>)}</div>
+    <label className="legalPolicyItem"><input type="checkbox" checked={immediateStart} onChange={e=>setImmediateStart(e.target.checked)}/><span><b>Inicio inmediato</b><small>Solicito que el servicio digital comience inmediatamente después de la compra.</small></span></label>
+    <label className="legalPolicyItem"><input type="checkbox" checked={firstUseAck} onChange={e=>setFirstUseAck(e.target.checked)}/><span><b>Primer consumo</b><small>Entiendo que consumir el primer token activa la bolsa y puede afectar su elegibilidad para reembolso.</small></span></label>
+   </section>
+   <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">MIS BOLSAS</span><h2>Vigencia y reembolso</h2><p>Cada bolsa conserva la política y versión que aceptaste.</p></div></div><div className="billingTable">{tokenBags.length===0?<p>No hay bolsas todavía.</p>:tokenBags.map(b=><div key={b.id}><span><b>Bolsa #{b.id} · {b.source}</b><small>{b.remaining_tokens}/{b.original_tokens} tokens · {b.status} · {b.expires_at?`vence ${new Date(b.expires_at).toLocaleDateString()}`:'sin vencimiento'} · {b.refundable?'reembolsable':'no reembolsable'}</small></span><small>{b.accepted_documents.map(d=>`${d.type} v${d.version}`).join(' · ')}</small></div>)}</div></section>
   </div>
  );
 }
