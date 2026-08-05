@@ -81,3 +81,30 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
+
+export async function apiFetchBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  let token: string | null;
+  try {
+    token = await getUsableAccessToken();
+  } catch {
+    throw new ApiRequestError("No se pudo renovar la sesión porque el servidor no está disponible.", 0);
+  }
+
+  let response = await request(path, init, token);
+  if (response.status === 401 && token) {
+    try {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) response = await request(path, init, refreshed);
+    } catch {
+      throw new ApiRequestError("No se pudo renovar la sesión porque el servidor no está disponible.", 0);
+    }
+  }
+
+  if (!response.ok) {
+    let payload: ApiErrorPayload | null = null;
+    try { payload = await response.json(); } catch { payload = null; }
+    if (response.status === 401) clearSession();
+    throw new ApiRequestError(errorMessage(payload, `Error ${response.status}`), response.status);
+  }
+  return response.blob();
+}
