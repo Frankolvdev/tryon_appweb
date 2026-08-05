@@ -23,6 +23,7 @@ import {
 import type {
  BillingInvoice,
  BillingPayment,
+ CouponValidation,
  SubscriptionPlan,
  TokenPackage,
  TokenPurchase,
@@ -154,6 +155,10 @@ export function BillingCenter() {
  const [customCouponCode, setCustomCouponCode] = useState("");
  const [customCouponMessage, setCustomCouponMessage] = useState<string | null>(null);
  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+ const [customCouponPreview, setCustomCouponPreview] = useState<CouponValidation | null>(null);
+ const [packageCouponPreviews, setPackageCouponPreviews] = useState<Record<number, CouponValidation>>({});
+ const [customCouponPreviewing, setCustomCouponPreviewing] = useState(false);
+ const [packageCouponPreviewing, setPackageCouponPreviewing] = useState(false);
  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
  const [customTokens, setCustomTokens] = useState(1);
 
@@ -247,6 +252,100 @@ export function BillingCenter() {
  const customCurrency =
   packages[0]?.currency || plans[0]?.currency || "USD";
  const customTotal = customTokens * commercialTokenValue;
+
+ useEffect(() => {
+  const code = customCouponCode.trim();
+  if (!code || customTokens < 1 || commercialTokenValue <= 0) {
+   setCustomCouponPreview(null);
+   setCustomCouponMessage(null);
+   setCustomCouponPreviewing(false);
+   return;
+  }
+
+  let cancelled = false;
+  setCustomCouponPreviewing(true);
+  const timer = window.setTimeout(() => {
+   void validateCoupon(
+    code,
+    customTotal,
+    "free_token_purchase",
+    undefined,
+    normalizeCustomTokens(customTokens),
+   )
+    .then((result) => {
+     if (cancelled) return;
+     setCustomCouponPreview(result);
+     setCustomCouponMessage(result.message);
+    })
+    .catch((value) => {
+     if (cancelled) return;
+     setCustomCouponPreview(null);
+     setCustomCouponMessage(
+      value instanceof Error ? value.message : "No fue posible calcular el cupón.",
+     );
+    })
+    .finally(() => {
+     if (!cancelled) setCustomCouponPreviewing(false);
+    });
+  }, 450);
+
+  return () => {
+   cancelled = true;
+   window.clearTimeout(timer);
+  };
+ }, [customCouponCode, customTokens, customTotal, commercialTokenValue]);
+
+ useEffect(() => {
+  const code = couponCode.trim();
+  if (!code || packages.length === 0) {
+   setPackageCouponPreviews({});
+   setCouponMessage(null);
+   setPackageCouponPreviewing(false);
+   return;
+  }
+
+  let cancelled = false;
+  setPackageCouponPreviewing(true);
+  const timer = window.setTimeout(() => {
+   void Promise.all(
+    packages.map(async (item) => {
+     const result = await validateCoupon(
+      code,
+      item.calculated_price_cents / 100,
+      "token_package",
+      item.id,
+      item.tokens_amount,
+     );
+     return [item.id, result] as const;
+    }),
+   )
+    .then((entries) => {
+     if (cancelled) return;
+     setPackageCouponPreviews(Object.fromEntries(entries));
+     const validCount = entries.filter(([, result]) => result.valid).length;
+     setCouponMessage(
+      validCount > 0
+       ? `Cupón calculado automáticamente en ${validCount} paquete${validCount === 1 ? "" : "s"}.`
+       : entries[0]?.[1].message || "El cupón no aplica a estos paquetes.",
+     );
+    })
+    .catch((value) => {
+     if (cancelled) return;
+     setPackageCouponPreviews({});
+     setCouponMessage(
+      value instanceof Error ? value.message : "No fue posible calcular el cupón.",
+     );
+    })
+    .finally(() => {
+     if (!cancelled) setPackageCouponPreviewing(false);
+    });
+  }, 450);
+
+  return () => {
+   cancelled = true;
+   window.clearTimeout(timer);
+  };
+ }, [couponCode, packages]);
 
  const subscriptionPayments = useMemo(
   () =>
@@ -669,23 +768,42 @@ export function BillingCenter() {
      </div>
 
      <div className="customTokenSummary">
-      <small>PRECIO ESTIMADO</small>
-      <strong>
-       {commercialTokenValue > 0
-        ? money(customTotal, customCurrency)
-        : "Calculado en Stripe"}
-      </strong>
+      <small>PRECIO ACTUALIZADO</small>
+      <div className="protectedPrice">
+       {customCouponPreview?.valid &&
+        Number(customCouponPreview.discount_amount || 0) > 0 && (
+         <span className="originalPrice">
+          {money(customTotal, customCurrency)}
+         </span>
+        )}
+       <strong>
+        {commercialTokenValue > 0
+         ? money(
+            customCouponPreview?.valid &&
+             customCouponPreview.final_amount != null
+             ? customCouponPreview.final_amount
+             : customTotal,
+            customCurrency,
+           )
+         : "Calculado en Stripe"}
+       </strong>
+       {customCouponPreview?.valid &&
+        Number(customCouponPreview.discount_amount || 0) > 0 && (
+         <em>
+          Ahorras {money(customCouponPreview.discount_amount || 0, customCurrency)}
+         </em>
+        )}
+      </div>
       <span>
-       {commercialTokenValue > 0
-        ? `${money(
-           commercialTokenValue,
-           customCurrency,
-          )} por token`
-        : "El backend aplicará el valor comercial vigente."}
+       {customCouponPreviewing
+        ? "Calculando cupón…"
+        : commercialTokenValue > 0
+          ? `${money(commercialTokenValue, customCurrency)} por token antes del cupón`
+          : "El backend aplicará el valor comercial vigente."}
       </span>
       <button
        className="primaryButton"
-       disabled={!!busy || customTokens < 1}
+       disabled={!!busy || customTokens < 1 || customCouponPreviewing}
        onClick={() => void buyCustomTokens()}
       >
        {busy === "custom-tokens"
@@ -695,6 +813,7 @@ export function BillingCenter() {
           )} token${customTokens === 1 ? "" : "s"}`}
       </button>
      </div>
+
     </article>
 
     <div className="couponBox">
@@ -703,10 +822,16 @@ export function BillingCenter() {
       <p>El backend aplicará únicamente el descuento seguro permitido.</p>
      </div>
      <div>
-      <input value={customCouponCode} onChange={(event) => { setCustomCouponCode(event.target.value.toUpperCase()); setCustomCouponMessage(null); }} placeholder="CÓDIGO" />
-      <button onClick={checkCustomCoupon} disabled={busy === "custom-coupon" || !customCouponCode.trim()}>
-       {busy === "custom-coupon" ? "Validando…" : "Validar"}
-      </button>
+      <input
+       value={customCouponCode}
+       onChange={(event) => {
+        setCustomCouponCode(event.target.value.toUpperCase());
+        setCustomCouponPreview(null);
+        setCustomCouponMessage(null);
+       }}
+       placeholder="ESCRIBE TU CÓDIGO"
+      />
+      {customCouponPreviewing && <span>Calculando automáticamente…</span>}
      </div>
      {customCouponMessage && <span>{customCouponMessage}</span>}
     </div>
@@ -720,6 +845,28 @@ export function BillingCenter() {
       También puedes elegir uno de los paquetes configurados
       desde el BackOffice.
      </p>
+    </div>
+
+    <div className="couponBox">
+     <div>
+      <strong>Cupón para paquetes</strong>
+      <p>
+       Escribe el código y verás automáticamente el precio actualizado en cada paquete.
+      </p>
+     </div>
+     <div>
+      <input
+       value={couponCode}
+       onChange={(event) => {
+        setCouponCode(event.target.value.toUpperCase());
+        setPackageCouponPreviews({});
+        setCouponMessage(null);
+       }}
+       placeholder="ESCRIBE TU CÓDIGO"
+      />
+      {packageCouponPreviewing && <span>Calculando automáticamente…</span>}
+     </div>
+     {couponMessage && <span>{couponMessage}</span>}
     </div>
 
     <div className="packageGrid">
@@ -739,13 +886,41 @@ export function BillingCenter() {
        </strong>
        <span>tokens</span>
        <div className="protectedPrice compact">
-        {item.effective_discount_percent > 0 && (
-         <span className="originalPrice">{money(item.nominal_price_cents / 100, item.currency)}</span>
-        )}
-        <b>{money(item.calculated_price_cents / 100, item.currency)}</b>
-        {item.effective_discount_percent > 0 && (
-         <em>Ahorro real {item.effective_discount_percent.toFixed(0)}%</em>
-        )}
+        {(() => {
+         const couponPreview = packageCouponPreviews[item.id];
+         const basePrice = item.calculated_price_cents / 100;
+         const finalPrice =
+          couponPreview?.valid && couponPreview.final_amount != null
+           ? Number(couponPreview.final_amount)
+           : basePrice;
+         const couponSaving =
+          couponPreview?.valid
+           ? Number(couponPreview.discount_amount || 0)
+           : 0;
+         const hasSaving =
+          item.effective_discount_percent > 0 || couponSaving > 0;
+
+         return (
+          <>
+           {hasSaving && (
+            <span className="originalPrice">
+             {money(
+              couponSaving > 0
+               ? basePrice
+               : item.nominal_price_cents / 100,
+              item.currency,
+             )}
+            </span>
+           )}
+           <b>{money(finalPrice, item.currency)}</b>
+           {couponSaving > 0 ? (
+            <em>Con cupón ahorras {money(couponSaving, item.currency)}</em>
+           ) : item.effective_discount_percent > 0 ? (
+            <em>Ahorro real {item.effective_discount_percent.toFixed(0)}%</em>
+           ) : null}
+          </>
+         );
+        })()}
        </div>
        <p>{item.description}</p>
        <button
@@ -766,39 +941,6 @@ export function BillingCenter() {
      ))}
     </div>
 
-    {selectedPackage && (
-     <div className="couponBox">
-      <div>
-       <strong>
-        Validar cupón para {selectedPackage.name}
-       </strong>
-       <p>
-        El backend validará el cupón y limitará automáticamente el descuento para proteger el costo de infraestructura.
-       </p>
-      </div>
-      <div>
-       <input
-        value={couponCode}
-        onChange={(event) => {
-         setCouponCode(event.target.value.toUpperCase());
-         setCouponMessage(null);
-        }}
-        placeholder="CÓDIGO"
-       />
-       <button
-        onClick={checkCoupon}
-        disabled={
-         busy === "coupon" || !couponCode.trim()
-        }
-       >
-        {busy === "coupon"
-         ? "Validando…"
-         : "Validar"}
-       </button>
-      </div>
-      {couponMessage && <span>{couponMessage}</span>}
-     </div>
-    )}
    </section>
 
    <section className="commercialSection billingCommerceSection">
