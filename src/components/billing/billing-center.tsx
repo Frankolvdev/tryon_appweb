@@ -154,6 +154,10 @@ export function BillingCenter() {
  const [customCouponCode, setCustomCouponCode] = useState("");
  const [customCouponMessage, setCustomCouponMessage] = useState<string | null>(null);
  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+ const [appliedPackageCoupon, setAppliedPackageCoupon] = useState<string | null>(null);
+ const [packageCouponFinal, setPackageCouponFinal] = useState<number | null>(null);
+ const [appliedCustomCoupon, setAppliedCustomCoupon] = useState<string | null>(null);
+ const [customCouponFinal, setCustomCouponFinal] = useState<number | null>(null);
  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
  const [customTokens, setCustomTokens] = useState(1);
 
@@ -348,7 +352,7 @@ export function BillingCenter() {
   const amount = normalizeCustomTokens(customTokens);
   setCustomTokens(amount);
   await redirect(
-   () => checkoutCustomTokens(amount, customCouponCode),
+   () => checkoutCustomTokens(amount, appliedCustomCoupon || undefined),
    "custom-tokens",
   );
  }
@@ -362,8 +366,17 @@ export function BillingCenter() {
     customCouponCode.trim(),
     customTotal,
     "free_token_purchase",
+    undefined,
+    customTokens,
    );
    setCustomCouponMessage(result.message);
+   if (result.valid) {
+    setAppliedCustomCoupon(customCouponCode.trim().toUpperCase());
+    setCustomCouponFinal(result.final_amount == null ? null : Number(result.final_amount));
+   } else {
+    setAppliedCustomCoupon(null);
+    setCustomCouponFinal(null);
+   }
   } catch (value) {
    setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
   } finally {
@@ -383,8 +396,16 @@ export function BillingCenter() {
     selectedPackage.calculated_price_cents / 100,
     "token_package",
     selectedPackage.id,
+    selectedPackage.tokens_amount,
    );
    setCouponMessage(result.message);
+   if (result.valid) {
+    setAppliedPackageCoupon(couponCode.trim().toUpperCase());
+    setPackageCouponFinal(result.final_amount == null ? null : Number(result.final_amount));
+   } else {
+    setAppliedPackageCoupon(null);
+    setPackageCouponFinal(null);
+   }
   } catch (value) {
    setCouponMessage(
     value instanceof Error
@@ -640,8 +661,8 @@ export function BillingCenter() {
       <small>PRECIO ESTIMADO</small>
       <strong>
        {commercialTokenValue > 0
-        ? money(customTotal, customCurrency)
-        : "Calculado en Stripe"}
+        ? money(customCouponFinal ?? customTotal, customCurrency)
+        : "Calculado por el backend"}
       </strong>
       <span>
        {commercialTokenValue > 0
@@ -671,12 +692,12 @@ export function BillingCenter() {
       <p>El backend aplicará únicamente el descuento seguro permitido.</p>
      </div>
      <div>
-      <input value={customCouponCode} onChange={(event) => setCustomCouponCode(event.target.value.toUpperCase())} placeholder="CÓDIGO" />
+      <input value={customCouponCode} onChange={(event) => { setCustomCouponCode(event.target.value.toUpperCase()); setAppliedCustomCoupon(null); setCustomCouponFinal(null); }} placeholder="CÓDIGO" />
       <button onClick={checkCustomCoupon} disabled={busy === "custom-coupon" || !customCouponCode.trim()}>
        {busy === "custom-coupon" ? "Validando…" : "Validar"}
       </button>
      </div>
-     {customCouponMessage && <span>{customCouponMessage}</span>}
+     {customCouponMessage && <span>{customCouponMessage}{appliedCustomCoupon && customCouponFinal != null ? ` Precio final: ${money(customCouponFinal, customCurrency)}` : ""}</span>}
     </div>
 
     <div className="commercialHeading packageHeading">
@@ -722,7 +743,7 @@ export function BillingCenter() {
         onClick={(event) => {
          event.stopPropagation();
          void redirect(
-          () => checkoutTokenPackage(item.id, selectedPackage?.id === item.id ? couponCode : undefined),
+          () => checkoutTokenPackage(item.id, selectedPackage?.id === item.id ? appliedPackageCoupon || undefined : undefined),
           `package-${item.id}`,
          );
         }}
@@ -750,11 +771,11 @@ export function BillingCenter() {
       <div>
        <input
         value={couponCode}
-        onChange={(event) =>
-         setCouponCode(
-          event.target.value.toUpperCase(),
-         )
-        }
+        onChange={(event) => {
+         setCouponCode(event.target.value.toUpperCase());
+         setAppliedPackageCoupon(null);
+         setPackageCouponFinal(null);
+        }}
         placeholder="CÓDIGO"
        />
        <button
@@ -768,7 +789,7 @@ export function BillingCenter() {
          : "Validar"}
        </button>
       </div>
-      {couponMessage && <span>{couponMessage}</span>}
+      {couponMessage && <span>{couponMessage}{appliedPackageCoupon && packageCouponFinal != null ? ` Precio final: ${money(packageCouponFinal, selectedPackage.currency)}` : ""}</span>}
      </div>
     )}
    </section>

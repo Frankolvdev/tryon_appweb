@@ -96,6 +96,7 @@ export const validateCoupon = (
  purchaseAmount: number,
  purchaseType: "token_package" | "free_token_purchase",
  itemId?: number,
+ tokensAmount?: number,
 ) =>
  apiFetch<CouponValidation>("/api/v1/billing-coupons/validate", {
   method: "POST",
@@ -104,5 +105,6 @@ export const validateCoupon = (
    purchase_amount: purchaseAmount,
    purchase_type: purchaseType,
    item_id: itemId,
+   tokens_amount: tokensAmount,
   }),
  });
