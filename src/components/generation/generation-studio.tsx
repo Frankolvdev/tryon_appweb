@@ -168,12 +168,16 @@ function ExecutionCard({
   execution,
   definitions,
   cancelling,
+  settling,
   onCancel,
+  onSettle,
 }: {
   execution: GenerationExecution;
   definitions: GenerationInput[];
   cancelling: boolean;
+  settling: boolean;
   onCancel: (execution: GenerationExecution) => Promise<void>;
+  onSettle: (execution: GenerationExecution) => Promise<void>;
 }) {
   return (
     <article className="generationExecutionCard">
@@ -277,6 +281,7 @@ export function GenerationStudio() {
   const [pollFailures, setPollFailures] = useState(0);
   const [restoring, setRestoring] = useState(false);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
+  const [settlingIds, setSettlingIds] = useState<Set<string>>(new Set());
 
   const refreshModuleEstimates = () => {
     void listGenerationModules().then((response) => {
