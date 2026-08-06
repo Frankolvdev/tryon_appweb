@@ -36,6 +36,10 @@ export interface GenerationBillingBreakdown {
   estimated_tokens_before_execution?: number | null;
   final_tokens?: number | null;
   estimated_final_tokens?: number | null;
+  tokens_actually_charged?: number | null;
+  estimated_final_price_usd?: number | null;
+  estimated_profit_usd?: number | null;
+  estimated_rounding_surplus_usd?: number | null;
   estimated_pending_tokens?: number | null;
   pending_tokens_not_charged?: number | null;
   settlement_pending?: boolean;

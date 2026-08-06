@@ -231,7 +231,21 @@ function ExecutionCard({
       )}
 
       {execution.status === "completed" && (
-        <GenerationResults outputs={execution.outputs} />
+        <GenerationResults
+          outputs={execution.outputs}
+          locked={Boolean(
+            execution.result_locked ||
+              execution.billing_breakdown?.result_locked ||
+              execution.billing_breakdown?.settlement_pending
+          )}
+          pendingTokens={
+            execution.estimated_pending_tokens ??
+            execution.billing_breakdown?.estimated_pending_tokens ??
+            null
+          }
+          settling={settling}
+          onSettle={() => void onSettle(execution)}
+        />
       )}
 
       {!ACTIVE.includes(execution.status) && (
@@ -248,19 +262,58 @@ function ExecutionCard({
                     : null),
             )}</strong>
           </div>
-          <div>
-            <span>Tokens finales</span>
-            <strong>{execution.billing_breakdown?.final_tokens ?? execution.tokens_charged} ✦</strong>
-          </div>
-          {execution.billing_breakdown?.estimated_tokens_before_execution != null && (
-            <p>
-              Estimación inicial: {execution.billing_breakdown.estimated_tokens_before_execution} tokens.
-              {Number(execution.billing_breakdown.tokens_refunded || 0) > 0
-                ? ` Se devolvieron ${execution.billing_breakdown.tokens_refunded} tokens.`
-                : Number(execution.billing_breakdown.extra_tokens_debited || 0) > 0
-                  ? ` Se ajustaron ${execution.billing_breakdown.extra_tokens_debited} tokens adicionales.`
-                  : " No fue necesario ajustar el cobro."}
-            </p>
+          {execution.billing_breakdown?.settlement_pending ? (
+            <>
+              <div>
+                <span>Tokens cobrados hasta ahora</span>
+                <strong>
+                  {execution.billing_breakdown.tokens_actually_charged ??
+                    execution.tokens_charged} ✦
+                </strong>
+              </div>
+              <div>
+                <span>Costo final estimado</span>
+                <strong>
+                  {execution.billing_breakdown.estimated_final_tokens ?? "—"} ✦
+                </strong>
+              </div>
+              <div>
+                <span>Tokens pendientes aproximados</span>
+                <strong>
+                  {execution.estimated_pending_tokens ??
+                    execution.billing_breakdown.estimated_pending_tokens ??
+                    "—"} ✦
+                </strong>
+              </div>
+              <p>
+                Estimación inicial:{" "}
+                {execution.billing_breakdown.estimated_tokens_before_execution ??
+                  execution.tokens_charged}{" "}
+                tokens. El ajuste todavía no se ha cobrado y el resultado permanece
+                bloqueado.
+              </p>
+            </>
+          ) : (
+            <>
+              <div>
+                <span>Tokens finales</span>
+                <strong>
+                  {execution.billing_breakdown?.final_tokens ??
+                    execution.tokens_charged} ✦
+                </strong>
+              </div>
+              {execution.billing_breakdown?.estimated_tokens_before_execution != null && (
+                <p>
+                  Estimación inicial:{" "}
+                  {execution.billing_breakdown.estimated_tokens_before_execution} tokens.
+                  {Number(execution.billing_breakdown.tokens_refunded || 0) > 0
+                    ? ` Se devolvieron ${execution.billing_breakdown.tokens_refunded} tokens.`
+                    : Number(execution.billing_breakdown.extra_tokens_debited || 0) > 0
+                      ? ` Se ajustaron ${execution.billing_breakdown.extra_tokens_debited} tokens adicionales.`
+                      : " No fue necesario ajustar el cobro."}
+                </p>
+              )}
+            </>
           )}
         </section>
       )}
