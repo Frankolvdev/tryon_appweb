@@ -179,6 +179,13 @@ function ExecutionCard({
   onCancel: (execution: GenerationExecution) => Promise<void>;
   onSettle: (execution: GenerationExecution) => Promise<void>;
 }) {
+  const billingFinalizing = Boolean(
+    execution.billing_access_status === "finalizing" ||
+      (execution.status === "completed" &&
+        execution.billing_breakdown?.finalized === false &&
+        !execution.billing_breakdown?.settlement_pending),
+  );
+
   return (
     <article className="generationExecutionCard">
       <header className="generationExecutionCardHeader">
@@ -230,7 +237,16 @@ function ExecutionCard({
         </button>
       )}
 
-      {execution.status === "completed" && (
+      {billingFinalizing && (
+        <section className="generationLockedResult" aria-label="Finalizando facturación">
+          <div>
+            <strong>Finalizando la generación</strong>
+            <p>Estamos confirmando el cobro antes de habilitar el resultado.</p>
+          </div>
+        </section>
+      )}
+
+      {execution.status === "completed" && !billingFinalizing && (
         <GenerationResults
           outputs={execution.outputs}
           locked={Boolean(
@@ -248,7 +264,7 @@ function ExecutionCard({
         />
       )}
 
-      {!ACTIVE.includes(execution.status) && (
+      {!ACTIVE.includes(execution.status) && !billingFinalizing && (
         <section className="generationFinalCost" aria-label="Resultado de tiempo y tokens">
           <small>RESULTADO DE LA EJECUCIÓN</small>
           <div>
@@ -269,12 +285,6 @@ function ExecutionCard({
                 <strong>
                   {execution.billing_breakdown.tokens_actually_charged ??
                     execution.tokens_charged} ✦
-                </strong>
-              </div>
-              <div>
-                <span>Costo final estimado</span>
-                <strong>
-                  {execution.billing_breakdown.estimated_final_tokens ?? "—"} ✦
                 </strong>
               </div>
               <div>
