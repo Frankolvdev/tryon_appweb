@@ -563,6 +563,23 @@ export function GenerationStudio() {
                       const updated = await settlePendingGenerationBilling(target.id);
                       setExecutions((current) => upsertExecution(current, updated));
                       track(updated);
+                      const stillLocked = Boolean(
+                        updated.result_locked ||
+                          updated.billing_breakdown?.result_locked ||
+                          updated.billing_breakdown?.settlement_pending,
+                      );
+                      if (stillLocked) {
+                        const pending =
+                          updated.estimated_pending_tokens ??
+                          updated.billing_breakdown?.estimated_pending_tokens;
+                        setError(
+                          pending
+                            ? `El resultado sigue bloqueado. Aún necesitas aproximadamente ${pending} tokens financiados disponibles para completar el cobro.`
+                            : "El resultado sigue bloqueado porque las bolsas todavía no alcanzan para completar el cobro.",
+                        );
+                      } else {
+                        setError(null);
+                      }
                     } catch (cause) {
                       setError(normalizeGenerationError(cause));
                     } finally {
