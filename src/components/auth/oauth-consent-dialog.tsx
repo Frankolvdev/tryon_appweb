@@ -21,12 +21,14 @@ export function OAuthConsentDialog({
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setTermsAccepted(false);
       setPrivacyAccepted(false);
       setAgeConfirmed(false);
+      setDetailsOpen(false);
       return;
     }
 
@@ -46,7 +48,9 @@ export function OAuthConsentDialog({
 
   if (!open) return null;
 
-  const canContinue = termsAccepted && privacyAccepted && ageConfirmed && !loading;
+  const allAccepted = termsAccepted && privacyAccepted && ageConfirmed;
+  const canContinue = allAccepted && !loading;
+  const setAll = (value: boolean) => { setTermsAccepted(value); setPrivacyAccepted(value); setAgeConfirmed(value); };
 
   return (
     <div className="oauthConsentBackdrop" role="presentation" onMouseDown={() => !loading && onCancel()}>
@@ -81,39 +85,18 @@ export function OAuthConsentDialog({
         </p>
 
         <div className="oauthConsentChecks">
-          <label>
-            <input
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={(event) => setTermsAccepted(event.target.checked)}
-              disabled={loading}
-            />
-            <span>
-              He leído y acepto los <Link href="/terms" target="_blank">Términos de uso</Link>.
-            </span>
+          <label className="oauthConsentMaster">
+            <input type="checkbox" checked={allAccepted} onChange={(event) => setAll(event.target.checked)} disabled={loading}/>
+            <span><b>Acepto todas las condiciones para continuar</b><small>Términos de uso, privacidad y confirmación de edad.</small></span>
           </label>
-
-          <label>
-            <input
-              type="checkbox"
-              checked={privacyAccepted}
-              onChange={(event) => setPrivacyAccepted(event.target.checked)}
-              disabled={loading}
-            />
-            <span>
-              He leído y acepto la <Link href="/privacy" target="_blank">Política de privacidad</Link>.
-            </span>
-          </label>
-
-          <label>
-            <input
-              type="checkbox"
-              checked={ageConfirmed}
-              onChange={(event) => setAgeConfirmed(event.target.checked)}
-              disabled={loading}
-            />
-            <span>Confirmo que tengo al menos 18 años.</span>
-          </label>
+          <button type="button" className="oauthConsentDetailsToggle" onClick={() => setDetailsOpen((value) => !value)} aria-expanded={detailsOpen} disabled={loading}>
+            {detailsOpen ? "Ocultar detalles" : "Ver más detalles"}<span>{detailsOpen ? "−" : "+"}</span>
+          </button>
+          {detailsOpen && <div className="oauthConsentDetails">
+            <label><input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} disabled={loading}/><span>He leído y acepto los <Link href="/terms" target="_blank">Términos de uso</Link>.</span></label>
+            <label><input type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} disabled={loading}/><span>He leído y acepto la <Link href="/privacy" target="_blank">Política de privacidad</Link>.</span></label>
+            <label><input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} disabled={loading}/><span>Confirmo que tengo al menos 18 años.</span></label>
+          </div>}
         </div>
 
         <div className="oauthConsentActions">
