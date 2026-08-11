@@ -30,6 +30,10 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [fatFilter,setFatFilter]=useState("all"); const [hipFilter,setHipFilter]=useState("all"); const [breastFilter,setBreastFilter]=useState("all");
  const [saving,setSaving]=useState(false);
  const [transitionKey,setTransitionKey]=useState(0);
+ const [loadingTarget,setLoadingTarget]=useState<BodyVariant|null>(null);
+ const [scannerFinishing,setScannerFinishing]=useState(false);
+ const loadRequestRef=useRef(0);
+ const decodedUrlsRef=useRef<Set<string>>(new Set());
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
    setModel(m);setItems(c.items);
@@ -44,19 +48,66 @@ export function ModelStudio({modelId}:{modelId:number}){
    setAxes(current=>({...current,[key]:value}));
  };
 
- const chooseVariant=(v:BodyVariant)=>{setSelected(v);setAxes({hips:v.hips_size,fat:v.fat_thin,breasts:v.breasts_size});setTransitionKey(k=>k+1)};
+ const chooseVariant=(v:BodyVariant)=>{
+   setAxes({hips:v.hips_size,fat:v.fat_thin,breasts:v.breasts_size});
+ };
 
  useEffect(()=>{
    if(!items.length)return;
    const timer=window.setTimeout(()=>{
      const resolved=resolveVariant(items,axes);
-     if(resolved && resolved.id!==selected?.id){
+     if(!resolved||resolved.id===selected?.id){
+       setLoadingTarget(null);
+       return;
+     }
+
+     const requestId=++loadRequestRef.current;
+     setLoadingTarget(resolved);
+     setScannerFinishing(false);
+
+     const commit=()=>{
+       if(loadRequestRef.current!==requestId)return;
+       decodedUrlsRef.current.add(resolved.image_url);
        setSelected(resolved);
+       setLoadingTarget(null);
        setTransitionKey(k=>k+1);
+       setScannerFinishing(true);
+       window.setTimeout(()=>{
+         if(loadRequestRef.current===requestId)setScannerFinishing(false);
+       },180);
+     };
+
+     if(decodedUrlsRef.current.has(resolved.image_url)){
+       commit();
+       return;
+     }
+
+     const image=new Image();
+     image.decoding="async";
+     image.src=resolved.image_url;
+
+     const decode=image.decode?.bind(image);
+     if(decode){
+       decode().then(commit).catch(()=>{
+         if(image.complete&&image.naturalWidth>0)commit();
+         else{
+           image.onload=commit;
+           image.onerror=()=>{if(loadRequestRef.current===requestId)setLoadingTarget(null)};
+         }
+       });
+     }else{
+       image.onload=commit;
+       image.onerror=()=>{if(loadRequestRef.current===requestId)setLoadingTarget(null)};
      }
    },55);
+
    return()=>window.clearTimeout(timer);
  },[axes,items,selected?.id]);
+
+ useEffect(()=>{
+   if(!selected?.image_url)return;
+   decodedUrlsRef.current.add(selected.image_url);
+ },[selected?.image_url]);
  const filtered=items.filter(x=>(fatFilter==="all"||x.fat_band===fatFilter)&&(hipFilter==="all"||x.hips_band===hipFilter)&&(breastFilter==="all"||x.breast_band===breastFilter));
  const bands=(key:"fat_band"|"hips_band"|"breast_band")=>[...new Set(items.map(x=>x[key]).filter(Boolean))] as string[];
  async function confirm(){if(!selected)return;setSaving(true);try{const m=await setAiModelBody(modelId,selected.id);setModel(m);toast.success("Cuerpo guardado en tu modelo");}catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}}
@@ -64,7 +115,13 @@ export function ModelStudio({modelId}:{modelId:number}){
  return <div className="modelStudio pageEnter">
   <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1><p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p></div><button className="modelGalleryBtn" onClick={()=>setGallery(true)}><Grid3X3 size={17}/> Ver todas las variantes</button></header>
   {items.length===0?<div className="modelEmpty"><Sparkles/><h2>Aún no hay cuerpos publicados</h2><p>Genera y guarda variantes desde Body Proportions en el BackOffice. Solo las imágenes listas aparecen aquí.</p></div>:<div className="modelBuilder">
-   <section className="modelPreviewPanel"><div key={transitionKey} className="modelPreviewScanner">{selected&&<ModelImage src={selected.image_url} alt={displayBodyName(selected.display_name)} className="modelHeroImage"/>}</div>{selected&&<div className="modelPreviewMeta"><span>VARIANTE ACTUAL</span><strong>{displayBodyName(selected.display_name)}</strong><small>Hips {axes.hips} · Fat/Thin {axes.fat} · Breasts {axes.breasts}</small></div>}</section>
+   <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
+     <div className={`modelPreviewHybrid${loadingTarget?" loading":""}${scannerFinishing?" finishing":""}`}>
+       {selected&&<div key={transitionKey} className="modelPreviewCurrent"><ModelImage src={selected.image_url} alt={displayBodyName(selected.display_name)} className="modelHeroImage"/></div>}
+       {(loadingTarget||scannerFinishing)&&<div className="modelLoadingScanner" aria-hidden="true"><span/></div>}
+     </div>
+     {selected&&<div className="modelPreviewMeta"><span>VARIANTE ACTUAL</span><strong>{displayBodyName(selected.display_name)}</strong><small>Hips {axes.hips} · Fat/Thin {axes.fat} · Breasts {axes.breasts}</small></div>}
+   </section>
    <section className="modelControls"><div className="modelStep"><span>01</span><div><small>PROPORCIONES</small><h2>Esculpe su cuerpo</h2></div></div>
     <Axis label="Hips" value={axes.hips} values={values.hips} onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} onChange={v=>chooseAxis("fat",v)}/><Axis label="Breasts" value={axes.breasts} values={values.breasts} onChange={v=>chooseAxis("breasts",v)}/>
     <div className="modelFineValues"><span>Skin tone <b>{selected?.skin_tone}</b></span><span>Hair length <b>{selected?.hair_length}</b></span></div>
