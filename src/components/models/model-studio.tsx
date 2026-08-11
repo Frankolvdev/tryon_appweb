@@ -37,7 +37,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [scannerFinishing,setScannerFinishing]=useState(false);
  const loadRequestRef=useRef(0);
  const decodedUrlsRef=useRef<Set<string>>(new Set());
- const MIN_SCANNER_MS=2000;
+ const MIN_SCANNER_MS=1300;
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
    setModel(m);setItems(c.items);
@@ -86,55 +86,60 @@ export function ModelStudio({modelId}:{modelId:number}){
      }
 
      const requestId=++loadRequestRef.current;
-     const loadingStartedAt=performance.now();
      setLoadingTarget(resolved);
      setScannerFinishing(false);
 
-     const commitNow=()=>{
-       if(loadRequestRef.current!==requestId)return;
-       decodedUrlsRef.current.add(resolved.image_url);
-       setSelected(resolved);
-       setLoadingTarget(null);
-       setTransitionKey(k=>k+1);
-       setScannerFinishing(true);
-       window.setTimeout(()=>{
-         if(loadRequestRef.current===requestId)setScannerFinishing(false);
-       },180);
-     };
+     const minimumVisiblePromise=new Promise<void>(resolve=>{
+       window.setTimeout(resolve,MIN_SCANNER_MS);
+     });
 
-     const commit=()=>{
-       if(loadRequestRef.current!==requestId)return;
-       const elapsed=performance.now()-loadingStartedAt;
-       const remaining=Math.max(0,MIN_SCANNER_MS-elapsed);
-       if(remaining>0){
-         window.setTimeout(commitNow,remaining);
-       }else{
-         commitNow();
+     const imageReadyPromise=new Promise<void>((resolve,reject)=>{
+       if(decodedUrlsRef.current.has(resolved.image_url)){
+         resolve();
+         return;
        }
-     };
 
-     if(decodedUrlsRef.current.has(resolved.image_url)){
-       commit();
-       return;
-     }
+       const image=new Image();
+       image.decoding="async";
+       image.src=resolved.image_url;
 
-     const image=new Image();
-     image.decoding="async";
-     image.src=resolved.image_url;
+       const markReady=()=>{
+         decodedUrlsRef.current.add(resolved.image_url);
+         resolve();
+       };
 
-     const decode=image.decode?.bind(image);
-     if(decode){
-       decode().then(commit).catch(()=>{
-         if(image.complete&&image.naturalWidth>0)commit();
-         else{
-           image.onload=commit;
-           image.onerror=()=>{if(loadRequestRef.current===requestId)setLoadingTarget(null)};
-         }
+       const decode=image.decode?.bind(image);
+       if(decode){
+         decode().then(markReady).catch(()=>{
+           if(image.complete&&image.naturalWidth>0){
+             markReady();
+           }else{
+             image.onload=markReady;
+             image.onerror=()=>reject(new Error("No se pudo cargar la imagen de la variante."));
+           }
+         });
+       }else{
+         image.onload=markReady;
+         image.onerror=()=>reject(new Error("No se pudo cargar la imagen de la variante."));
+       }
+     });
+
+     Promise.all([imageReadyPromise,minimumVisiblePromise])
+       .then(()=>{
+         if(loadRequestRef.current!==requestId)return;
+         setSelected(resolved);
+         setLoadingTarget(null);
+         setTransitionKey(k=>k+1);
+         setScannerFinishing(true);
+         window.setTimeout(()=>{
+           if(loadRequestRef.current===requestId)setScannerFinishing(false);
+         },180);
+       })
+       .catch(()=>{
+         if(loadRequestRef.current!==requestId)return;
+         setLoadingTarget(null);
+         setScannerFinishing(false);
        });
-     }else{
-       image.onload=commit;
-       image.onerror=()=>{if(loadRequestRef.current===requestId)setLoadingTarget(null)};
-     }
    },55);
 
    return()=>window.clearTimeout(timer);

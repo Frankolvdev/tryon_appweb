@@ -1284,6 +1284,6 @@ html,body{font-family:Arial,Helvetica,sans-serif}
 .modelPreviewCurrent{position:relative;z-index:1;transition:filter .16s ease,transform .16s ease,opacity .16s ease}
 .modelPreviewHybrid.loading .modelPreviewCurrent{filter:blur(10px) brightness(.82);transform:scale(1.018)}
 .modelLoadingScanner{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:1;transition:opacity .18s ease}
-.modelLoadingScanner span{position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,70,100,.98),#fff,rgba(255,70,100,.98),transparent);box-shadow:0 0 12px rgba(255,45,78,.92),0 0 26px rgba(225,29,53,.46);animation:modelHybridScanner 1.12s ease-in-out infinite alternate}
+.modelLoadingScanner span{position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,70,100,.98),#fff,rgba(255,70,100,.98),transparent);box-shadow:0 0 12px rgba(255,45,78,.92),0 0 26px rgba(225,29,53,.46);animation:modelHybridScanner 1.12s linear infinite alternate}
 .modelPreviewHybrid.finishing .modelLoadingScanner{opacity:0}
 @keyframes modelHybridScanner{from{transform:translateY(0)}to{transform:translateY(calc(100% - 3px))}}
