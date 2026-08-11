@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, WandSparkles, X } from "lucide-react";
 import { useAppSession } from "@/components/app/app-session";
 import { clearSession } from "@/lib/auth-storage";
 import { GenerationJobsProvider } from "@/components/generation/generation-jobs-provider";
@@ -12,6 +12,7 @@ import { ActiveGenerationJobs } from "@/components/generation/active-generation-
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/try-on", label: "Crear Try-On", icon: Sparkles },
+  { href: "/models", label: "Create Model IA", icon: WandSparkles },
   { href: "/generation/history", label: "Historial", icon: History },
   { href: "/gallery", label: "Galería", icon: GalleryVerticalEnd },
   { href: "/billing", label: "Tokens y plan", icon: Coins },
