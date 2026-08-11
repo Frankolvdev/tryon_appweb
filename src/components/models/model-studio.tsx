@@ -164,7 +164,7 @@ export function ModelStudio({modelId}:{modelId:number}){
      {selected&&<div className="modelPreviewMeta"><span>VARIANTE ACTUAL</span><strong>{displayBodyName(selected.display_name)}</strong><small>Hips {axes.hips} · Fat/Thin {axes.fat} · Breasts {axes.breasts}</small></div>}
    </section>
    <section className="modelControls"><div className="modelStep"><span>01</span><div><small>PROPORCIONES</small><h2>Esculpe su cuerpo</h2></div></div>
-    <Axis label="Hips" value={axes.hips} values={values.hips} onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
+    <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
     <div className="modelFineValues"><span>Skin tone <b>{selected?.skin_tone}</b></span><span>Hair length <b>{selected?.hair_length}</b></span></div>
     <button className="modelConfirm" onClick={confirm} disabled={!selected||saving}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button><p className="modelNextHint">El siguiente paso — rostro y unión con el cuerpo — queda preparado para la siguiente fase.</p>
    </section></div>}
@@ -172,7 +172,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  </div>
 }
 
-function Axis({label,value,values,onChange}:{label:string;value:number;values:number[];onChange:(v:number)=>void}){
+function Axis({label,value,values,onChange,minLabel,maxLabel}:{label:string;value:number;values:number[];onChange:(v:number)=>void;minLabel:string;maxLabel:string}){
  const trackRef=useRef<HTMLDivElement|null>(null);
  const draggingRef=useRef(false);
  const index=Math.max(0,values.findIndex(v=>eq(v,value)));
@@ -236,7 +236,7 @@ function Axis({label,value,values,onChange}:{label:string;value:number;values:nu
      {values.map((v,i)=><span key={`${label}-${v}`} className={`modelDiscreteTick${i===safeIndex?" active":""}`} style={{left:`${values.length<=1?0:(i/(values.length-1))*100}%`}}/>)}
      <span className="modelDiscreteThumb" style={{left:`${percent}%`}}/>
    </div>
-   <div className="modelAxisEnds"><span>{values[0]??"—"}</span><span>{values.at(-1)??"—"}</span></div>
+   <div className="modelAxisEnds"><span>{minLabel}</span><span>{maxLabel}</span></div>
  </div>
 }
 
@@ -305,7 +305,7 @@ function BreastAxis({levels,selectedBand,onChange}:{levels:{band:string;value:nu
      {levels.map((level,i)=><span key={level.band} className={`modelDiscreteTick${i===safeIndex?" active":""}`} style={{left:`${levels.length<=1?0:(i/(levels.length-1))*100}%`}}/>)}
      <span className="modelDiscreteThumb" style={{left:`${percent}%`}}/>
    </div>
-   <div className="modelAxisEnds"><span>{levels[0]?.band.replaceAll("_"," ")??"—"}</span><span>{levels.at(-1)?.band.replaceAll("_"," ")??"—"}</span></div>
+   <div className="modelAxisEnds"><span>Small</span><span>Huge</span></div>
  </div>
 }
 function Filter({label,value,options,onChange}:{label:string;value:string;options:string[];onChange:(v:string)=>void}){return <label><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}><option value="all">Todos</option>{options.map(x=><option value={x} key={x}>{x.replaceAll("_"," ")}</option>)}</select></label>}
