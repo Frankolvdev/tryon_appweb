@@ -2369,3 +2369,97 @@ output.modelSliderValue{
 .modelLeftRail > .modelGalleryBtnBelow{
   margin-top:26px!important;
 }
+
+
+/* Sculpt card — left-to-right fade + periodic light sweep */
+.modelSculptWidget{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(225,29,53,.12) 0%,
+      rgba(225,29,53,.075) 22%,
+      rgba(225,29,53,.035) 48%,
+      rgba(255,255,255,.012) 72%,
+      rgba(255,255,255,0) 100%
+    )!important;
+}
+
+/* Soft glow concentrated on the left, fading naturally to transparent. */
+.modelSculptWidget::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(
+      ellipse at left center,
+      rgba(225,29,53,.16) 0%,
+      rgba(225,29,53,.07) 32%,
+      rgba(225,29,53,.02) 58%,
+      transparent 78%
+    );
+}
+
+/* Thin illuminated sweep, same visual language as image cards. */
+.modelSculptWidget::after{
+  content:"";
+  position:absolute;
+  top:-12%;
+  bottom:-12%;
+  left:-32%;
+  width:18%;
+  z-index:3;
+  pointer-events:none;
+  opacity:0;
+  transform:skewX(-16deg);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255,255,255,.02) 18%,
+      rgba(255,255,255,.28) 50%,
+      rgba(255,255,255,.05) 82%,
+      transparent 100%
+    );
+  filter:blur(.2px);
+  animation:modelSculptSweep 4s ease-in-out infinite;
+}
+
+@keyframes modelSculptSweep{
+  0%, 18%{
+    left:-32%;
+    opacity:0;
+  }
+  24%{
+    opacity:.78;
+  }
+  54%{
+    opacity:.62;
+  }
+  70%{
+    left:118%;
+    opacity:0;
+  }
+  100%{
+    left:118%;
+    opacity:0;
+  }
+}
+
+/* Keep actual content above decorative layers. */
+.modelSculptWidgetBadge,
+.modelSculptWidgetCopy{
+  position:relative;
+  z-index:4;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .modelSculptWidget::after{
+    animation:none!important;
+    display:none!important;
+  }
+}
