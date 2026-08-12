@@ -1357,3 +1357,125 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     max-height:640px!important;
   }
 }
+
+
+/* HOTFIX Models 84 — intrinsic scanner aspect ratio + Butt Elevation below preview
+   Scope restricted to Create Model IA / Models. */
+
+/* Left side is now a natural vertical stack: scanner first, selector below. */
+.modelPreviewColumn{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:18px;
+  align-self:center;
+}
+
+/* The scanner card follows the REAL intrinsic aspect ratio of the image.
+   This explicitly neutralizes the previous forced 560–720px height rules. */
+.modelPreviewPanel{
+  width:100%;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  align-self:auto;
+}
+
+.modelPreviewHybrid,
+.modelPreviewCurrent{
+  width:100%;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+}
+
+.modelHeroImage{
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  display:block!important;
+  overflow:hidden;
+  line-height:0;
+  aspect-ratio:auto!important;
+}
+
+.modelHeroImage img{
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  object-fit:initial!important;
+  object-position:center!important;
+}
+
+/* Butt Elevation is outside both the scanner card and the sliders card. */
+.modelBubblePickerBelow{
+  position:relative;
+  z-index:2;
+  padding:2px 0 0;
+  border-top:0;
+  width:100%;
+}
+
+.modelBubblePickerBelow .modelBubbleHeading{
+  padding:0 2px;
+  margin-bottom:12px;
+}
+
+.modelBubblePickerBelow .modelBubbleRow{
+  width:100%;
+}
+
+/* Restore a clear, clickable selected state. */
+.modelBubblePickerBelow .modelBubbleCard[type="button"]{
+  appearance:none;
+  -webkit-appearance:none;
+  position:relative;
+  z-index:1;
+  padding:0;
+  margin:0;
+  width:100%;
+  color:inherit;
+  font:inherit;
+  text-align:inherit;
+  cursor:pointer;
+  pointer-events:auto;
+}
+
+.modelBubblePickerBelow .modelBubbleCard.selected{
+  z-index:3;
+  transform:translateY(-5px) scale(1.045);
+  border-color:rgba(255,82,104,.96);
+  box-shadow:
+    0 0 0 2px rgba(225,29,53,.18),
+    0 15px 34px rgba(0,0,0,.46),
+    0 0 28px rgba(225,29,53,.22);
+}
+
+.modelBubblePickerBelow .modelBubbleCard.selected:hover{
+  transform:translateY(-5px) scale(1.045);
+}
+
+.modelBubblePickerBelow .modelBubbleCard.selected>small{
+  color:#fff;
+}
+
+/* Keep the two-column row vertically balanced without stretching either card. */
+.modelBuilder{
+  align-items:center;
+}
+
+@media(max-width:1000px){
+  .modelPreviewColumn{
+    width:100%;
+  }
+}
+
+@media(max-width:620px){
+  .modelPreviewColumn{
+    gap:15px;
+  }
+}
