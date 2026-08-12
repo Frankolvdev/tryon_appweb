@@ -2642,3 +2642,28 @@ output.modelSliderValue{
   position:relative;
   z-index:4;
 }
+
+
+/* Sculpt card — fuller width + slightly stronger internal gradient */
+.modelHeaderRail .modelSculptWidget{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box;
+}
+
+.modelSculptWidget{
+  border:1px solid rgba(225,29,53,.18)!important;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(225,29,53,.145) 0%,
+      rgba(225,29,53,.115) 18%,
+      rgba(225,29,53,.082) 38%,
+      rgba(225,29,53,.052) 58%,
+      rgba(225,29,53,.030) 76%,
+      rgba(225,29,53,.018) 90%,
+      rgba(225,29,53,.012) 100%
+    )!important;
+}

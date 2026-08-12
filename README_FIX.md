@@ -1,9 +1,9 @@
-HOTFIX — Sculpt card solid aside border
+HOTFIX — Sculpt card full width + stronger gradient
 
-Only change:
-- Removes all border fading.
-- Uses a solid border with the same muted aside red family.
-- Internal background keeps a left-to-right red distribution, but remains visible through the full card.
+Only changes:
+- Sculpt card fills 100% of modelHeaderRail.
+- Internal red gradient is slightly more pronounced from left to right.
+- Solid aside-style border remains unchanged.
 - Existing light sweep animation remains unchanged.
 
-No layout, spacing, scanner, sliders, Butt Elevation, gallery, persistence or backend changes.
+No layout, scanner, sliders, Butt Elevation, gallery, persistence or backend changes.
