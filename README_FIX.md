@@ -1,24 +1,22 @@
-HOTFIX Models 85
+HOTFIX position-only — Butt Elevation
 
-Cambios ÚNICOS:
-- Butt Elevation vuelve dentro del card de sliders.
-- Se coloca inmediatamente arriba del botón “Usar este cuerpo”.
-- Se eliminan los textos Default / Level 1 / Level 2 / Level 3 para compactar.
-- La selección visual se conserva y refuerza con zoom/borde/glow.
-- El scanner se hace aproximadamente 10% más angosto y visualmente ~20% más alto.
-- NO se deforma la imagen:
-  - object-fit: cover
-  - recorte lateral intencional
-  - centrado horizontal
-- En pantallas <=1000px se vuelve a contain para evitar recortes agresivos.
+Base reconstruida:
+tryon_appweb-main (85).zip
++ HOTFIX_Models_ButtInside_TallerScanner_AppWeb.zip
 
-No se toca:
-- lógica de sliders
-- persistencia Butt Elevation
-- scanner/loading
-- galería
-- APIs
+ÚNICO cambio:
+- Mueve Butt Elevation DENTRO de <section className="modelControls">.
+- Lo coloca inmediatamente ANTES de <button className="modelConfirm"> ("Usar este cuerpo").
+
+NO cambia:
+- scanner
+- alto/ancho/crop de imagen principal
+- CSS del último fix
+- sliders
+- selección Butt Elevation
+- persistencia
 - backend
 - otros módulos
 
-Base exacta: tryon_appweb-main (85).zip
+Archivo único:
+src/components/models/model-studio.tsx

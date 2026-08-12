@@ -201,25 +201,26 @@ export function ModelStudio({modelId}:{modelId:number}){
        {(loadingTarget||scannerFinishing)&&<div className="modelLoadingScanner" aria-hidden="true"><span/></div>}
      </div>
     </section>
-         <div className="modelBubblePicker">
-     <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
-      <div className="modelBubbleRow">
-       {bubbleLoading
-        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div></div>)
-        : [1,2,3,4].map(index=>{
-          const variant=bubbleVariants.find(item=>item.variant_index===index);
-          return variant
-           ? <button type="button" key={variant.id} className={`modelBubbleCard${selectedBubbleLevel===index?" selected":""}`} onClick={()=>setSelectedBubbleLevel(index)} aria-pressed={selectedBubbleLevel===index}>
-              <ModelImage src={variant.image_url} alt={variant.display_name}/>
-              
-             </button>
-           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div></div>;
-        })}
-      </div>
-     </div>
+         
    </div>
    <section className="modelControls"><div className="modelStep"><span>01</span><div><h2>Esculpe su cuerpo</h2></div></div>
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
+          <div className="modelBubblePicker">
+     <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
+     <div className="modelBubbleRow">
+     {bubbleLoading
+     ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div></div>)
+     : [1,2,3,4].map(index=>{
+     const variant=bubbleVariants.find(item=>item.variant_index===index);
+     return variant
+     ? <button type="button" key={variant.id} className={`modelBubbleCard${selectedBubbleLevel===index?" selected":""}`} onClick={()=>setSelectedBubbleLevel(index)} aria-pressed={selectedBubbleLevel===index}>
+     <ModelImage src={variant.image_url} alt={variant.display_name}/>
+
+     </button>
+     : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div></div>;
+     })}
+     </div>
+     </div>
      <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
   {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
