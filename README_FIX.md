@@ -1,10 +1,23 @@
-HOTFIX Models 88 — alignment only
+HOTFIX Models — structural shared parent rail
 
-Changes:
-- Moves model name + sculpt widget slightly right to match scanner left edge.
-- Uses one shared rail variable for both.
-- Makes model name slightly smaller again.
-- Leaves scanner, Butt Elevation, gallery button, sliders and all logic untouched.
+This fix changes structure, not offsets.
 
-Only file:
-src/app/globals.css
+- Header content is wrapped in `modelHeaderRail`.
+- Scanner/gallery side is `modelLeftRail`.
+- Both share the exact same CSS width token.
+- Name + sculpt widget are children of the same parent rail.
+- Scanner fills its corresponding rail 100%.
+- Back arrow lives in its own header grid column.
+
+This prevents the stair-step effect caused by independent margins.
+
+Also:
+- Model name slightly smaller.
+
+Untouched:
+- scanner crop/aspect
+- Butt Elevation
+- sliders
+- gallery behavior
+- persistence
+- backend/API

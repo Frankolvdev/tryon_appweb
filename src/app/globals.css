@@ -2081,3 +2081,105 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     margin-right:0!important;
   }
 }
+
+
+/* HOTFIX Models — structural shared left rail */
+
+/* One shared width token for both header content and scanner column. */
+.modelStudio{
+  --model-shared-left-width:92%;
+}
+
+/* Header uses two columns: back arrow + shared content rail. */
+.modelStudioHead{
+  display:grid!important;
+  grid-template-columns:auto 1fr!important;
+  column-gap:18px!important;
+  align-items:start!important;
+  position:relative;
+}
+
+.modelStudioHead > .modelIconBtn:first-child{
+  position:static!important;
+  left:auto!important;
+  top:auto!important;
+  margin:0!important;
+  align-self:start!important;
+}
+
+/* Name + sculpt widget share this exact parent. */
+.modelHeaderRail{
+  width:var(--model-shared-left-width)!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  box-sizing:border-box;
+  justify-self:start!important;
+}
+
+.modelHeaderRail h1{
+  margin:0 0 20px 0!important;
+  font-size:clamp(32px,4.2vw,46px)!important;
+  line-height:.96!important;
+  letter-spacing:-.035em!important;
+}
+
+.modelHeaderRail .modelSculptWidget{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  box-sizing:border-box;
+}
+
+/* Scanner/gallery column shares the SAME width token. */
+.modelLeftRail{
+  width:var(--model-shared-left-width)!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  box-sizing:border-box;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  justify-self:start!important;
+}
+
+.modelLeftRail > .modelPreviewPanel{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  justify-self:stretch!important;
+}
+
+.modelLeftRail > .modelGalleryBtnBelow{
+  align-self:center!important;
+  margin-top:6px!important;
+}
+
+/* Neutralize legacy percentage nudges from previous alignment experiments. */
+.modelStudioHead > div:nth-child(2){
+  width:var(--model-shared-left-width)!important;
+  margin:0!important;
+}
+
+.modelPreviewColumn,
+.modelPreviewPanel{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+@media(max-width:1100px){
+  .modelStudio{
+    --model-shared-left-width:100%;
+  }
+
+  .modelStudioHead{
+    grid-template-columns:auto 1fr!important;
+    column-gap:12px!important;
+  }
+
+  .modelHeaderRail,
+  .modelLeftRail{
+    width:100%!important;
+  }
+}
