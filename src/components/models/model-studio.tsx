@@ -1,7 +1,7 @@
 "use client";
 import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Grid3X3, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody } from "@/lib/ai-model-api";
 import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
@@ -192,7 +192,15 @@ export function ModelStudio({modelId}:{modelId:number}){
  }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
-  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1><div className="modelStep modelStepHeader"><span>01</span><div><h2>Esculpe tu cuerpo</h2></div></div><p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p></div><button className="modelGalleryBtn" onClick={()=>setGallery(true)}><Grid3X3 size={17}/> Ver todas las variantes</button></header>
+  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1>
+    <div className="modelSculptWidget">
+     <div className="modelSculptWidgetBadge">01</div>
+     <div className="modelSculptWidgetCopy">
+      <h2>Esculpe tu cuerpo</h2>
+      <p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p>
+     </div>
+    </div>
+   </div></header>
   {items.length===0?<div className="modelEmpty"><Sparkles/><h2>Aún no hay cuerpos publicados</h2><p>Genera y guarda variantes desde Body Proportions en el BackOffice. Solo las imágenes listas aparecen aquí.</p></div>:<div className="modelBuilder">
    <div className="modelPreviewColumn">
     <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
@@ -202,6 +210,20 @@ export function ModelStudio({modelId}:{modelId:number}){
      </div>
     </section>
          
+   
+    <button className="modelGalleryBtn modelGalleryBtnBelow" onClick={()=>setGallery(true)}>
+     <span className="modelGalleryCustomIcon" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+       <rect x="3.5" y="5" width="10" height="10" rx="2.5"/>
+       <rect x="18.5" y="5" width="10" height="10" rx="2.5"/>
+       <rect x="3.5" y="19" width="10" height="8" rx="2.5"/>
+       <path d="M19.5 23h8M23.5 19v8"/>
+       <path d="M6.5 12l2.1-2.1 2.2 2.2"/>
+       <circle cx="24.5" cy="9" r="1.5"/>
+      </svg>
+     </span>
+     <span>Ver todas las variantes</span>
+    </button>
    </div>
    <section className="modelControls">
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
