@@ -369,7 +369,7 @@ function BreastAxis({levels,selectedBand,onChange}:{levels:{band:string;value:nu
 
  const current=levels[safeIndex];
  return <div className="modelAxis">
-   <div><label>Breasts</label><output>{current?.value?.toFixed(2).replace(/\.?0+$/,"")??"—"}</output></div>
+   <div><label>Breasts</label></div>
    <div
      ref={trackRef}
      className="modelDiscreteSlider"

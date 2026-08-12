@@ -2282,3 +2282,80 @@ output.modelSliderValue{
     width:100%!important;
   }
 }
+
+
+/* HOTFIX Models — spacing, premium back button, full-width gallery, breast value cleanup */
+
+/* Give the sculpt intro much more separation before the builder content. */
+.modelHeaderRail .modelSculptWidget{
+  margin-bottom:100px!important;
+}
+
+/* Move back arrow higher and give it a more premium glass/metal treatment. */
+.modelBackOutside{
+  top:-22px!important;
+  left:-54px!important;
+  width:44px!important;
+  height:44px!important;
+  border-radius:14px!important;
+  border:1px solid rgba(255,255,255,.10)!important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025))!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 10px 26px rgba(0,0,0,.34)!important;
+  backdrop-filter:blur(12px);
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease!important;
+}
+
+.modelBackOutside:hover{
+  transform:translateY(-2px) scale(1.04);
+  border-color:rgba(255,82,104,.32)!important;
+  background:
+    linear-gradient(145deg, rgba(225,29,53,.10), rgba(255,255,255,.035))!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 14px 32px rgba(0,0,0,.38),
+    0 0 22px rgba(225,29,53,.10)!important;
+}
+
+/* Gallery button fills the entire shared scanner rail width. */
+.modelLeftRail > .modelGalleryBtnBelow{
+  width:100%!important;
+  max-width:none!important;
+  align-self:stretch!important;
+  justify-content:center!important;
+  margin-top:6px!important;
+  box-sizing:border-box;
+}
+
+/* Hide Breast current/floating numeric value as well.
+   Keep labels/options; only raw numeric/current readouts disappear. */
+.modelBreastValue,
+.modelBreastCurrent,
+.modelBreastCurrentValue,
+.modelBreastFloatingValue,
+.modelBreastBubble,
+.modelBreastAxis [class*="Value"],
+.modelBreastAxis [class*="Current"],
+.modelBreastAxis [class*="Bubble"],
+.breastAxis [class*="Value"],
+.breastAxis [class*="Current"],
+.breastAxis [class*="Bubble"]{
+  display:none!important;
+}
+
+@media(max-width:1100px){
+  .modelHeaderRail .modelSculptWidget{
+    margin-bottom:48px!important;
+  }
+
+  .modelBackOutside{
+    top:auto!important;
+    left:auto!important;
+  }
+}

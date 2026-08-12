@@ -1,20 +1,18 @@
-HOTFIX Models — structural arrow isolation + slider cleanup
+HOTFIX Models — requested visual refinements
 
-Changes:
-- Back arrow moved OUTSIDE the shared header rail.
-- Arrow no longer participates in alignment/width.
-- modelHeaderRail and modelLeftRail share the same left origin and width.
-- Removes/hides floating numeric current values from sliders.
-- Keeps endpoint labels (Small/Huge, Very Low/Very High, etc.).
+Changes only:
+- Adds ~100px space below Sculpt your body widget.
+- Moves back arrow higher and gives it a more premium glass/metal style.
+- Makes View all variants fill 100% width of the shared scanner rail.
+- Removes/hides Breast floating/current numeric value too.
 
 Untouched:
-- scanner crop/aspect
+- scanner/crop
 - Butt Elevation
-- gallery button
 - slider behavior
 - persistence
 - backend/API
-- other views
+- other modules
 
 Files:
 - src/components/models/model-studio.tsx
