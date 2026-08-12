@@ -2667,3 +2667,46 @@ output.modelSliderValue{
       rgba(225,29,53,.012) 100%
     )!important;
 }
+
+
+/* Sculpt card — true full-width extension from scanner-aligned left edge */
+
+/* Header rail should no longer stop at 92%.
+   Its LEFT edge stays exactly where it is; only the RIGHT edge expands. */
+.modelHeaderRail{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box;
+}
+
+/* Card fills the now-full header rail. */
+.modelHeaderRail .modelSculptWidget{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box;
+}
+
+/* Stronger but still muted aside-red gradient across the entire card. */
+.modelSculptWidget{
+  border:1px solid rgba(225,29,53,.18)!important;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(225,29,53,.180) 0%,
+      rgba(225,29,53,.145) 16%,
+      rgba(225,29,53,.105) 34%,
+      rgba(225,29,53,.072) 52%,
+      rgba(225,29,53,.045) 70%,
+      rgba(225,29,53,.027) 86%,
+      rgba(225,29,53,.016) 100%
+    )!important;
+}
+
+/* Preserve scanner rail exactly as approved. */
+.modelLeftRail{
+  width:92%!important;
+}
