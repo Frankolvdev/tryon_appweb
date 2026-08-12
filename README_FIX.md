@@ -1,19 +1,10 @@
-HOTFIX Models — true scanner-edge alignment
+HOTFIX Models 88 — alignment only
 
-ÚNICOS cambios:
-- Elimina el 4% de margen izquierdo extra que todavía desplazaba nombre + widget.
-- Nombre y widget quedan sobre el mismo filo izquierdo del scanner.
-- Nombre de la modelo ligeramente más pequeño.
-- Añade 20px de separación debajo del nombre antes del widget.
+Changes:
+- Moves model name + sculpt widget slightly right to match scanner left edge.
+- Uses one shared rail variable for both.
+- Makes model name slightly smaller again.
+- Leaves scanner, Butt Elevation, gallery button, sliders and all logic untouched.
 
-NO cambia:
-- scanner ni crop
-- Butt Elevation
-- botón Ver todas las variantes
-- sliders
-- selección/persistencia
-- backend/API
-- otros módulos
-
-Solo modifica:
+Only file:
 src/app/globals.css
