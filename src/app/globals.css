@@ -1589,3 +1589,53 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     object-fit:contain!important;
   }
 }
+
+
+/* HOTFIX Models — header placement, Butt spacing, gentler scanner crop */
+
+/* Same 01/white language, now above the explanatory copy instead of inside sliders. */
+.modelStudioHead .modelStepHeader{
+  margin:12px 0 6px;
+  padding:0;
+  border:0;
+}
+.modelStudioHead .modelStepHeader span,
+.modelStudioHead .modelStepHeader h2{
+  color:#fff!important;
+}
+.modelStudioHead .modelStepHeader h2{
+  margin:0;
+}
+
+/* More breathing room between Butt Elevation choices and "Usar este cuerpo". */
+.modelControls .modelBubblePicker{
+  margin-bottom:26px!important;
+}
+
+/* Reveal more of the image sides than the previous portrait crop.
+   No image distortion: cover keeps intrinsic proportions and only crops overflow. */
+.modelPreviewPanel{
+  width:92%!important;
+}
+
+.modelHeroImage{
+  aspect-ratio:.78!important;
+}
+
+.modelHeroImage img{
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+@media(max-width:1000px){
+  .modelPreviewPanel{
+    width:100%!important;
+  }
+  .modelHeroImage{
+    aspect-ratio:auto!important;
+  }
+  .modelHeroImage img{
+    height:auto!important;
+    object-fit:contain!important;
+  }
+}

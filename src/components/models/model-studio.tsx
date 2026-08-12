@@ -192,7 +192,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
-  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1><p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p></div><button className="modelGalleryBtn" onClick={()=>setGallery(true)}><Grid3X3 size={17}/> Ver todas las variantes</button></header>
+  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1><div className="modelStep modelStepHeader"><span>01</span><div><h2>Esculpe tu cuerpo</h2></div></div><p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p></div><button className="modelGalleryBtn" onClick={()=>setGallery(true)}><Grid3X3 size={17}/> Ver todas las variantes</button></header>
   {items.length===0?<div className="modelEmpty"><Sparkles/><h2>Aún no hay cuerpos publicados</h2><p>Genera y guarda variantes desde Body Proportions en el BackOffice. Solo las imágenes listas aparecen aquí.</p></div>:<div className="modelBuilder">
    <div className="modelPreviewColumn">
     <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
@@ -203,7 +203,7 @@ export function ModelStudio({modelId}:{modelId:number}){
     </section>
          
    </div>
-   <section className="modelControls"><div className="modelStep"><span>01</span><div><h2>Esculpe su cuerpo</h2></div></div>
+   <section className="modelControls">
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
           <div className="modelBubblePicker">
      <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
