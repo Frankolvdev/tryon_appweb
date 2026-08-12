@@ -1771,3 +1771,17 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     margin-top:10px;
   }
 }
+
+
+/* Position-only fix: gallery action belongs to the scanner column. */
+.modelPreviewColumn{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+}
+
+.modelPreviewColumn > .modelGalleryBtnBelow{
+  align-self:center!important;
+  margin:12px auto 0!important;
+}
+

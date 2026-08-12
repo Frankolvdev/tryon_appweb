@@ -1,11 +1,17 @@
-HOTFIX Models 86 — visual refinements only
+HOTFIX position-only — Ver todas las variantes
 
-- 01 / Esculpe tu cuerpo / explanatory text become a single visual widget.
-- Removes gray divider lines from the sliders card.
-- Adds more space below Butt Elevation.
-- Moves Ver todas las variantes below the scanner, outside both cards.
-- Makes gallery action smaller.
-- Uses a custom inline vector icon for gallery/variants.
-- Scanner dimensions/crop remain unchanged.
+ÚNICO cambio:
+- El botón "Ver todas las variantes" queda dentro de modelPreviewColumn.
+- Va inmediatamente después del card del scanner.
+- Queda fuera del card del scanner.
+- Queda antes y separado de modelControls (sliders).
 
-No changes to logic, Butt selection, persistence, API, backend or other modules.
+NO cambia:
+- scanner
+- tamaño/crop de imagen
+- widget 01
+- sliders
+- Butt Elevation
+- selección/persistencia
+- backend
+- otros módulos

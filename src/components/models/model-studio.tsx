@@ -211,6 +211,8 @@ export function ModelStudio({modelId}:{modelId:number}){
     </section>
          
    
+    
+   
     <button className="modelGalleryBtn modelGalleryBtnBelow" onClick={()=>setGallery(true)}>
      <span className="modelGalleryCustomIcon" aria-hidden="true">
       <svg viewBox="0 0 32 32">
