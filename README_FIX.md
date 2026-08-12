@@ -1,17 +1,21 @@
-HOTFIX position-only — Ver todas las variantes
+HOTFIX Models — spacing/alignment only
 
-ÚNICO cambio:
-- El botón "Ver todas las variantes" queda dentro de modelPreviewColumn.
-- Va inmediatamente después del card del scanner.
-- Queda fuera del card del scanner.
-- Queda antes y separado de modelControls (sliders).
+Changes:
+- Butt Elevation has less empty space above its title.
+- Adds more balanced spacing below the title before the selector cards.
+- Keeps separation before "Usar este cuerpo".
+- "Ver todas las variantes" sits closer to scanner card.
+- Back arrow moves visually outside/left of the sculpt intro widget on desktop.
+- Sculpt intro widget aligns horizontally with scanner card.
+- 01 badge gets a slightly redder tone.
 
-NO cambia:
-- scanner
-- tamaño/crop de imagen
-- widget 01
+No changes to:
+- scanner dimensions/crop
 - sliders
-- Butt Elevation
-- selección/persistencia
-- backend
-- otros módulos
+- Butt selection/persistence
+- gallery behavior
+- backend/API
+- other modules
+
+Only modified:
+src/app/globals.css
