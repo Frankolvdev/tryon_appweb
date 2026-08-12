@@ -1479,3 +1479,113 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     gap:15px;
   }
 }
+
+
+/* HOTFIX Models 85 — compact Butt Elevation inside sliders + taller cropped scanner
+   Scope limited to Create Model IA / Models. */
+
+/* Restore the original two-column structure. */
+.modelPreviewColumn{
+  display:contents!important;
+}
+
+/* Scanner: about 10% narrower and 20% taller visually.
+   Image proportions are preserved; side cropping is intentional. */
+.modelPreviewPanel{
+  width:90%!important;
+  justify-self:center;
+  align-self:center;
+}
+
+.modelHeroImage{
+  width:100%!important;
+  aspect-ratio:0.72!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  display:block!important;
+  line-height:0;
+}
+
+.modelHeroImage img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-height:none!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+/* Butt Elevation returns inside the sliders card, immediately above confirm. */
+.modelControls .modelBubblePicker{
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+
+.modelControls .modelBubbleHeading{
+  margin-bottom:10px;
+}
+
+.modelControls .modelBubbleRow{
+  gap:8px;
+}
+
+.modelControls .modelBubbleCard{
+  min-height:0!important;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.modelControls .modelBubbleCard .modelBubbleImage,
+.modelControls .modelBubbleCard .modelImageFrame,
+.modelControls .modelBubbleCard img{
+  aspect-ratio:1/1!important;
+}
+
+/* No textual level captions: image itself is the selector. */
+.modelControls .modelBubbleCard>small{
+  display:none!important;
+}
+
+/* Strong selected state remains visible despite compact cards. */
+.modelControls .modelBubbleCard[type="button"]{
+  appearance:none;
+  -webkit-appearance:none;
+  padding:0;
+  margin:0;
+  width:100%;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+}
+
+.modelControls .modelBubbleCard.selected{
+  z-index:3;
+  transform:translateY(-3px) scale(1.06);
+  border-color:rgba(255,82,104,.98);
+  box-shadow:
+    0 0 0 2px rgba(225,29,53,.18),
+    0 12px 28px rgba(0,0,0,.42),
+    0 0 24px rgba(225,29,53,.22);
+}
+
+.modelControls .modelBubbleCard.selected:hover{
+  transform:translateY(-3px) scale(1.06);
+}
+
+@media(max-width:1000px){
+  .modelPreviewPanel{
+    width:100%!important;
+  }
+
+  .modelHeroImage{
+    aspect-ratio:auto!important;
+  }
+
+  .modelHeroImage img{
+    height:auto!important;
+    object-fit:contain!important;
+  }
+}

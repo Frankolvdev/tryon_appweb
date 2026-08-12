@@ -1,26 +1,24 @@
-HOTFIX Models 84 — scanner aspect ratio + Butt Elevation below preview
-
-Base exacta:
-tryon_appweb-main (84).zip
+HOTFIX Models 85
 
 Cambios ÚNICOS:
-1. El contenedor/escáner de la imagen principal deja de tener una altura artificial.
-2. La altura ahora sale de la proporción intrínseca de la imagen:
-   width: 100% + height: auto.
-3. Se neutralizan las reglas anteriores de 560–720px que producían franjas negras.
-4. Butt Elevation se mueve debajo de la imagen principal:
-   - fuera del scanner;
-   - fuera del card de sliders;
-   - dentro de una columna visual izquierda independiente.
-5. Se conserva toda la lógica React de selectedBubbleLevel.
-6. Se restauran estilos visibles de selección:
-   - zoom;
-   - borde rojo;
-   - glow;
-   - Level seleccionado claramente marcado.
-7. No se toca persistencia Backend, sliders, scanner/loading, galería,
-   API, Models list, storage, generación ni otros módulos.
+- Butt Elevation vuelve dentro del card de sliders.
+- Se coloca inmediatamente arriba del botón “Usar este cuerpo”.
+- Se eliminan los textos Default / Level 1 / Level 2 / Level 3 para compactar.
+- La selección visual se conserva y refuerza con zoom/borde/glow.
+- El scanner se hace aproximadamente 10% más angosto y visualmente ~20% más alto.
+- NO se deforma la imagen:
+  - object-fit: cover
+  - recorte lateral intencional
+  - centrado horizontal
+- En pantallas <=1000px se vuelve a contain para evitar recortes agresivos.
 
-Archivos modificados:
-- src/components/models/model-studio.tsx
-- src/app/globals.css
+No se toca:
+- lógica de sliders
+- persistencia Butt Elevation
+- scanner/loading
+- galería
+- APIs
+- backend
+- otros módulos
+
+Base exacta: tryon_appweb-main (85).zip

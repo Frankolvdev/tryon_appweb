@@ -201,24 +201,24 @@ export function ModelStudio({modelId}:{modelId:number}){
        {(loadingTarget||scannerFinishing)&&<div className="modelLoadingScanner" aria-hidden="true"><span/></div>}
      </div>
     </section>
-    <div className="modelBubblePicker modelBubblePickerBelow">
+         <div className="modelBubblePicker">
      <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
       <div className="modelBubbleRow">
        {bubbleLoading
-        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div><small>{index===1?"Default":`Level ${index-1}`}</small></div>)
+        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div></div>)
         : [1,2,3,4].map(index=>{
           const variant=bubbleVariants.find(item=>item.variant_index===index);
           return variant
            ? <button type="button" key={variant.id} className={`modelBubbleCard${selectedBubbleLevel===index?" selected":""}`} onClick={()=>setSelectedBubbleLevel(index)} aria-pressed={selectedBubbleLevel===index}>
               <ModelImage src={variant.image_url} alt={variant.display_name}/>
-              <small>{index===1?"Default":`Level ${index-1}`}</small>
+              
              </button>
-           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div><small>{index===1?"Default":`Level ${index-1}`}</small></div>;
+           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div></div>;
         })}
       </div>
      </div>
    </div>
-   <section className="modelControls"><div className="modelStep"><span>01</span><div><small>PROPORCIONES</small><h2>Esculpe su cuerpo</h2></div></div>
+   <section className="modelControls"><div className="modelStep"><span>01</span><div><h2>Esculpe su cuerpo</h2></div></div>
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
      <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
