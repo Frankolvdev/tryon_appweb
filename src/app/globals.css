@@ -2183,3 +2183,102 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     width:100%!important;
   }
 }
+
+
+/* HOTFIX Models — arrow outside shared rail + no floating slider values */
+
+/* Shell spans the page; arrow is independent of the content rail. */
+.modelHeaderShell{
+  position:relative;
+  width:100%;
+}
+
+/* Header itself contains ONLY the shared rail. */
+.modelStudioHead{
+  display:block!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+}
+
+/* Back arrow is absolutely outside and cannot affect alignment. */
+.modelBackOutside{
+  position:absolute!important;
+  left:-48px!important;
+  top:4px!important;
+  margin:0!important;
+  z-index:5;
+}
+
+/* Header rail and scanner rail use the same structural width and origin. */
+.modelHeaderRail,
+.modelLeftRail{
+  width:92%!important;
+  margin-left:0!important;
+  margin-right:auto!important;
+  box-sizing:border-box;
+}
+
+/* Scanner fills its rail. */
+.modelLeftRail > .modelPreviewPanel{
+  width:100%!important;
+  margin:0!important;
+}
+
+/* Remove any legacy header-grid offsets from previous fixes. */
+.modelStudioHead > div:nth-child(2){
+  width:auto!important;
+  margin:0!important;
+}
+
+/* Hide all floating/current numeric values in sliders.
+   Min/max endpoint labels remain visible. */
+.modelAxisValue,
+.modelSliderValue,
+.modelRangeValue,
+.modelAxisFloatingValue,
+.modelAxisBubble,
+.modelSliderBubble,
+.modelRangeBubble,
+.modelRangeCurrent,
+.modelAxisCurrentValue,
+.modelBreastValue,
+[data-slider-value],
+output.modelSliderValue{
+  display:none!important;
+}
+
+/* If current numeric value is rendered as an absolutely-positioned child over the track,
+   hide those without touching endpoint labels. */
+.modelAxis [class*="Value"]:not(.modelAxisLabels):not(.modelAxisMin):not(.modelAxisMax),
+.modelAxis [class*="Bubble"],
+.modelSlider [class*="Value"],
+.modelSlider [class*="Bubble"]{
+  display:none!important;
+}
+
+/* Keep endpoint labels visible explicitly. */
+.modelAxisLabels,
+.modelAxisLabels span,
+.modelAxisMin,
+.modelAxisMax{
+  display:flex;
+}
+
+/* Model name remains compact. */
+.modelHeaderRail h1{
+  font-size:clamp(32px,4.1vw,46px)!important;
+  margin-bottom:20px!important;
+}
+
+@media(max-width:1100px){
+  .modelBackOutside{
+    position:static!important;
+    margin-bottom:12px!important;
+  }
+
+  .modelHeaderRail,
+  .modelLeftRail{
+    width:100%!important;
+  }
+}

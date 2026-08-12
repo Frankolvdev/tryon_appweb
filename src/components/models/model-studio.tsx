@@ -192,19 +192,21 @@ export function ModelStudio({modelId}:{modelId:number}){
  }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
-  <header className="modelStudioHead">
-   <button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button>
-   <div className="modelHeaderRail">
-    <h1>{model.name}</h1>
-    <div className="modelSculptWidget">
-     <div className="modelSculptWidgetBadge">01</div>
-     <div className="modelSculptWidgetCopy">
-      <h2>Esculpe tu cuerpo</h2>
-      <p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p>
+  <div className="modelHeaderShell">
+   <button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button>
+   <header className="modelStudioHead">
+    <div className="modelHeaderRail">
+     <h1>{model.name}</h1>
+     <div className="modelSculptWidget">
+      <div className="modelSculptWidgetBadge">01</div>
+      <div className="modelSculptWidgetCopy">
+       <h2>Esculpe tu cuerpo</h2>
+       <p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p>
+      </div>
      </div>
     </div>
-   </div>
-  </header>
+   </header>
+  </div>
   {items.length===0?<div className="modelEmpty"><Sparkles/><h2>Aún no hay cuerpos publicados</h2><p>Genera y guarda variantes desde Body Proportions en el BackOffice. Solo las imágenes listas aparecen aquí.</p></div>:<div className="modelBuilder">
    <div className="modelLeftRail">
     <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
@@ -298,7 +300,7 @@ function Axis({label,value,values,onChange,minLabel,maxLabel}:{label:string;valu
  };
 
  return <div className="modelAxis">
-   <div><label>{label}</label><output>{value}</output></div>
+   <div><label>{label}</label></div>
    <div
      ref={trackRef}
      className="modelDiscreteSlider"

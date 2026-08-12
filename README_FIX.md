@@ -1,23 +1,21 @@
-HOTFIX Models — structural shared parent rail
+HOTFIX Models — structural arrow isolation + slider cleanup
 
-This fix changes structure, not offsets.
-
-- Header content is wrapped in `modelHeaderRail`.
-- Scanner/gallery side is `modelLeftRail`.
-- Both share the exact same CSS width token.
-- Name + sculpt widget are children of the same parent rail.
-- Scanner fills its corresponding rail 100%.
-- Back arrow lives in its own header grid column.
-
-This prevents the stair-step effect caused by independent margins.
-
-Also:
-- Model name slightly smaller.
+Changes:
+- Back arrow moved OUTSIDE the shared header rail.
+- Arrow no longer participates in alignment/width.
+- modelHeaderRail and modelLeftRail share the same left origin and width.
+- Removes/hides floating numeric current values from sliders.
+- Keeps endpoint labels (Small/Huge, Very Low/Very High, etc.).
 
 Untouched:
 - scanner crop/aspect
 - Butt Elevation
-- sliders
-- gallery behavior
+- gallery button
+- slider behavior
 - persistence
 - backend/API
+- other views
+
+Files:
+- src/components/models/model-studio.tsx
+- src/app/globals.css
