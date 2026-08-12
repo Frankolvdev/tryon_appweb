@@ -1924,3 +1924,62 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     margin-right:0!important;
   }
 }
+
+
+/* HOTFIX Models — final horizontal alignment
+   Name + sculpt widget + scanner share the same visual left edge. */
+
+/* The scanner is 92% wide and centered => its left inset is 4%.
+   Apply that exact inset to the header content. */
+.modelStudioHead > div:nth-child(2){
+  width:92%!important;
+  margin-left:4%!important;
+  margin-right:4%!important;
+  box-sizing:border-box;
+}
+
+/* The widget no longer adds another 4% inset. */
+.modelStudioHead .modelSculptWidget{
+  width:100%!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  box-sizing:border-box;
+}
+
+/* Model name uses the same left edge and is slightly smaller. */
+.modelStudioHead h1{
+  margin-left:0!important;
+  margin-right:0!important;
+  font-size:clamp(42px, 6vw, 68px)!important;
+  line-height:.95!important;
+  letter-spacing:-.045em!important;
+}
+
+/* Keep back arrow outside of the aligned content rail. */
+.modelStudioHead > .modelIconBtn:first-child{
+  left:-48px!important;
+}
+
+/* Scanner rail remains the source of truth. */
+.modelPreviewPanel{
+  width:92%!important;
+  justify-self:center!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+@media(max-width:1100px){
+  .modelStudioHead > div:nth-child(2){
+    width:100%!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+
+  .modelStudioHead .modelSculptWidget{
+    width:100%!important;
+  }
+
+  .modelPreviewPanel{
+    width:100%!important;
+  }
+}
