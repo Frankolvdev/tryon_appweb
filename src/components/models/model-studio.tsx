@@ -192,7 +192,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
-  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1>
+  <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><h1>{model.name}</h1>
     <div className="modelSculptWidget">
      <div className="modelSculptWidgetBadge">01</div>
      <div className="modelSculptWidgetCopy">

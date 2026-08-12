@@ -1,21 +1,26 @@
-HOTFIX Models — spacing/alignment only
+HOTFIX Models 87 — alignment/spacing only
 
-Changes:
-- Butt Elevation has less empty space above its title.
-- Adds more balanced spacing below the title before the selector cards.
-- Keeps separation before "Usar este cuerpo".
-- "Ver todas las variantes" sits closer to scanner card.
-- Back arrow moves visually outside/left of the sculpt intro widget on desktop.
-- Sculpt intro widget aligns horizontally with scanner card.
-- 01 badge gets a slightly redder tone.
+Base exacta:
+tryon_appweb-main (87).zip
 
-No changes to:
-- scanner dimensions/crop
+Cambios ÚNICOS:
+- Elimina el texto rojo "CREATE MODEL IA · CUERPO".
+- Alinea horizontalmente el widget 01 / Esculpe tu cuerpo con el scanner:
+  - mismo ancho visual 92%;
+  - 4% de margen a cada lado.
+- Reduce el espacio muerto arriba de Butt Elevation.
+- Aumenta a 24px el espacio debajo del título Butt Elevation antes de las cards.
+- Mantiene separación antes de "Usar este cuerpo".
+
+No se toca:
+- scanner/crop
+- botón Ver todas las variantes
 - sliders
-- Butt selection/persistence
-- gallery behavior
-- backend/API
-- other modules
+- selección Butt Elevation
+- persistencia
+- API/backend
+- otras vistas
 
-Only modified:
-src/app/globals.css
+Archivos:
+- src/components/models/model-studio.tsx
+- src/app/globals.css
