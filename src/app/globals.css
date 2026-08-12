@@ -1315,15 +1315,45 @@ html,body{font-family:Arial,Helvetica,sans-serif}
 @media(max-width:620px){.modelBubbleRow{grid-template-columns:repeat(2,minmax(0,1fr))}.modelBubbleCard .modelImageShell,.modelBubbleLoadingVisual,.modelBubbleMissing{height:210px}}
 
 
-/* Create Model IA — compact body preview + selectable Butt Elevation */
-.modelBuilder{align-items:center}
-.modelPreviewPanel{align-self:center;height:auto}
-.modelPreviewHybrid,.modelPreviewCurrent,.modelHeroImage{height:auto!important;min-height:0}
-.modelHeroImage{width:100%;line-height:0}
-.modelHeroImage img{display:block;width:100%;height:auto!important;object-fit:contain}
-.modelBubbleHeading{align-items:center}
-.modelBubbleHeading>strong{font-size:15px;color:#f3f3f5}
-.modelBubbleCard[type="button"]{padding:0;color:inherit;text-align:inherit;cursor:pointer;font:inherit}
-.modelBubbleCard.selected{transform:translateY(-4px) scale(1.045);border-color:rgba(255,76,104,.92);box-shadow:0 0 0 2px rgba(225,29,53,.16),0 16px 34px rgba(0,0,0,.42),0 0 30px rgba(225,29,53,.2)}
-.modelBubbleCard.selected:hover{transform:translateY(-4px) scale(1.045)}
-.modelBubbleCard.selected>small{color:#fff}
+/* HOTFIX Models — taller scanner/body preview without distortion
+   Scope intentionally limited to the Create Model IA body preview. */
+.modelBuilder{
+  align-items:center;
+}
+
+.modelPreviewPanel{
+  align-self:center;
+}
+
+.modelHeroImage{
+  width:100%;
+  height:clamp(560px, 68vh, 720px)!important;
+  min-height:560px!important;
+  max-height:720px!important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  line-height:0;
+}
+
+.modelHeroImage img{
+  display:block;
+  width:100%;
+  height:100%!important;
+  max-height:720px!important;
+  object-fit:contain;
+  object-position:center;
+}
+
+@media (max-width: 900px){
+  .modelHeroImage{
+    height:clamp(480px, 64vh, 640px)!important;
+    min-height:480px!important;
+    max-height:640px!important;
+  }
+
+  .modelHeroImage img{
+    max-height:640px!important;
+  }
+}

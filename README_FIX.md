@@ -1,8 +1,12 @@
-Models-only UI change
-- Hero preview fits actual image height and centers vertically against controls.
-- Removes artificial gray bottom area.
-- Heading: Butt Elevation.
-- Labels: Default, Level 1, Level 2, Level 3.
-- Clicking a Butt card selects/highlights/zooms it.
-- Selection persists when saving body.
-- Existing sliders, scanner, gallery and other modules remain untouched.
+HOTFIX — Models taller scanner/body preview
+
+Scope:
+- CSS only.
+- Makes the main scanner/body preview taller.
+- Preserves image proportions with object-fit: contain.
+- Keeps the preview vertically centered beside the sliders.
+- Responsive desktop/laptop sizing.
+- Does not touch Models logic, Butt Elevation selection/persistence, scanner loading logic,
+  Backend, BackOffice, generation, storage, sliders, gallery, or other modules.
+
+Base used: tryon_appweb-main (83).zip
