@@ -2359,3 +2359,13 @@ output.modelSliderValue{
     left:auto!important;
   }
 }
+
+
+/* FINAL spacing adjustment requested */
+.modelHeaderRail .modelSculptWidget{
+  margin-bottom:50px!important;
+}
+
+.modelLeftRail > .modelGalleryBtnBelow{
+  margin-top:26px!important;
+}

@@ -1,19 +1,7 @@
-HOTFIX Models — requested visual refinements
+FINAL spacing adjustment
 
-Changes only:
-- Adds ~100px space below Sculpt your body widget.
-- Moves back arrow higher and gives it a more premium glass/metal style.
-- Makes View all variants fill 100% width of the shared scanner rail.
-- Removes/hides Breast floating/current numeric value too.
+Only changes:
+- Sculpt your body bottom spacing: 100px -> 50px.
+- View all variants top spacing: 6px -> 26px.
 
-Untouched:
-- scanner/crop
-- Butt Elevation
-- slider behavior
-- persistence
-- backend/API
-- other modules
-
-Files:
-- src/components/models/model-studio.tsx
-- src/app/globals.css
+Everything else remains exactly as in the previous approved hotfix.
