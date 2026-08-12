@@ -37,6 +37,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [scannerFinishing,setScannerFinishing]=useState(false);
  const [bubbleVariants,setBubbleVariants]=useState<BubbleButtVariant[]>([]);
  const [bubbleLoading,setBubbleLoading]=useState(false);
+ const [selectedBubbleLevel,setSelectedBubbleLevel]=useState(1);
  const bubbleRequestRef=useRef(0);
  const loadRequestRef=useRef(0);
  const decodedUrlsRef=useRef<Set<string>>(new Set());
@@ -46,6 +47,7 @@ export function ModelStudio({modelId}:{modelId:number}){
    setModel(m);setItems(c.items);
    const initial=c.items.find(x=>x.id===m.body_proportion_preset_id)||c.items[0]||null;
    setSelected(initial);
+   setSelectedBubbleLevel(m.bubble_butt_variant_index ?? 1);
    if(initial)setAxes({hips:initial.hips_size,fat:initial.fat_thin,breasts:initial.breasts_size,breastBand:initial.breast_band||""});
  }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar el estudio"))},[modelId]);
 
@@ -177,7 +179,17 @@ export function ModelStudio({modelId}:{modelId:number}){
 
  const filtered=items.filter(x=>(fatFilter==="all"||x.fat_band===fatFilter)&&(hipFilter==="all"||x.hips_band===hipFilter)&&(breastFilter==="all"||x.breast_band===breastFilter));
  const bands=(key:"fat_band"|"hips_band"|"breast_band")=>[...new Set(items.map(x=>x[key]).filter(Boolean))] as string[];
- async function confirm(){if(!selected)return;setSaving(true);try{const m=await setAiModelBody(modelId,selected.id);setModel(m);toast.success("Cuerpo guardado en tu modelo");}catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}}
+ async function confirm(){
+  if(!selected)return;
+  const selectedBubble=bubbleVariants.find(item=>item.variant_index===selectedBubbleLevel);
+  if(!selectedBubble){toast.error("Selecciona un nivel de Butt Elevation disponible.");return;}
+  setSaving(true);
+  try{
+   const m=await setAiModelBody(modelId,selected.id,selectedBubble.id);
+   setModel(m);
+   toast.success("Cuerpo y Butt Elevation guardados en tu modelo");
+  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}
+ }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
   <header className="modelStudioHead"><button onClick={()=>router.push("/models")} className="modelIconBtn"><ArrowLeft size={18}/></button><div><span className="eyebrow">CREATE MODEL IA · CUERPO</span><h1>{model.name}</h1><p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p></div><button className="modelGalleryBtn" onClick={()=>setGallery(true)}><Grid3X3 size={17}/> Ver todas las variantes</button></header>
@@ -191,19 +203,22 @@ export function ModelStudio({modelId}:{modelId:number}){
    <section className="modelControls"><div className="modelStep"><span>01</span><div><small>PROPORCIONES</small><h2>Esculpe su cuerpo</h2></div></div>
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
      <div className="modelBubblePicker">
-      <div className="modelBubbleHeading"><div><small>BUBBLE BUTT</small><strong>Variantes para este cuerpo</strong></div><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
+      <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
       <div className="modelBubbleRow">
        {bubbleLoading
-        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div><small>{index===1?"Default":`Variante ${index}`}</small></div>)
+        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div><small>{index===1?"Default":`Level ${index-1}`}</small></div>)
         : [1,2,3,4].map(index=>{
           const variant=bubbleVariants.find(item=>item.variant_index===index);
           return variant
-           ? <div key={variant.id} className="modelBubbleCard"><ModelImage src={variant.image_url} alt={variant.display_name}/><small>{index===1?"Default":`Variante ${index}`}</small></div>
-           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div><small>{index===1?"Default":`Variante ${index}`}</small></div>;
+           ? <button type="button" key={variant.id} className={`modelBubbleCard${selectedBubbleLevel===index?" selected":""}`} onClick={()=>setSelectedBubbleLevel(index)} aria-pressed={selectedBubbleLevel===index}>
+              <ModelImage src={variant.image_url} alt={variant.display_name}/>
+              <small>{index===1?"Default":`Level ${index-1}`}</small>
+             </button>
+           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div><small>{index===1?"Default":`Level ${index-1}`}</small></div>;
         })}
       </div>
      </div>
-<button className="modelConfirm" onClick={confirm} disabled={!selected||saving}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
+     <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
   {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
  </div>
