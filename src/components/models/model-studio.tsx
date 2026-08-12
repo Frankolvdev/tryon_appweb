@@ -3,8 +3,8 @@ import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEv
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Grid3X3, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
-import { getAiModel,listBodyVariants,setAiModelBody } from "@/lib/ai-model-api";
-import type { AiModelProfile,BodyVariant } from "@/types/ai-model";
+import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody } from "@/lib/ai-model-api";
+import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
 import { ModelImage } from "./model-image";
 
 type AxisState={hips:number;fat:number;breasts:number;breastBand:string};
@@ -35,6 +35,9 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [transitionKey,setTransitionKey]=useState(0);
  const [loadingTarget,setLoadingTarget]=useState<BodyVariant|null>(null);
  const [scannerFinishing,setScannerFinishing]=useState(false);
+ const [bubbleVariants,setBubbleVariants]=useState<BubbleButtVariant[]>([]);
+ const [bubbleLoading,setBubbleLoading]=useState(false);
+ const bubbleRequestRef=useRef(0);
  const loadRequestRef=useRef(0);
  const decodedUrlsRef=useRef<Set<string>>(new Set());
  const MIN_SCANNER_MS=1300;
@@ -149,6 +152,29 @@ export function ModelStudio({modelId}:{modelId:number}){
    if(!selected?.image_url)return;
    decodedUrlsRef.current.add(selected.image_url);
  },[selected?.image_url]);
+ useEffect(()=>{
+   if(!selected?.id){
+     setBubbleVariants([]);
+     setBubbleLoading(false);
+     return;
+   }
+   const requestId=++bubbleRequestRef.current;
+   setBubbleLoading(true);
+   setBubbleVariants([]);
+   listBubbleButtVariants(selected.id)
+     .then(result=>{
+       if(bubbleRequestRef.current!==requestId)return;
+       setBubbleVariants(result.items);
+     })
+     .catch(()=>{
+       if(bubbleRequestRef.current!==requestId)return;
+       setBubbleVariants([]);
+     })
+     .finally(()=>{
+       if(bubbleRequestRef.current===requestId)setBubbleLoading(false);
+     });
+ },[selected?.id]);
+
  const filtered=items.filter(x=>(fatFilter==="all"||x.fat_band===fatFilter)&&(hipFilter==="all"||x.hips_band===hipFilter)&&(breastFilter==="all"||x.breast_band===breastFilter));
  const bands=(key:"fat_band"|"hips_band"|"breast_band")=>[...new Set(items.map(x=>x[key]).filter(Boolean))] as string[];
  async function confirm(){if(!selected)return;setSaving(true);try{const m=await setAiModelBody(modelId,selected.id);setModel(m);toast.success("Cuerpo guardado en tu modelo");}catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}}
@@ -161,12 +187,23 @@ export function ModelStudio({modelId}:{modelId:number}){
        {selected&&<div key={transitionKey} className="modelPreviewCurrent"><ModelImage src={selected.image_url} alt={displayBodyName(selected.display_name)} className="modelHeroImage"/></div>}
        {(loadingTarget||scannerFinishing)&&<div className="modelLoadingScanner" aria-hidden="true"><span/></div>}
      </div>
-     {selected&&<div className="modelPreviewMeta"><span>VARIANTE ACTUAL</span><strong>{displayBodyName(selected.display_name)}</strong><small>Hips {axes.hips} · Fat/Thin {axes.fat} · Breasts {axes.breasts}</small></div>}
    </section>
    <section className="modelControls"><div className="modelStep"><span>01</span><div><small>PROPORCIONES</small><h2>Esculpe su cuerpo</h2></div></div>
     <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
-    <div className="modelFineValues"><span>Skin tone <b>{selected?.skin_tone}</b></span><span>Hair length <b>{selected?.hair_length}</b></span></div>
-    <button className="modelConfirm" onClick={confirm} disabled={!selected||saving}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button><p className="modelNextHint">El siguiente paso — rostro y unión con el cuerpo — queda preparado para la siguiente fase.</p>
+     <div className="modelBubblePicker">
+      <div className="modelBubbleHeading"><div><small>BUBBLE BUTT</small><strong>Variantes para este cuerpo</strong></div><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
+      <div className="modelBubbleRow">
+       {bubbleLoading
+        ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div><small>{index===1?"Default":`Variante ${index}`}</small></div>)
+        : [1,2,3,4].map(index=>{
+          const variant=bubbleVariants.find(item=>item.variant_index===index);
+          return variant
+           ? <div key={variant.id} className="modelBubbleCard"><ModelImage src={variant.image_url} alt={variant.display_name}/><small>{index===1?"Default":`Variante ${index}`}</small></div>
+           : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div><small>{index===1?"Default":`Variante ${index}`}</small></div>;
+        })}
+      </div>
+     </div>
+<button className="modelConfirm" onClick={confirm} disabled={!selected||saving}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
   {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
  </div>

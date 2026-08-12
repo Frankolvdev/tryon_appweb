@@ -1287,3 +1287,29 @@ html,body{font-family:Arial,Helvetica,sans-serif}
 .modelLoadingScanner span{position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,70,100,.98),#fff,rgba(255,70,100,.98),transparent);box-shadow:0 0 12px rgba(255,45,78,.92),0 0 26px rgba(225,29,53,.46);will-change:top;animation:modelHybridScanner 1.12s linear infinite alternate}
 .modelPreviewHybrid.finishing .modelLoadingScanner{opacity:0}
 @keyframes modelHybridScanner{from{top:0}to{top:calc(100% - 3px)}}
+
+
+/* Create Model IA — Bubble Butt linkage + shared image hover sweep */
+.modelImageShell{isolation:isolate}
+.modelImageShell:after{content:"";position:absolute;z-index:4;inset:-1px;pointer-events:none;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.04) 42%,rgba(225,29,53,.18) 50%,rgba(255,255,255,.07) 56%,transparent 68%);transform:translateX(-120%);opacity:0}
+.modelImageShell:hover:after{opacity:1;animation:tokenCardSweep .86s ease-out 1}
+.modelImageShell:hover img.isLoaded{transform:scale(1.025);filter:brightness(1.035)}
+.modelImageShell img{transition:opacity .35s,transform .55s,filter .3s}
+
+.modelBubblePicker{padding:20px 0 24px;border-top:1px solid var(--line)}
+.modelBubbleHeading{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:12px}
+.modelBubbleHeading>div{display:grid;gap:4px}
+.modelBubbleHeading small{color:var(--red2);font-size:10px;font-weight:900;letter-spacing:.15em}
+.modelBubbleHeading strong{font-size:15px;color:#f3f3f5}
+.modelBubbleHeading>span{font-size:10px;color:#666}
+.modelBubbleRow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.modelBubbleCard{min-width:0;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#0c0c0e;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.modelBubbleCard:hover{transform:translateY(-3px) scale(1.012);border-color:rgba(225,29,53,.38);box-shadow:0 12px 30px rgba(0,0,0,.34),0 0 24px rgba(225,29,53,.08)}
+.modelBubbleCard .modelImageShell,.modelBubbleLoadingVisual,.modelBubbleMissing{height:172px}
+.modelBubbleCard .modelImageShell{width:100%}
+.modelBubbleCard>small{display:block;padding:9px 8px;text-align:center;font-size:10px;font-weight:800;color:#8a8a91}
+.modelBubbleCard:first-child>small{color:#d8d8dc}
+.modelBubbleLoadingVisual{position:relative;overflow:hidden;background:#0d0d0f}
+.modelBubbleLoadingVisual .modelImagePlaceholder{opacity:1}
+.modelBubbleMissing{display:grid;place-items:center;background:linear-gradient(145deg,#101012,#09090a);color:#4f4f55;font-size:10px}
+@media(max-width:620px){.modelBubbleRow{grid-template-columns:repeat(2,minmax(0,1fr))}.modelBubbleCard .modelImageShell,.modelBubbleLoadingVisual,.modelBubbleMissing{height:210px}}
