@@ -1983,3 +1983,50 @@ html,body{font-family:Arial,Helvetica,sans-serif}
     width:100%!important;
   }
 }
+
+
+/* HOTFIX Models — true scanner-edge alignment
+   The previous 4% header inset was the remaining "stair-step".
+   The header's own layout already starts on the scanner rail, so remove that extra inset. */
+
+.modelStudioHead > div:nth-child(2){
+  width:92%!important;
+  margin-left:0!important;
+  margin-right:auto!important;
+  box-sizing:border-box;
+}
+
+.modelStudioHead .modelSculptWidget{
+  width:100%!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+/* Slightly smaller model name + clearer separation before the sculpt widget. */
+.modelStudioHead h1{
+  font-size:clamp(38px,5.2vw,58px)!important;
+  line-height:.96!important;
+  letter-spacing:-.04em!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  margin-bottom:20px!important;
+}
+
+/* Do not alter the approved scanner geometry. */
+.modelPreviewPanel{
+  width:92%!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+@media(max-width:1100px){
+  .modelStudioHead > div:nth-child(2){
+    width:100%!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+
+  .modelStudioHead h1{
+    margin-bottom:16px!important;
+  }
+}
