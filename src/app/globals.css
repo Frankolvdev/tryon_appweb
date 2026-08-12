@@ -2487,3 +2487,120 @@ output.modelSliderValue{
       rgba(255,255,255,0) 100%
     ) border-box!important;
 }
+
+
+/* Sculpt card — match exact app aside/menu red + fully vanish at right edge.
+   Existing sweep animation is intentionally untouched. */
+.modelSculptWidget{
+  border:1px solid transparent!important;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, #e11d35 15%, transparent) 0%,
+      color-mix(in srgb, #e11d35 10%, transparent) 20%,
+      color-mix(in srgb, #e11d35 5%, transparent) 42%,
+      rgba(255,255,255,.008) 62%,
+      rgba(255,255,255,0) 82%,
+      transparent 100%
+    ) padding-box,
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, #e11d35 48%, transparent) 0%,
+      color-mix(in srgb, #e11d35 30%, transparent) 20%,
+      color-mix(in srgb, #e11d35 14%, transparent) 40%,
+      color-mix(in srgb, #e11d35 5%, transparent) 58%,
+      rgba(255,255,255,.012) 68%,
+      rgba(255,255,255,0) 78%,
+      transparent 100%
+    ) border-box!important;
+}
+
+/* Force top/right/bottom visual border to be fully gone at the far-right end. */
+.modelSculptWidget{
+  -webkit-mask:
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(90deg,#000 0%,#000 66%,rgba(0,0,0,.55) 74%,rgba(0,0,0,.18) 82%,transparent 92%) border-box;
+}
+
+
+/* Sculpt card — muted aside-red treatment + aggressive border disappearance.
+   IMPORTANT: sweep animation stays unchanged. */
+
+/* The aside red is #e11d35, but in the navigation it reads muted because it is
+   used with low alpha. Match that visual intensity here instead of solid red. */
+.modelSculptWidget{
+  border:0!important;
+  position:relative;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(225,29,53,.070) 0%,
+      rgba(225,29,53,.050) 18%,
+      rgba(225,29,53,.026) 38%,
+      rgba(225,29,53,.010) 54%,
+      rgba(225,29,53,0) 70%,
+      transparent 100%
+    )!important;
+}
+
+/* Draw the BORDER as a separate layer so each edge can truly fade to zero.
+   It deliberately disappears well before the right side. */
+.modelSculptWidget{
+  --sculpt-border-red: rgba(225,29,53,.20);
+  --sculpt-border-mid: rgba(225,29,53,.075);
+}
+
+/* Reuse ::before as the border layer while keeping it behind content/sweep. */
+.modelSculptWidget::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:1!important;
+  pointer-events:none!important;
+  border-radius:inherit!important;
+  padding:1px!important;
+
+  background:
+    /* top edge */
+    linear-gradient(
+      90deg,
+      var(--sculpt-border-red) 0%,
+      var(--sculpt-border-mid) 28%,
+      rgba(225,29,53,.025) 46%,
+      rgba(225,29,53,0) 58%,
+      transparent 100%
+    ) top left / 100% 1px no-repeat,
+
+    /* bottom edge — fades even sooner because this was still visible */
+    linear-gradient(
+      90deg,
+      var(--sculpt-border-red) 0%,
+      rgba(225,29,53,.060) 24%,
+      rgba(225,29,53,.018) 40%,
+      rgba(225,29,53,0) 52%,
+      transparent 100%
+    ) bottom left / 100% 1px no-repeat,
+
+    /* left edge only; no right-edge stroke at all */
+    linear-gradient(
+      180deg,
+      rgba(225,29,53,.17) 0%,
+      rgba(225,29,53,.11) 50%,
+      rgba(225,29,53,.17) 100%
+    ) top left / 1px 100% no-repeat!important;
+
+  /* Critical: explicitly remove old mask/border tricks that left ghost edges. */
+  -webkit-mask:none!important;
+  mask:none!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+/* There is intentionally NO right-border layer. */
+
+/* Keep content above border layer. */
+.modelSculptWidgetBadge,
+.modelSculptWidgetCopy{
+  position:relative;
+  z-index:4;
+}
