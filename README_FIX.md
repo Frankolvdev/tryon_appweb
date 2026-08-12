@@ -1,9 +1,8 @@
-HOTFIX — Sculpt card glow/fade
+HOTFIX — Sculpt card gradient border
 
-Only visual changes to `01 / Esculpe tu cuerpo`:
-- Red/soft gradient strongest on the left.
-- Gradient fades progressively until transparent on the right.
-- Illuminated sweep crosses the card every ~4 seconds.
-- Honors prefers-reduced-motion.
+Only change:
+- Border now fades from stronger red/visible on the left to transparent on the right.
+- Existing content gradient remains.
+- Existing 4-second light sweep animation remains EXACTLY unchanged.
 
-No changes to layout, spacing, scanner, sliders, Butt Elevation, gallery, persistence or backend.
+No layout, spacing, scanner, sliders, Butt Elevation, gallery, persistence or backend changes.
