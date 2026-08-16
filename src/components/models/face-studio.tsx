@@ -7,6 +7,8 @@ import { getAiModel } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import { buildFacePrompt, defaultFaceSelections, faceCategories, optionFor, type FaceSelections } from "@/lib/face-option-catalog";
 import { ModelImage } from "./model-image";
+import { AncestryExperience } from "./ancestry-experience";
+import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { useRouter } from "next/navigation";
 
 const STORAGE_PREFIX="tryon-face-draft-v1:";
@@ -30,8 +32,9 @@ export function FaceStudio({modelId}:{modelId:number}){
  const router=useRouter();
  const [model,setModel]=useState<AiModelProfile|null>(null);
  const [selections,setSelections]=useState<FaceSelections>(defaultFaceSelections);
- const [open,setOpen]=useState<string[]>(["heritage","faceShape","eyeShape","eyeColor","hairColor"]);
+ const [open,setOpen]=useState<string[]>(["faceShape","eyeShape","eyeColor","hairColor"]);
  const [promptOpen,setPromptOpen]=useState(false);
+ const [ancestry,setAncestry]=useState<AncestryMediaAsset|null>(null);
 
  useEffect(()=>{
    getAiModel(modelId).then(result=>{
@@ -47,8 +50,9 @@ export function FaceStudio({modelId}:{modelId:number}){
    try{localStorage.setItem(`${STORAGE_PREFIX}${modelId}`,JSON.stringify(selections))}catch{}
  },[modelId,selections]);
 
- const built=useMemo(()=>buildFacePrompt(selections),[selections]);
- const selectedCount=Object.values(selections).filter(Boolean).length;
+ const visibleFaceCategories=useMemo(()=>faceCategories.filter(category=>category.id!=="heritage"),[]);
+ const built=useMemo(()=>buildFacePrompt(selections,ancestry?.display_name),[ancestry?.display_name,selections]);
+ const selectedCount=visibleFaceCategories.filter(category=>Boolean(selections[category.id])).length+(ancestry?1:0);
 
  const toggle=(id:string)=>setOpen(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
  const choose=(categoryId:string,optionId:string)=>setSelections(current=>({...current,[categoryId]:optionId}));
@@ -77,6 +81,8 @@ export function FaceStudio({modelId}:{modelId:number}){
     </header>
    </div>
 
+   <AncestryExperience modelId={modelId} onChange={setAncestry}/>
+
    <div className="faceBuilder">
     <div className="facePreviewRail">
      <section className="facePreviewCard">
@@ -99,11 +105,11 @@ export function FaceStudio({modelId}:{modelId:number}){
     <section className="faceControls">
      <div className="faceControlsIntro">
       <div><span>IDENTIDAD</span><strong>Selecciona sus rasgos</strong></div>
-      <span>{selectedCount}/{faceCategories.length}</span>
+      <span>{selectedCount}/{visibleFaceCategories.length+1}</span>
      </div>
 
      <div className="faceCategoryList">
-      {faceCategories.map(category=>{
+      {visibleFaceCategories.map(category=>{
        const expanded=open.includes(category.id);
        const selected=optionFor(category.id,selections[category.id]||"");
        return <div className={`faceCategory${expanded?" open":""}`} key={category.id}>
@@ -138,7 +144,7 @@ export function FaceStudio({modelId}:{modelId:number}){
      <div><div className="facePromptLabel"><strong>Positive prompt</strong><button onClick={()=>copy(built.prompt,"Prompt")}><Copy size={14}/> Copiar</button></div><pre>{built.prompt}</pre></div>
      <div><div className="facePromptLabel"><strong>Negative prompt</strong><button onClick={()=>copy(built.negativePrompt,"Negative prompt")}><Copy size={14}/> Copiar</button></div><pre>{built.negativePrompt||"—"}</pre></div>
     </div>
-    <p className="facePromptNotice">Vista de integración: todavía no ejecuta el módulo de generación ni modifica Backend/BackOffice.</p>
+    <p className="facePromptNotice">Ancestry ya proviene de la biblioteca publicada. El pipeline de generación permanece desconectado por ahora.</p>
    </section>}
   </div>
 }

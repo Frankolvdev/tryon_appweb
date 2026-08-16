@@ -195,8 +195,9 @@ export function optionFor(categoryId:string, optionId:string){
   return faceCategories.find(c=>c.id===categoryId)?.options.find(o=>o.id===optionId);
 }
 
-export function buildFacePrompt(selections:FaceSelections){
+export function buildFacePrompt(selections:FaceSelections, ancestryLabel?:string){
   const selected = faceCategories
+    .filter(category=>!(ancestryLabel && category.id==="heritage"))
     .map(category=>optionFor(category.id,selections[category.id] ?? ""))
     .filter((item):item is FaceOption=>Boolean(item));
 
@@ -204,6 +205,7 @@ export function buildFacePrompt(selections:FaceSelections){
     FACE_TRIGGER,
     "",
     "photorealistic",
+    ancestryLabel ? `beautiful young adult woman of ${ancestryLabel} ancestry` : "",
     ...selected.map(item=>item.prompt),
     "smooth natural skin, subtle realistic skin texture, fine pores, even complexion",
     "attractive balanced facial structure, subtle natural facial asymmetry",
