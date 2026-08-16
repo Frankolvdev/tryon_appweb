@@ -278,3 +278,13 @@
   .card{flex-basis:145px}
   .cardSelected{transform:translateY(-6px) scale(1.1)!important}
 }
+
+/* C1.2 sync + loop */
+.trackViewport{padding:10px 0 16px;z-index:5}
+.track{padding-top:42px;padding-bottom:48px}
+.cardSelected{transform:translateY(-10px) scale(1.19)!important;z-index:80!important}
+.carouselWrap{z-index:6}
+.nav{position:relative;z-index:120}
+.nav button{pointer-events:auto}
+.otherCard.cardSelected{border-style:solid;border-color:rgba(225,29,53,.68)}
+@media(max-width:900px){.cardSelected{transform:translateY(-7px) scale(1.13)!important}}

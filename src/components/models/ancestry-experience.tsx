@@ -66,13 +66,15 @@ export function AncestryExperience({
   const [items, setItems] = useState<AncestryMediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AncestryMediaAsset | null>(null);
+  const [hasUserSelection, setHasUserSelection] = useState(false);
   const [countryModal, setCountryModal] = useState(false);
   const [countryQuery, setCountryQuery] = useState("");
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, startX: 0, startScroll: 0, moved: false });
-  const autoDirectionRef = useRef<1 | -1>(1);
+  const cardRefs = useRef(new Map<string, HTMLButtonElement>());
+  const otherCardRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -102,7 +104,13 @@ export function AncestryExperience({
           }
         } catch {}
 
-        setSelected(restored ?? next[0] ?? syntheticCountryAsset(FACE_COUNTRIES[0]));
+        if (restored) {
+          setSelected(restored);
+          setHasUserSelection(true);
+        } else {
+          setSelected(null);
+          setHasUserSelection(false);
+        }
       })
       .catch((error) => {
         toast.error(
@@ -110,7 +118,8 @@ export function AncestryExperience({
             ? error.message
             : "No se pudieron cargar las ascendencias.",
         );
-        setSelected(syntheticCountryAsset(FACE_COUNTRIES[0]));
+        setSelected(null);
+        setHasUserSelection(false);
       })
       .finally(() => alive && setLoading(false));
 
@@ -130,7 +139,7 @@ export function AncestryExperience({
     onChange?.(selected);
   }, [modelId, onChange, selected]);
 
-  // Slow living carousel. It pauses while hovered, dragging or the country modal is open.
+  // Slow continuous carousel until the user makes a real selection.
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
@@ -139,6 +148,7 @@ export function AncestryExperience({
       const track = trackRef.current;
       if (
         track &&
+        !hasUserSelection &&
         !hovered &&
         !dragging &&
         !countryModal &&
@@ -146,10 +156,10 @@ export function AncestryExperience({
       ) {
         const dt = Math.min(34, now - last);
         const max = track.scrollWidth - track.clientWidth;
-        track.scrollLeft += autoDirectionRef.current * dt * 0.012;
-
-        if (track.scrollLeft >= max - 3) autoDirectionRef.current = -1;
-        if (track.scrollLeft <= 3) autoDirectionRef.current = 1;
+        track.scrollLeft += dt * 0.018;
+        if (track.scrollLeft >= max - 2) {
+          track.scrollLeft = 0;
+        }
       }
       last = now;
       raf = requestAnimationFrame(tick);
@@ -157,7 +167,7 @@ export function AncestryExperience({
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [countryModal, dragging, hovered]);
+  }, [countryModal, dragging, hasUserSelection, hovered]);
 
   const countryResults = useMemo(() => {
     const needle = countryQuery.trim().toLowerCase();
@@ -171,6 +181,7 @@ export function AncestryExperience({
 
   function choose(asset: AncestryMediaAsset) {
     setSelected(asset);
+    setHasUserSelection(true);
   }
 
   function chooseCountry(country: FaceCountry) {
@@ -189,12 +200,19 @@ export function AncestryExperience({
   }
 
   function scroll(direction: -1 | 1) {
-    trackRef.current?.scrollBy({ left: direction * 500, behavior: "smooth" });
+    const track = trackRef.current;
+    if (!track) return;
+    const max = Math.max(0, track.scrollWidth - track.clientWidth);
+    let target = track.scrollLeft + direction * Math.max(360, track.clientWidth * 0.72);
+    if (direction > 0 && target >= max - 8) target = 0;
+    if (direction < 0 && target <= 8) target = max;
+    track.scrollTo({ left: target, behavior: "smooth" });
   }
 
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     const track = trackRef.current;
     if (!track) return;
+    if ((event.target as HTMLElement).closest("button")) return;
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -223,12 +241,23 @@ export function AncestryExperience({
   }
 
   function safeCardClick(asset: AncestryMediaAsset) {
-    if (dragRef.current.moved) {
-      dragRef.current.moved = false;
-      return;
-    }
     choose(asset);
   }
+
+  useEffect(() => {
+    if (!hasUserSelection || !selected) return;
+    const published = items.find(
+      (item) => selectionKey(item) === selectionKey(selected),
+    );
+    const node = published
+      ? cardRefs.current.get(selectionKey(published))
+      : otherCardRef.current;
+    if (!node) return;
+    const timer = window.setTimeout(() => {
+      node.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [hasUserSelection, items, selected]);
 
   if (loading) {
     return (
@@ -250,8 +279,8 @@ export function AncestryExperience({
           <span className={styles.kicker}>ANCESTRY · LIVE IDENTITY</span>
           <h3>Elige su ascendencia</h3>
           <p>
-            Arrastra el carrusel, toca un país en el globo o busca cualquier país.
-            Solo las ascendencias publicadas tienen animación.
+            El carrusel se mueve hasta que elijas una. Arrástralo, usa las flechas,
+            toca un país en el globo o busca cualquier país.
           </p>
         </div>
         <span className={styles.counter}>
@@ -294,9 +323,15 @@ export function AncestryExperience({
                   <button
                     type="button"
                     key={asset.id}
+                    ref={(node) => {
+                      const key = selectionKey(asset);
+                      if (node) cardRefs.current.set(key, node);
+                      else cardRefs.current.delete(key);
+                    }}
                     className={`${styles.card} ${
                       active ? styles.cardSelected : ""
                     }`}
+                    onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => safeCardClick(asset)}
                     aria-pressed={active}
                   >
@@ -346,7 +381,13 @@ export function AncestryExperience({
 
               <button
                 type="button"
-                className={`${styles.card} ${styles.otherCard}`}
+                ref={otherCardRef}
+                className={`${styles.card} ${styles.otherCard} ${
+                  hasUserSelection && selected && !items.some((item) => selectionKey(item) === selectionKey(selected))
+                    ? styles.cardSelected
+                    : ""
+                }`}
+                onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => {
                   if (dragRef.current.moved) {
                     dragRef.current.moved = false;
