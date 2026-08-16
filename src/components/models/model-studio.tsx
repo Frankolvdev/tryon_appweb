@@ -188,6 +188,7 @@ export function ModelStudio({modelId}:{modelId:number}){
    const m=await setAiModelBody(modelId,selected.id,selectedBubble.id);
    setModel(m);
    toast.success("Cuerpo y Butt Elevation guardados en tu modelo");
+   router.push(`/models/${modelId}/face`);
   }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}
  }
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;

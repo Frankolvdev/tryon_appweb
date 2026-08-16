@@ -2710,3 +2710,97 @@ output.modelSliderValue{
 .modelLeftRail{
   width:92%!important;
 }
+
+
+/* =========================================================
+   CREATE MODEL IA — STEP 02 / FACE PROMPT STUDIO
+   Frontend-only. Isolated from Step 01 logic.
+   ========================================================= */
+.faceStudio{--face-card:rgba(13,13,15,.96)}
+.faceHeaderRail{width:100%!important}
+.faceStepWidget{margin-bottom:46px!important}
+.faceBack{top:-22px!important}
+
+.faceBuilder{display:grid;grid-template-columns:minmax(390px,.88fr) minmax(520px,1.12fr);gap:28px;align-items:start}
+.facePreviewRail{min-width:0;display:flex;flex-direction:column}
+.facePreviewCard{border:1px solid var(--line);border-radius:28px;background:linear-gradient(145deg,rgba(20,20,23,.94),rgba(8,8,9,.98));overflow:hidden}
+.facePreviewStage{position:relative;min-height:650px;background:radial-gradient(circle at 50% 18%,rgba(225,29,53,.08),transparent 34%),#080809;overflow:hidden}
+.faceBodyPreview{width:100%;height:100%;min-height:650px}
+.faceBodyPreview img{width:100%;height:100%;min-height:650px;object-fit:cover;object-position:center top}
+.facePreviewHud{position:absolute;left:16px;right:16px;bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(6,6,7,.72);backdrop-filter:blur(14px)}
+.facePreviewHud span{font-size:10px;letter-spacing:.16em;color:#e11d35;font-weight:800}
+.facePreviewHud strong{font-size:12px;color:#f4f4f5}
+.facePreviewEmpty{min-height:650px;display:grid;place-items:center;align-content:center;text-align:center;gap:8px;color:var(--muted)}
+.facePreviewEmpty svg{color:#e11d35}
+.facePreviewEmpty strong{color:#fff;font-size:18px}
+.facePromptMini{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(16,16,18,.75)}
+.facePromptMini>div{display:flex;align-items:center;gap:8px;color:#d4d4d8;font-size:12px}
+.facePromptMini svg{color:#e11d35}
+.facePromptMini button{border:0;background:transparent;color:#fff;font-weight:700;font-size:12px;cursor:pointer}
+
+.faceControls{border:1px solid var(--line);border-radius:28px;background:linear-gradient(145deg,rgba(20,20,23,.94),rgba(8,8,9,.98));padding:26px;min-width:0}
+.faceControlsIntro{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.faceControlsIntro>div{display:flex;flex-direction:column;gap:4px}
+.faceControlsIntro span{font-size:10px;letter-spacing:.13em;color:var(--muted);text-transform:uppercase}
+.faceControlsIntro strong{font-size:18px;color:#fff}
+.faceControlsIntro>span{font-size:11px;color:#e4e4e7;border:1px solid var(--line);border-radius:999px;padding:6px 9px}
+
+.faceCategoryList{display:flex;flex-direction:column;gap:8px}
+.faceCategory{border:1px solid rgba(255,255,255,.055);border-radius:16px;background:rgba(255,255,255,.012);overflow:hidden;transition:border-color .2s ease,background .2s ease}
+.faceCategory.open{border-color:rgba(225,29,53,.13);background:linear-gradient(90deg,rgba(225,29,53,.035),rgba(255,255,255,.012) 48%)}
+.faceCategoryHead{width:100%;border:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;cursor:pointer;text-align:left}
+.faceCategoryHead>div:first-child{display:flex;flex-direction:column;gap:2px}
+.faceCategoryHead span{font-size:10px;color:var(--muted)}
+.faceCategoryHead strong{font-size:13px;color:#f4f4f5}
+.faceCategoryCurrent{display:flex;align-items:center;gap:8px}
+.faceCategoryCurrent>span{font-size:11px;color:#d4d4d8}
+.faceCategory.open .faceCategoryCurrent svg{transform:rotate(180deg)}
+.faceCategoryCurrent svg{transition:transform .2s ease}
+
+.faceOptionGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 12px 13px}
+.faceOption{position:relative;border:1px solid rgba(255,255,255,.065);background:#0b0b0d;border-radius:13px;padding:6px;cursor:pointer;color:#d4d4d8;text-align:left;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.faceOption:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.14)}
+.faceOption.selected{transform:translateY(-2px) scale(1.018);border-color:rgba(225,29,53,.7);box-shadow:0 0 0 1px rgba(225,29,53,.13),0 10px 22px rgba(0,0,0,.28),0 0 18px rgba(225,29,53,.09)}
+.faceOption>span{display:block;padding:7px 4px 3px;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.faceOption>i{position:absolute;right:7px;top:7px;width:19px;height:19px;border-radius:999px;display:grid;place-items:center;background:#e11d35;color:#fff;font-style:normal}
+
+.faceOptionVisual{--face-tone:#b9b9c1;position:relative;aspect-ratio:1.18/1;border-radius:9px;overflow:hidden;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.08),transparent 35%),linear-gradient(145deg,#18181b,#09090b)}
+.faceOptionAvatar{position:absolute;inset:5% 15% -10%;display:flex;justify-content:center}
+.faceOptionHead{position:absolute;top:18%;width:46%;height:52%;border-radius:46% 46% 44% 44% / 40% 40% 58% 58%;background:linear-gradient(145deg,#e7bea8,#c9937e);box-shadow:inset -6px -5px 14px rgba(91,42,31,.16)}
+.faceOptionHair{position:absolute;top:3%;width:72%;height:88%;border-radius:48% 48% 34% 34%;background:linear-gradient(145deg,var(--face-tone),color-mix(in srgb,var(--face-tone) 48%,#08080a));opacity:.95}
+.faceOptionEye{position:absolute;top:40%;width:13%;height:6%;border-radius:999px;background:var(--face-tone);box-shadow:0 0 5px color-mix(in srgb,var(--face-tone) 60%,transparent)}
+.faceOptionEye.left{left:22%}.faceOptionEye.right{right:22%}
+.faceOptionNose{position:absolute;left:48%;top:47%;width:4%;height:17%;border-right:1px solid rgba(94,47,39,.32);transform:rotate(5deg)}
+.faceOptionMouth{position:absolute;left:35%;bottom:18%;width:30%;height:5%;border-bottom:2px solid rgba(139,54,66,.8);border-radius:50%}
+.faceOptionAccent{position:absolute;left:8px;right:8px;bottom:7px;height:2px;border-radius:999px;background:linear-gradient(90deg,var(--face-tone),transparent);opacity:.7}
+.faceOptionVisual-eyeColor .faceOptionHair{--face-tone:#33251f}
+.faceOptionVisual-eyeColor .faceOptionEye{background:var(--face-tone)}
+.faceOptionVisual-hairColor .faceOptionHair{background:linear-gradient(145deg,var(--face-tone),color-mix(in srgb,var(--face-tone) 52%,#09090b))}
+.faceOptionVisual-hairColor .faceOptionEye{background:#6a87a8}
+
+.faceGenerateButton{width:100%;margin-top:20px;border:1px solid rgba(225,29,53,.45);border-radius:14px;background:linear-gradient(90deg,#e11d35,#b9142a);color:#fff;padding:14px 16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;box-shadow:0 12px 30px rgba(225,29,53,.14);transition:transform .18s ease,box-shadow .18s ease}
+.faceGenerateButton:hover{transform:translateY(-1px);box-shadow:0 16px 34px rgba(225,29,53,.2)}
+
+.facePromptPanel{margin-top:28px;border:1px solid var(--line);border-radius:24px;background:#0a0a0c;padding:22px}
+.facePromptPanel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:18px}
+.facePromptPanel>header span{font-size:10px;letter-spacing:.15em;color:#e11d35}
+.facePromptPanel h2{font-size:20px;margin:5px 0 0}
+.facePromptColumns{display:grid;grid-template-columns:1.35fr .65fr;gap:14px}
+.facePromptColumns>div{min-width:0;border:1px solid rgba(255,255,255,.06);border-radius:15px;background:#070708;overflow:hidden}
+.facePromptLabel{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.055)}
+.facePromptLabel strong{font-size:11px;color:#e4e4e7}
+.facePromptLabel button{border:0;background:transparent;color:#a1a1aa;display:flex;align-items:center;gap:5px;font-size:10px;cursor:pointer}
+.facePromptColumns pre{white-space:pre-wrap;word-break:break-word;max-height:350px;overflow:auto;margin:0;padding:13px;color:#b8b8c0;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+.facePromptNotice{margin:13px 0 0;color:var(--muted);font-size:11px}
+
+@media(max-width:1050px){
+ .faceBuilder{grid-template-columns:1fr}
+ .facePreviewStage,.faceBodyPreview,.faceBodyPreview img,.facePreviewEmpty{min-height:560px}
+ .faceOptionGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .faceControls{padding:18px}
+ .faceOptionGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .facePromptColumns{grid-template-columns:1fr}
+ .facePreviewStage,.faceBodyPreview,.faceBodyPreview img,.facePreviewEmpty{min-height:480px}
+}
