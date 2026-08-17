@@ -1,32 +1,20 @@
-HOTFIX AppWeb C1.4 — click/drag/loop Ancestry
+HOTFIX AppWeb C1.5 — Auto-loop inicial
 
-Base exacta:
-tryon_appweb-main (95).zip
+Base exacta: tryon_appweb-main (96).zip
 
-Cambios ÚNICOS en la experiencia nueva de Ancestry:
-- Click normal sobre una modelo vuelve a seleccionar correctamente.
-- Al seleccionar una modelo, el globo recibe esa selección y anima al país.
-- El pointer capture del carrusel solo se activa después de detectar un arrastre real (>6px).
-- Arrastrar desde encima de una tarjeta sigue funcionando.
-- Un drag no dispara una selección accidental.
-- Seleccionar país desde el globo ahora marca explícitamente una selección de usuario y detiene el loop.
-- El auto-loop continúa mientras NO haya selección del usuario; no se detiene solo por hover.
-- El auto-loop se pausa durante drag/modal y queda detenido después de seleccionar.
-- Cursor del track vacío: grab.
-- Cursor sobre card seleccionable: flecha normal.
-- Durante drag: grabbing.
-- En globo: grab sobre superficie; flecha normal sobre un país; grabbing al rotar.
+ÚNICO alcance:
+- Cuando NO hay selección de ancestry, desactiva temporalmente scroll-snap
+  para permitir el movimiento continuo lento del carrusel.
+- Cuando el usuario selecciona una ancestry, restaura automáticamente
+  el comportamiento actual con snap y el loop queda detenido.
 
 NO modifica:
-- Body Proportions
-- Bubble Butt
-- scanner/sliders
-- face prompt controls
-- Backend
-- BackOffice
-- APIs
-
-Reemplazar:
-src/components/models/ancestry-experience.tsx
-src/components/models/ancestry-globe.tsx
-src/components/models/ancestry-experience.module.css
+- selección/click de cards
+- drag manual
+- flechas
+- globe
+- países
+- Otro país
+- Face Studio restante
+- Body Proportions / Bubble Butt / scanner / sliders
+- Backend / BackOffice

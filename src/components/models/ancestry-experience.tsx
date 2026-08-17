@@ -324,7 +324,7 @@ export function AncestryExperience({
 
           <div className={styles.trackViewport}>
             <div
-              className={`${styles.track} ${dragging ? styles.trackDragging : ""}`}
+              className={`${styles.track} ${dragging ? styles.trackDragging : ""} ${!hasUserSelection && !dragging && !countryModal ? styles.trackAutoLoop : ""}`}
               ref={trackRef}
               onPointerDown={pointerDown}
               onPointerMove={pointerMove}

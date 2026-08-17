@@ -331,3 +331,11 @@
 .canvas[data-dragging="true"]{
   cursor:grabbing!important;
 }
+
+
+/* Auto-loop mode: disable snap only while no ancestry has been selected.
+   Once the user selects one, the original snap behavior is restored. */
+.trackAutoLoop{
+  scroll-snap-type:none!important;
+  scroll-behavior:auto!important;
+}
