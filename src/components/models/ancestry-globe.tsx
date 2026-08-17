@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import styles from "./ancestry-experience.module.css";
 
@@ -143,6 +149,15 @@ export function AncestryGlobe({
   const targetRef = useRef<Orientation>({ lon: 0, lat: 10 });
   const geometryRef = useRef({ cx: 0, cy: 0, radius: 1 });
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const [globeDragging, setGlobeDragging] = useState(false);
+  const globeDragRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    startLon: 0,
+    startLat: 10,
+    moved: false,
+  });
 
   useEffect(() => {
     let alive = true;
@@ -383,6 +398,48 @@ export function AncestryGlobe({
     );
   }
 
+  function globePointerDown(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    globeDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLon: orientationRef.current.lon,
+      startLat: orientationRef.current.lat,
+      moved: false,
+    };
+    setGlobeDragging(true);
+    canvas.setPointerCapture(event.pointerId);
+  }
+
+  function globePointerMove(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const drag = globeDragRef.current;
+    if (drag.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+
+    const next = {
+      lon: normalizeAngle(drag.startLon - dx * 0.42),
+      lat: Math.max(-70, Math.min(70, drag.startLat + dy * 0.30)),
+    };
+    targetRef.current = next;
+    orientationRef.current = { ...next };
+    setHoveredCountry(null);
+    event.preventDefault();
+  }
+
+  function globePointerUp(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (canvas?.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+    globeDragRef.current.pointerId = -1;
+    setGlobeDragging(false);
+  }
+
   const region = asset?.country_code && asset.country_code.length > 2;
   const metaCountry =
     typeof asset?.metadata?.country_name === "string"
@@ -395,21 +452,32 @@ export function AncestryGlobe({
         ref={canvasRef}
         className={styles.canvas}
         onMouseMove={(event) => {
+          if (globeDragging) return;
           const feature = countryAtEvent(event);
           setHoveredCountry(feature?.properties.code ?? null);
-          event.currentTarget.style.cursor = feature ? "pointer" : "grab";
         }}
-        onMouseLeave={() => setHoveredCountry(null)}
+        onMouseLeave={() => {
+          if (!globeDragging) setHoveredCountry(null);
+        }}
+        onPointerDown={globePointerDown}
+        onPointerMove={globePointerMove}
+        onPointerUp={globePointerUp}
+        onPointerCancel={globePointerUp}
         onClick={(event) => {
+          if (globeDragRef.current.moved) {
+            globeDragRef.current.moved = false;
+            return;
+          }
           const feature = countryAtEvent(event);
           if (feature) onCountrySelect?.(feature.properties.code);
         }}
-        aria-label="Globo interactivo. Selecciona un país."
+        data-dragging={globeDragging ? "true" : "false"}
+        aria-label="Globo interactivo. Arrastra para rotar o toca un país."
       />
 
       <div className={styles.globeHint}>
         <GlobeIcon />
-        <span>Toca un país</span>
+        <span>Arrastra · toca un país</span>
       </div>
 
       {asset && (

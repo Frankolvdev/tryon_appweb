@@ -288,3 +288,31 @@
 .nav button{pointer-events:auto}
 .otherCard.cardSelected{border-style:solid;border-color:rgba(225,29,53,.68)}
 @media(max-width:900px){.cardSelected{transform:translateY(-7px) scale(1.13)!important}}
+
+
+/* C1.3 — drag restored + freely rotatable globe */
+.track{
+  touch-action:pan-y;
+  cursor:grab;
+  -webkit-user-drag:none;
+}
+.trackDragging{
+  cursor:grabbing!important;
+  scroll-behavior:auto!important;
+}
+.trackDragging .card{
+  cursor:grabbing!important;
+}
+.card{
+  -webkit-user-drag:none;
+}
+
+.canvas{
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.canvas[data-dragging="true"]{
+  cursor:grabbing;
+}

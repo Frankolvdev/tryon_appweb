@@ -212,7 +212,6 @@ export function AncestryExperience({
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     const track = trackRef.current;
     if (!track) return;
-    if ((event.target as HTMLElement).closest("button")) return;
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -227,7 +226,10 @@ export function AncestryExperience({
     const track = trackRef.current;
     if (!track || dragRef.current.pointerId !== event.pointerId) return;
     const dx = event.clientX - dragRef.current.startX;
-    if (Math.abs(dx) > 4) dragRef.current.moved = true;
+    if (Math.abs(dx) > 4) {
+      dragRef.current.moved = true;
+      event.preventDefault();
+    }
     track.scrollLeft = dragRef.current.startScroll - dx;
   }
 
@@ -241,6 +243,10 @@ export function AncestryExperience({
   }
 
   function safeCardClick(asset: AncestryMediaAsset) {
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
     choose(asset);
   }
 
@@ -331,7 +337,6 @@ export function AncestryExperience({
                     className={`${styles.card} ${
                       active ? styles.cardSelected : ""
                     }`}
-                    onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => safeCardClick(asset)}
                     aria-pressed={active}
                   >
@@ -387,7 +392,6 @@ export function AncestryExperience({
                     ? styles.cardSelected
                     : ""
                 }`}
-                onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => {
                   if (dragRef.current.moved) {
                     dragRef.current.moved = false;
