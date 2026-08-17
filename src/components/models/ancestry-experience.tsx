@@ -15,6 +15,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { listAncestryMediaAssets } from "@/lib/ancestry-media-api";
 import {
@@ -138,34 +139,34 @@ export function AncestryExperience({
     onChange?.(selected);
   }, [modelId, onChange, selected]);
 
-  // Slow continuous carousel until the user makes a real selection.
   useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-
-    const tick = (now: number) => {
-      const track = trackRef.current;
-      if (
-        track &&
-        !hasUserSelection &&
-        !dragging &&
-        !countryModal &&
-        track.scrollWidth > track.clientWidth + 4
-      ) {
-        const dt = Math.min(34, now - last);
-        const max = track.scrollWidth - track.clientWidth;
-        track.scrollLeft += dt * 0.018;
-        if (track.scrollLeft >= max - 2) {
-          track.scrollLeft = 0;
-        }
-      }
-      last = now;
-      raf = requestAnimationFrame(tick);
+    if (!countryModal) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
     };
+  }, [countryModal]);
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [countryModal, dragging, hasUserSelection]);
+  // Deterministic slow loop while there is no active selection.
+  // Integer-pixel steps are intentionally used: fractional RAF increments can
+  // appear frozen in some browser/scroll-snap combinations.
+  useEffect(() => {
+    if (selected || dragging || countryModal) return;
+
+    const timer = window.setInterval(() => {
+      const track = trackRef.current;
+      if (!track) return;
+
+      const max = track.scrollWidth - track.clientWidth;
+      if (max <= 4) return;
+
+      const next = track.scrollLeft + 1;
+      track.scrollLeft = next >= max - 1 ? 0 : next;
+    }, 34);
+
+    return () => window.clearInterval(timer);
+  }, [countryModal, dragging, selected]);
 
   const countryResults = useMemo(() => {
     const needle = countryQuery.trim().toLowerCase();
@@ -176,6 +177,11 @@ export function AncestryExperience({
         country.code.toLowerCase().includes(needle),
     );
   }, [countryQuery]);
+
+  const selectedIsOther = Boolean(
+    selected &&
+      !items.some((item) => selectionKey(item) === selectionKey(selected)),
+  );
 
   function choose(asset: AncestryMediaAsset) {
     setSelected(asset);
@@ -324,7 +330,7 @@ export function AncestryExperience({
 
           <div className={styles.trackViewport}>
             <div
-              className={`${styles.track} ${dragging ? styles.trackDragging : ""} ${!hasUserSelection && !dragging && !countryModal ? styles.trackAutoLoop : ""}`}
+              className={`${styles.track} ${dragging ? styles.trackDragging : ""} ${!selected && !dragging && !countryModal ? styles.trackAutoLoop : ""}`}
               ref={trackRef}
               onPointerDown={pointerDown}
               onPointerMove={pointerMove}
@@ -400,9 +406,7 @@ export function AncestryExperience({
                 type="button"
                 ref={otherCardRef}
                 className={`${styles.card} ${styles.otherCard} ${
-                  hasUserSelection && selected && !items.some((item) => selectionKey(item) === selectionKey(selected))
-                    ? styles.cardSelected
-                    : ""
+                  selectedIsOther ? styles.cardSelected : ""
                 }`}
                 onClick={() => {
                   if (dragRef.current.moved) {
@@ -421,8 +425,17 @@ export function AncestryExperience({
                   <span className={styles.shine} />
                 </div>
                 <div className={styles.cardFooter}>
-                  <span className={styles.otherPlus}>+</span>
-                  <span className={styles.name}>Otro país</span>
+                  {selectedIsOther && selected ? (
+                    <>
+                      <span className={styles.flag}>{selected.flag_emoji || "🌐"}</span>
+                      <span className={styles.name}>{selected.display_name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.otherPlus}>+</span>
+                      <span className={styles.name}>Otro país</span>
+                    </>
+                  )}
                 </div>
               </button>
             </div>
@@ -435,66 +448,69 @@ export function AncestryExperience({
         />
       </div>
 
-      {countryModal && (
-        <div
-          className={styles.modalBackdrop}
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setCountryModal(false);
-          }}
-        >
-          <div className={styles.modal} role="dialog" aria-modal="true">
-            <div className={styles.modalHeader}>
-              <div>
-                <span className={styles.kicker}>WORLD ANCESTRY</span>
-                <h4>Selecciona otro país</h4>
-              </div>
-              <button
-                type="button"
-                className={styles.modalClose}
-                onClick={() => setCountryModal(false)}
-                aria-label="Cerrar"
-              >
-                <X size={17} />
-              </button>
-            </div>
-
-            <div className={styles.countrySearch}>
-              <Search size={17} />
-              <input
-                autoFocus
-                value={countryQuery}
-                onChange={(event) => setCountryQuery(event.target.value)}
-                placeholder="Busca por país o código…"
-              />
-            </div>
-
-            <div className={styles.countryList}>
-              {countryResults.map((country) => {
-                const published = items.some(
-                  (item) =>
-                    item.country_code?.toUpperCase() === country.code,
-                );
-                return (
-                  <button
-                    type="button"
-                    key={country.code}
-                    className={styles.countryRow}
-                    onClick={() => chooseCountry(country)}
+      {countryModal && typeof document !== "undefined"
+        ? createPortal(
+                  <div
+                    className={styles.modalBackdrop}
+                    role="presentation"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) setCountryModal(false);
+                    }}
                   >
-                    <span className={styles.countryFlag}>{country.flag}</span>
-                    <span className={styles.countryCopy}>
-                      <strong>{country.name}</strong>
-                      <small>{country.code}</small>
-                    </span>
-                    {published && <span className={styles.videoReady}>VIDEO</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+                    <div className={styles.modal} role="dialog" aria-modal="true">
+                      <div className={styles.modalHeader}>
+                        <div>
+                          <span className={styles.kicker}>WORLD ANCESTRY</span>
+                          <h4>Selecciona otro país</h4>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.modalClose}
+                          onClick={() => setCountryModal(false)}
+                          aria-label="Cerrar"
+                        >
+                          <X size={17} />
+                        </button>
+                      </div>
+
+                      <div className={styles.countrySearch}>
+                        <Search size={17} />
+                        <input
+                          autoFocus
+                          value={countryQuery}
+                          onChange={(event) => setCountryQuery(event.target.value)}
+                          placeholder="Busca por país o código…"
+                        />
+                      </div>
+
+                      <div className={styles.countryList}>
+                        {countryResults.map((country) => {
+                          const published = items.some(
+                            (item) =>
+                              item.country_code?.toUpperCase() === country.code,
+                          );
+                          return (
+                            <button
+                              type="button"
+                              key={country.code}
+                              className={styles.countryRow}
+                              onClick={() => chooseCountry(country)}
+                            >
+                              <span className={styles.countryFlag}>{country.flag}</span>
+                              <span className={styles.countryCopy}>
+                                <strong>{country.name}</strong>
+                                <small>{country.code}</small>
+                              </span>
+                              {published && <span className={styles.videoReady}>VIDEO</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

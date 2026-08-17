@@ -339,3 +339,31 @@
   scroll-snap-type:none!important;
   scroll-behavior:auto!important;
 }
+
+
+/* C1.6 — true viewport modal + deterministic idle loop */
+.modalBackdrop{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483000!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:clamp(14px,3vw,28px)!important;
+  width:100vw!important;
+  height:100dvh!important;
+  overflow:hidden!important;
+}
+.modal{
+  position:relative!important;
+  margin:0!important;
+  width:min(560px,calc(100vw - 28px))!important;
+  max-height:min(720px,calc(100dvh - 28px))!important;
+}
+.trackAutoLoop{
+  scroll-snap-type:none!important;
+  scroll-behavior:auto!important;
+}
+.otherCard.cardSelected .cardFooter{
+  background:linear-gradient(90deg,rgba(225,29,53,.11),#0d0d10 58%);
+}

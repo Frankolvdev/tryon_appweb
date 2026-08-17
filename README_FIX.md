@@ -1,20 +1,25 @@
-HOTFIX AppWeb C1.5 — Auto-loop inicial
+HOTFIX AppWeb C1.6 — Auto-loop + modal viewport + Otro país
 
-Base exacta: tryon_appweb-main (96).zip
+Base exacta: tryon_appweb-main (97).zip
 
-ÚNICO alcance:
-- Cuando NO hay selección de ancestry, desactiva temporalmente scroll-snap
-  para permitir el movimiento continuo lento del carrusel.
-- Cuando el usuario selecciona una ancestry, restaura automáticamente
-  el comportamiento actual con snap y el loop queda detenido.
+CAMBIOS ÚNICOS EN ANCESTRY:
+- Auto-loop real en pasos enteros (1 px / 34 ms) mientras selected === null.
+- El loop se detiene inmediatamente al seleccionar cualquier ancestry/país.
+- Modal "Otro país" renderizado mediante React Portal en document.body:
+  queda centrado en el viewport y no depende de transforms/layout del Face Studio.
+- Bloquea el scroll del body mientras el modal está abierto.
+- Cuando se selecciona un país sin rostro/video:
+  * se resalta el card "Otro país"
+  * se centra automáticamente
+  * el footer muestra la bandera y nombre del país seleccionado
+  * el país sigue siendo la selección real para globo/prompt.
 
-NO modifica:
-- selección/click de cards
-- drag manual
-- flechas
-- globe
-- países
-- Otro país
-- Face Studio restante
-- Body Proportions / Bubble Butt / scanner / sliders
-- Backend / BackOffice
+BLINDADO / NO TOCADO:
+- Body Proportions
+- Bubble Butt
+- scanner/sliders
+- Face Studio fuera de Ancestry
+- Backend
+- BackOffice
+- globe component
+- APIs
