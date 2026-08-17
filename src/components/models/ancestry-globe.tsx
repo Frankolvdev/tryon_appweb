@@ -472,6 +472,7 @@ export function AncestryGlobe({
           if (feature) onCountrySelect?.(feature.properties.code);
         }}
         data-dragging={globeDragging ? "true" : "false"}
+        data-country-hover={hoveredCountry ? "true" : "false"}
         aria-label="Globo interactivo. Arrastra para rotar o toca un país."
       />
 

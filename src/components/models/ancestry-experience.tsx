@@ -69,7 +69,6 @@ export function AncestryExperience({
   const [hasUserSelection, setHasUserSelection] = useState(false);
   const [countryModal, setCountryModal] = useState(false);
   const [countryQuery, setCountryQuery] = useState("");
-  const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, startX: 0, startScroll: 0, moved: false });
@@ -149,7 +148,6 @@ export function AncestryExperience({
       if (
         track &&
         !hasUserSelection &&
-        !hovered &&
         !dragging &&
         !countryModal &&
         track.scrollWidth > track.clientWidth + 4
@@ -167,7 +165,7 @@ export function AncestryExperience({
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [countryModal, dragging, hasUserSelection, hovered]);
+  }, [countryModal, dragging, hasUserSelection]);
 
   const countryResults = useMemo(() => {
     const needle = countryQuery.trim().toLowerCase();
@@ -190,6 +188,7 @@ export function AncestryExperience({
         (item) => item.country_code?.toUpperCase() === country.code,
       ) ?? null;
     setSelected(published ?? syntheticCountryAsset(country));
+    setHasUserSelection(true);
     setCountryModal(false);
     setCountryQuery("");
   }
@@ -212,24 +211,33 @@ export function AncestryExperience({
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     const track = trackRef.current;
     if (!track) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startScroll: track.scrollLeft,
       moved: false,
     };
+    // Pause auto-loop while the user is pressing, but do not capture yet:
+    // a normal press on a face card must remain a real click.
     setDragging(true);
-    track.setPointerCapture(event.pointerId);
   }
 
   function pointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     const track = trackRef.current;
     if (!track || dragRef.current.pointerId !== event.pointerId) return;
     const dx = event.clientX - dragRef.current.startX;
-    if (Math.abs(dx) > 4) {
+
+    if (!dragRef.current.moved && Math.abs(dx) > 6) {
       dragRef.current.moved = true;
-      event.preventDefault();
+      setDragging(true);
+      if (!track.hasPointerCapture(event.pointerId)) {
+        track.setPointerCapture(event.pointerId);
+      }
     }
+
+    if (!dragRef.current.moved) return;
+    event.preventDefault();
     track.scrollLeft = dragRef.current.startScroll - dx;
   }
 
@@ -240,6 +248,12 @@ export function AncestryExperience({
     }
     setDragging(false);
     dragRef.current.pointerId = -1;
+
+    // Keep `moved` through the synthetic click emitted after pointerup,
+    // then clear it so the next genuine click is never swallowed.
+    window.setTimeout(() => {
+      dragRef.current.moved = false;
+    }, 0);
   }
 
   function safeCardClick(asset: AncestryMediaAsset) {
@@ -312,8 +326,6 @@ export function AncestryExperience({
             <div
               className={`${styles.track} ${dragging ? styles.trackDragging : ""}`}
               ref={trackRef}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
               onPointerDown={pointerDown}
               onPointerMove={pointerMove}
               onPointerUp={pointerUp}

@@ -316,3 +316,18 @@
 .canvas[data-dragging="true"]{
   cursor:grabbing;
 }
+
+
+/* C1.4 — click vs drag semantics + contextual cursors */
+.card{
+  cursor:default;
+}
+.trackDragging .card{
+  cursor:grabbing!important;
+}
+.canvas[data-country-hover="true"]{
+  cursor:default;
+}
+.canvas[data-dragging="true"]{
+  cursor:grabbing!important;
+}
