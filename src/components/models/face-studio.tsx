@@ -1013,7 +1013,8 @@ function SummaryCarousel({ ancestry, steps, mediaSelected, mediaAssets, selectio
   },[items.length]);
   useEffect(()=>{if(index>=items.length&&items.length)setIndex(0)},[items.length,index]);
   if(!items.length)return null;
-  const item=items[index];
+  const visibleCount=Math.min(3,items.length);
+  const visibleItems=Array.from({length:visibleCount},(_,offset)=>items[(index+offset)%items.length]);
   return <div className="faceSummaryCarousel">
     <div
       className={`faceSummaryCarouselViewport${dragging.current?" dragging":""}`}
@@ -1022,15 +1023,17 @@ function SummaryCarousel({ ancestry, steps, mediaSelected, mediaAssets, selectio
       onPointerUp={(event)=>{if(!dragging.current)return;const dx=dragX;if(Math.abs(dx)>45)move(dx<0?1:-1);dragging.current=false;dragStart.current=null;setDragX(0);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId)}}
       onPointerCancel={()=>{dragging.current=false;dragStart.current=null;setDragX(0)}}
     >
-      <article className="faceSummaryCarouselCard" style={{transform:`translateX(${dragX}px) rotate(${Math.max(-2,Math.min(2,dragX/80))}deg)`}}>
-        <div className="faceSummaryCarouselMedia">
-          {item.video?<video key={`${item.id}-${item.video}`} src={item.video} poster={item.poster||undefined} muted loop playsInline autoPlay controls={false} disablePictureInPicture/>:
-           item.poster?<img src={item.poster} alt="" draggable={false}/>:
-           item.tone?<span className="faceSummaryCarouselColor" style={{background:item.tone}}/>:
-           item.icon==="occupation"?<img className="faceSummaryCarouselIcon" src="/identity-icons/occupation.svg" alt=""/>:<WandSparkles size={34}/>} 
-        </div>
-        <span>{item.label}</span><strong>{item.value}</strong>
-      </article>
+      <div className="faceSummaryCarouselRail" style={{transform:`translateX(${Math.max(-70,Math.min(70,dragX))}px)`}}>
+        {visibleItems.map((item,offset)=><article key={`${item.id}-${index}-${offset}`} className={`faceSummaryCarouselCard${offset===0?" current":""}`}>
+          <div className="faceSummaryCarouselMedia">
+            {item.video?<video key={`${item.id}-${item.video}`} src={item.video} poster={item.poster||undefined} muted loop playsInline autoPlay controls={false} disablePictureInPicture/>:
+             item.poster?<img src={item.poster} alt="" draggable={false}/>:
+             item.tone?<span className="faceSummaryCarouselColor" style={{background:item.tone}}/>:
+             item.icon==="occupation"?<img className="faceSummaryCarouselIcon" src="/identity-icons/occupation.svg" alt=""/>:<WandSparkles size={34}/>}
+          </div>
+          <span>{item.label}</span><strong>{item.value}</strong>
+        </article>)}
+      </div>
     </div>
     <div className="faceSummaryCarouselFooter">
       <span>{index+1}/{items.length}</span>

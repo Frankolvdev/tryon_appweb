@@ -3586,3 +3586,122 @@ output.modelSliderValue{
   .faceSummaryCarouselMedia video,.faceSummaryCarouselMedia>img:not(.faceSummaryCarouselIcon){max-height:300px}
 }
 @media(prefers-reduced-motion:reduce){.modelGlobalStage.active .modelGlobalStageIcon{animation:none}}
+
+/* HOTFIX: global creation timeline outside content + 3-up summary rail */
+.modelGlobalTimeline{
+  left:18px !important;
+  right:auto !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  align-items:flex-start !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+}
+.modelGlobalStage{
+  width:auto !important;
+  min-width:92px;
+  justify-content:flex-start !important;
+  text-align:left !important;
+}
+.modelGlobalLine{
+  margin-right:0 !important;
+  margin-left:15px !important;
+}
+.modelGlobalStageCopy{order:2}
+.modelGlobalStageIcon{order:1}
+
+.faceSummaryCarouselViewport{
+  overflow:hidden;
+  border-radius:18px;
+  padding:2px;
+}
+.faceSummaryCarouselRail{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:start;
+  gap:10px;
+  transition:transform .22s ease;
+  will-change:transform;
+}
+.faceSummaryCarouselViewport.dragging .faceSummaryCarouselRail{transition:none}
+.faceSummaryCarouselCard{
+  width:100%;
+  min-width:0;
+  transform:none !important;
+}
+.faceSummaryCarouselCard.current{
+  border-color:rgba(225,29,53,.36);
+  box-shadow:0 0 0 1px rgba(225,29,53,.08),0 14px 34px rgba(0,0,0,.22);
+}
+.faceSummaryCarouselMedia{
+  min-height:0 !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  padding:0;
+}
+.faceSummaryCarouselMedia video,
+.faceSummaryCarouselMedia>img:not(.faceSummaryCarouselIcon){
+  width:100%;
+  height:auto !important;
+  max-height:290px !important;
+  object-fit:contain !important;
+  object-position:center;
+}
+
+@media(max-width:1000px){
+  .modelGlobalTimeline{
+    left:8px !important;
+    right:auto !important;
+    padding:0 !important;
+    background:transparent !important;
+  }
+  .modelGlobalStage{min-width:38px !important;width:auto !important;justify-content:flex-start !important}
+  .modelGlobalLine{margin-left:14px !important;margin-right:0 !important}
+}
+
+@media(max-width:700px){
+  .modelGlobalTimeline{
+    position:relative !important;
+    left:auto !important;
+    right:auto !important;
+    top:auto !important;
+    transform:none !important;
+    width:100% !important;
+    margin:0 0 12px !important;
+    display:grid !important;
+    grid-template-columns:1fr 44px 1fr !important;
+    align-items:center !important;
+    gap:6px !important;
+    z-index:5 !important;
+  }
+  .modelGlobalStage{
+    width:100% !important;
+    min-width:0 !important;
+    justify-content:center !important;
+    gap:8px !important;
+    padding:4px 0 !important;
+    text-align:left !important;
+  }
+  .modelGlobalStageCopy{display:grid !important}
+  .modelGlobalStageCopy small{font-size:6px !important}
+  .modelGlobalStageCopy strong{font-size:9px !important}
+  .modelGlobalLine{
+    width:100% !important;
+    height:1px !important;
+    margin:0 !important;
+  }
+  .modelGlobalStageIcon{width:30px !important;height:30px !important;flex-basis:30px !important}
+  .faceSummaryCarouselRail{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .faceSummaryCarouselCard{padding:5px;border-radius:13px}
+  .faceSummaryCarouselMedia{border-radius:9px}
+  .faceSummaryCarouselMedia video,
+  .faceSummaryCarouselMedia>img:not(.faceSummaryCarouselIcon){max-height:190px !important}
+  .faceSummaryCarouselCard>span{font-size:6px;margin:6px 2px 1px}
+  .faceSummaryCarouselCard>strong{font-size:9px;margin:0 2px 3px}
+  .faceSummaryCarouselColor{width:48px;height:48px}
+  .faceSummaryCarouselIcon{width:32px;height:32px}
+}
