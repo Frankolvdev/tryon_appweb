@@ -388,6 +388,25 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }
 
 
+  function stepAfterCommit(stepId: StepId, completedAfter: string[]) {
+    const currentIndex = STEPS.findIndex((item) => item.id === stepId);
+    const pendingIndexes = STEPS
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.kind !== "summary" && !completedAfter.includes(item.id))
+      .map(({ index }) => index);
+
+    if (pendingIndexes.length === 0) return IDENTITY_DONE_STEP_INDEX;
+
+    const nextPending = pendingIndexes.find((index) => index > currentIndex);
+    if (nextPending !== undefined) return nextPending;
+
+    const previousPending = [...pendingIndexes]
+      .reverse()
+      .find((index) => index < currentIndex);
+
+    return previousPending ?? pendingIndexes[0] ?? IDENTITY_DONE_STEP_INDEX;
+  }
+
   function commitCurrentStep(advance = true) {
     const step = currentStep;
     if (step.kind === "summary") return true;
@@ -396,8 +415,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       clearValidation();
       const value = (customValues.extraDetails || "").trim();
       setPendingValues((current) => ({ ...current, extraDetails: value }));
-      setCompletedSteps((current) => current.includes(step.id) ? current : [...current, step.id]);
-      if (advance) setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
+
+      const completedAfter = completedSteps.includes(step.id)
+        ? completedSteps
+        : [...completedSteps, step.id];
+
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
       return true;
     }
 
@@ -417,8 +441,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     } else if (step.kind === "color" || step.kind === "occupation") {
       setSelections((current) => ({ ...current, [step.id]: value }));
     }
-    setCompletedSteps((current) => current.includes(step.id) ? current : [...current, step.id]);
-    if (advance) setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
+
+    const completedAfter = completedSteps.includes(step.id)
+      ? completedSteps
+      : [...completedSteps, step.id];
+
+    setCompletedSteps(completedAfter);
+    if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
     return true;
   }
 

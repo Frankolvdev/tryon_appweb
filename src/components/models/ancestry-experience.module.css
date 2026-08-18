@@ -176,7 +176,13 @@
   color:#d7d9df;font-size:8px;font-weight:900;letter-spacing:.06em;
 }
 .name{
-  min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  min-width:0;
+  max-width:100%;
+  flex:1 1 auto;
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   color:#d8d9de;font-size:10px;font-weight:800;
 }
 .otherCard{border-style:dashed;background:#0a0b0e}
@@ -367,3 +373,8 @@
 .otherCard.cardSelected .cardFooter{
   background:linear-gradient(90deg,rgba(225,29,53,.11),#0d0d10 58%);
 }
+
+
+/* HOTFIX — long country labels stay inside the existing ancestry card. */
+.cardFooter{min-width:0}
+.cardFooter .name{width:0;min-width:0;max-width:100%}
