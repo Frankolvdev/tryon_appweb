@@ -2811,7 +2811,7 @@ output.modelSliderValue{
 
 /* FaceStudio guided identity steps — isolated to the new selectors */
 .faceWizard{overflow:hidden}
-.faceStepTimeline{position:relative;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin:2px 0 20px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008))}
+.faceStepTimeline{position:relative;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px;margin:2px 0 20px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008))}
 .faceStepTimeline:before{content:"";position:absolute;left:6%;right:6%;top:31px;height:1px;background:linear-gradient(90deg,rgba(225,29,53,.18),rgba(255,255,255,.08),rgba(225,29,53,.18));pointer-events:none}
 .faceTimelineStep{position:relative;z-index:1;border:0;background:transparent;color:#71717a;padding:2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
 .faceTimelineIcon{width:38px;height:38px;border-radius:999px;display:grid;place-items:center;border:1px solid #29292f;background:#0b0b0d;color:#8b8b94;box-shadow:0 4px 14px rgba(0,0,0,.24);transition:.2s ease}
@@ -2869,7 +2869,7 @@ output.modelSliderValue{
  .faceStepContent{padding:12px}
  .faceTimelineStep small{display:none}
  .faceTimelineIcon{width:34px;height:34px}
- .faceStepTimeline{grid-template-columns:repeat(8,minmax(0,1fr));gap:2px;padding:9px 4px}
+ .faceStepTimeline{grid-template-columns:repeat(9,minmax(0,1fr));gap:2px;padding:9px 4px}
  .faceSummaryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
@@ -2965,3 +2965,113 @@ output.modelSliderValue{
 }
 
 .faceControlsIntroCompact{justify-content:flex-end;margin-bottom:14px}
+
+
+/* Occupation step — isolated guided identity selector */
+.faceOccupationGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+  padding:0 12px 13px;
+}
+.faceOccupationTile{
+  min-height:84px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:13px;
+  background:#0b0b0d;
+  color:#e4e4e7;
+  padding:10px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+  gap:3px;
+  text-align:left;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease,background .18s ease;
+}
+.faceOccupationTile:hover{border-color:rgba(255,255,255,.18);background:#101014;transform:translateY(-1px)}
+.faceOccupationTile.selected{
+  border:2px solid #e11d35;
+  padding:9px;
+  background:#111116;
+  box-shadow:0 0 0 2px rgba(225,29,53,.15),0 0 24px rgba(225,29,53,.16);
+}
+.faceOccupationTile.more{border-style:dashed}
+.faceOccupationTile.custom .faceOccupationGlyph{font-size:22px}
+.faceOccupationGlyph{
+  width:28px;height:28px;border-radius:9px;
+  display:grid;place-items:center;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.07);
+  color:#fff;font-size:15px;font-weight:800;
+  margin-bottom:4px;
+}
+.faceOccupationTile b{font-size:11px;line-height:1.15}
+.faceOccupationTile small{font-size:8px;color:#74747e;line-height:1.2}
+
+.faceOccupationModalBackdrop{
+  position:fixed;inset:0;z-index:1200;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(8px);
+  display:grid;place-items:center;
+  padding:24px;
+}
+.faceOccupationModal{
+  width:min(760px,94vw);
+  max-height:min(720px,88vh);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:22px;
+  background:linear-gradient(180deg,#121216,#09090b);
+  box-shadow:0 30px 90px rgba(0,0,0,.62);
+}
+.faceOccupationModal>header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:20px 20px 14px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.faceOccupationModal>header span{font-size:8px;letter-spacing:.18em;color:#e11d35;font-weight:900}
+.faceOccupationModal>header h3{margin:4px 0 3px;color:#fff;font-size:20px}
+.faceOccupationModal>header p{margin:0;color:#797984;font-size:10px}
+.faceOccupationModal>header button{
+  width:34px;height:34px;border-radius:999px;border:1px solid rgba(255,255,255,.08);
+  background:#0b0b0d;color:#aaa;font-size:20px;cursor:pointer;
+}
+.faceOccupationSearch{padding:14px 18px 10px}
+.faceOccupationSearch input{
+  width:100%;border:1px solid #2d2d34;border-radius:12px;
+  background:#09090b;color:#fff;padding:12px 13px;font-size:12px;outline:none;
+}
+.faceOccupationSearch input:focus{border-color:#e11d35;box-shadow:0 0 0 3px rgba(225,29,53,.08)}
+.faceOccupationModalList{
+  overflow:auto;padding:4px 12px 16px;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+}
+.faceOccupationModalList>button{
+  min-width:0;border:1px solid rgba(255,255,255,.06);border-radius:11px;
+  background:#0b0b0d;color:#ddd;padding:10px 11px;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;
+}
+.faceOccupationModalList>button:hover{border-color:rgba(255,255,255,.17);background:#111116}
+.faceOccupationModalList>button.selected{border-color:#e11d35;background:#151014}
+.faceOccupationModalList>button span{min-width:0;display:flex;flex-direction:column;gap:2px}
+.faceOccupationModalList>button b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.faceOccupationModalList>button small{font-size:8px;color:#707078;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.faceOccupationEmpty{
+  grid-column:1/-1;min-height:150px;border:1px dashed rgba(255,255,255,.08);
+  border-radius:14px;display:grid;place-items:center;align-content:center;gap:4px;color:#777;text-align:center;
+}
+.faceOccupationEmpty strong{color:#ddd;font-size:12px}
+.faceOccupationEmpty span{font-size:9px}
+.faceSummaryOccupation span{font-size:30px;color:#e11d35}
+
+@media(max-width:900px){
+  .faceOccupationGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .faceOccupationGrid{grid-template-columns:repeat(2,minmax(0,1fr));padding-inline:0}
+  .faceOccupationModalBackdrop{padding:10px}
+  .faceOccupationModalList{grid-template-columns:1fr}
+}

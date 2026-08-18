@@ -1,5 +1,7 @@
 "use client";
 
+import { getOccupationPromptValue } from "@/lib/occupation-catalog";
+
 export type ColorOption={id:string;label:string;tone:string;prompt:string;negative?:string};
 export type ColorCategory={id:"eyeColor"|"skinTone"|"hairColor";label:string;hint:string;options:ColorOption[]};
 export type IdentitySelections=Record<string,string>;
@@ -49,7 +51,9 @@ export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:Ident
    return colorOption(c.id,chosen)?.prompt||"";
  });
  const media=["eyebrows","lips","hairstyle"].map(key=>args.mediaValues[key]||args.customValues[key]||"");
+ const occupation=getOccupationPromptValue(args.selections.occupation,args.customValues.occupation);
+ const occupationPrompt=occupation?`${occupation}, professional occupation styling appropriate to the selected role`:"";
  const extra=args.customValues.extraDetails?.trim()||"";
- const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colors,...media,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
+ const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colors,...media,occupationPrompt,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
  return {prompt:pieces.filter(Boolean).join(",\n"),negativePrompt:""};
 }

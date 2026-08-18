@@ -19,6 +19,7 @@ import {
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
+import { OCCUPATIONS, getOccupationLabel, type OccupationLocale } from "@/lib/occupation-catalog";
 import type {
   ModelGenerationAsset,
   ModelGenerationToolKey,
@@ -47,6 +48,7 @@ type StepId =
   | "skinTone"
   | "hairstyle"
   | "hairColor"
+  | "occupation"
   | "extraDetails"
   | "summary";
 
@@ -55,7 +57,7 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "color" | "media" | "extra" | "summary";
+  kind: "color" | "media" | "occupation" | "extra" | "summary";
   optional?: boolean;
 };
 
@@ -101,6 +103,13 @@ const STEPS: StepDefinition[] = [
     shortLabel: "Color",
     hint: "Elige el color del cabello",
     kind: "color",
+  },
+  {
+    id: "occupation",
+    label: "Ocupación",
+    shortLabel: "Trabajo",
+    hint: "Elige la ocupación para la preview del modelo",
+    kind: "occupation",
   },
   {
     id: "extraDetails",
@@ -156,6 +165,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
+  const [occupationModalOpen, setOccupationModalOpen] = useState(false);
+  const [occupationSearch, setOccupationSearch] = useState("");
+  const [occupationLocale] = useState<OccupationLocale>("es");
   const [bodyRefineOpen, setBodyRefineOpen] = useState(false);
   const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
@@ -266,6 +278,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   ]);
 
   const currentStep = STEPS[activeStep];
+  const occupationFeatured = OCCUPATIONS.slice(0, 11);
+  const occupationResults = useMemo(() => {
+    const query = occupationSearch.trim().toLowerCase();
+    if (!query) return OCCUPATIONS;
+    return OCCUPATIONS.filter((item) =>
+      item.es.toLowerCase().includes(query) ||
+      item.en.toLowerCase().includes(query) ||
+      item.id.toLowerCase().includes(query),
+    );
+  }, [occupationSearch]);
   const summaryReady = STEPS.filter(
     (step) => step.kind !== "summary" && !step.optional,
   ).every((step) => completedSteps.includes(step.id));
@@ -302,6 +324,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     if (pendingValues[step.id] !== undefined) return pendingValues[step.id];
     if (step.kind === "media") return mediaSelected[step.id] || "";
     if (step.kind === "color") return selections[step.id] || "";
+    if (step.kind === "occupation") return selections.occupation || "";
     if (step.kind === "extra") return customValues.extraDetails || "";
     return "";
   }
@@ -333,7 +356,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     clearValidation();
     if (step.kind === "media") {
       setMediaSelected((current) => ({ ...current, [step.id]: value }));
-    } else if (step.kind === "color") {
+    } else if (step.kind === "color" || step.kind === "occupation") {
       setSelections((current) => ({ ...current, [step.id]: value }));
     }
     setCompletedSteps((current) => current.includes(step.id) ? current : [...current, step.id]);
@@ -363,6 +386,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       const key = selections[step.id];
       if (key === "custom") return customValues[step.id] || "Custom";
       return colorOption(step.id, key)?.label || "Sin elegir";
+    }
+    if (step.kind === "occupation") {
+      const key = selections.occupation;
+      if (key === "custom") return customValues.occupation || "Custom";
+      return getOccupationLabel(key, occupationLocale) || "Sin elegir";
     }
     if (step.kind === "extra") {
       return customValues.extraDetails?.trim() || "Sin detalle";
@@ -654,6 +682,116 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 );
               })()}
 
+              {currentStep.kind === "occupation" && (() => {
+                const pending = pendingFor(currentStep);
+                return (
+                  <>
+                    <div className="faceOccupationGrid">
+                      {occupationFeatured.map((occupation) => (
+                        <button
+                          type="button"
+                          key={occupation.id}
+                          className={`faceOccupationTile${pending === occupation.id ? " selected" : ""}`}
+                          onClick={() => choosePending("occupation", occupation.id)}
+                        >
+                          <span className="faceOccupationGlyph" aria-hidden="true">⌁</span>
+                          <b>{getOccupationLabel(occupation.id, occupationLocale)}</b>
+                          <small>{occupation.en}</small>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="faceOccupationTile more"
+                        onClick={() => {
+                          setOccupationSearch("");
+                          setOccupationModalOpen(true);
+                        }}
+                      >
+                        <span className="faceOccupationGlyph" aria-hidden="true">•••</span>
+                        <b>More</b>
+                        <small>100+ ocupaciones</small>
+                      </button>
+                      <button
+                        type="button"
+                        className={`faceOccupationTile custom${pending === "custom" ? " selected" : ""}`}
+                        onClick={() => choosePending("occupation", "custom")}
+                      >
+                        <span className="faceOccupationGlyph" aria-hidden="true">+</span>
+                        <b>Custom</b>
+                        <small>Otra ocupación</small>
+                      </button>
+                    </div>
+
+                    {pending === "custom" && (
+                      <div className="faceCustomField faceStepCustomField">
+                        <input
+                          autoFocus
+                          value={customValues.occupation || ""}
+                          onChange={(event) => setCustom("occupation", event.target.value)}
+                          maxLength={25}
+                          placeholder="Máx. 25 caracteres"
+                        />
+                        <span>{(customValues.occupation || "").length}/25</span>
+                      </div>
+                    )}
+
+                    {occupationModalOpen && (
+                      <div
+                        className="faceOccupationModalBackdrop"
+                        role="presentation"
+                        onMouseDown={(event) => {
+                          if (event.currentTarget === event.target) setOccupationModalOpen(false);
+                        }}
+                      >
+                        <section className="faceOccupationModal" role="dialog" aria-modal="true" aria-label="Buscar ocupación">
+                          <header>
+                            <div>
+                              <span>OCUPACIÓN</span>
+                              <h3>Busca tu ocupación</h3>
+                              <p>Catálogo bilingüe preparado para español e inglés.</p>
+                            </div>
+                            <button type="button" aria-label="Cerrar" onClick={() => setOccupationModalOpen(false)}>×</button>
+                          </header>
+                          <div className="faceOccupationSearch">
+                            <input
+                              autoFocus
+                              value={occupationSearch}
+                              onChange={(event) => setOccupationSearch(event.target.value)}
+                              placeholder="Buscar en español o inglés..."
+                            />
+                          </div>
+                          <div className="faceOccupationModalList">
+                            {occupationResults.map((occupation) => (
+                              <button
+                                type="button"
+                                key={occupation.id}
+                                className={pending === occupation.id ? "selected" : ""}
+                                onClick={() => {
+                                  choosePending("occupation", occupation.id);
+                                  setOccupationModalOpen(false);
+                                }}
+                              >
+                                <span>
+                                  <b>{occupation.es}</b>
+                                  <small>{occupation.en}</small>
+                                </span>
+                                {pending === occupation.id && <Check size={16} />}
+                              </button>
+                            ))}
+                            {occupationResults.length === 0 && (
+                              <div className="faceOccupationEmpty">
+                                <strong>No encontramos esa ocupación.</strong>
+                                <span>Puedes cerrar y usar Custom.</span>
+                              </div>
+                            )}
+                          </div>
+                        </section>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
               {currentStep.kind === "extra" && (
                 <div className="faceExtraStep">
                   <div className="faceExtraDetails">
@@ -756,6 +894,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                         );
                       }
 
+                      if (step.kind === "occupation") {
+                        return (
+                          <article className="faceSummaryCard occupation" key={step.id}>
+                            <div className="faceSummaryMedia faceSummaryOccupation">
+                              <span aria-hidden="true">⌁</span>
+                            </div>
+                            <span>{step.label}</span>
+                            <strong>{selectionLabel(step)}</strong>
+                          </article>
+                        );
+                      }
+
                       const selected = colorOption(
                         step.id,
                         selections[step.id],
@@ -783,7 +933,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                         <WandSparkles size={24} />
                       </div>
                       <span>Extra Details</span>
-                      <strong>{selectionLabel(STEPS[6])}</strong>
+                      <strong>{selectionLabel(STEPS.find((step) => step.id === "extraDetails")!)}</strong>
                     </article>
                   </div>
                 </div>
