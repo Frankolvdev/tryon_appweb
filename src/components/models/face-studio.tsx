@@ -4,9 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import {
   ArrowLeft,
   Check,
-  ChevronLeft,
   ChevronRight,
-  Copy,
   Eye,
   Sparkles,
   WandSparkles,
@@ -15,7 +13,6 @@ import { notify } from "@/lib/notify";
 import { getAiModel, listBodyVariants, listBubbleButtVariants } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
-  buildIdentityPrompt,
   colorCategories,
   colorOption,
   defaultIdentitySelections,
@@ -153,7 +150,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   >({ eyebrows: [], lips: [], hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
-  const [promptOpen, setPromptOpen] = useState(false);
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
 
   const [activeStep, setActiveStep] = useState(0);
@@ -269,37 +265,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     bodyBase,
   ]);
 
-  const mediaValues = useMemo(
-    () =>
-      Object.fromEntries(
-        MEDIA_TOOLS.map((tool) => {
-          const key = mediaSelected[tool.id];
-          if (key === "custom") return [tool.id, ""];
-          const item = mediaAssets[tool.id]?.find(
-            (value) => value.asset_key === key,
-          );
-          return [tool.id, item?.value || ""];
-        }),
-      ),
-    [mediaAssets, mediaSelected],
-  );
-
-  const built = useMemo(
-    () =>
-      buildIdentityPrompt({
-        selections,
-        ancestryLabel: ancestry?.display_name,
-        mediaValues,
-        customValues,
-      }),
-    [
-      selections,
-      ancestry?.display_name,
-      mediaValues,
-      customValues,
-    ],
-  );
-
   const currentStep = STEPS[activeStep];
   const summaryReady = STEPS.filter(
     (step) => step.kind !== "summary" && !step.optional,
@@ -376,15 +341,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     return true;
   }
 
-  function moveStep(direction: 1 | -1) {
-    if (direction === 1) {
-      commitCurrentStep(true);
-      return;
-    }
-    clearValidation();
-    setActiveStep((index) => Math.max(index - 1, 0));
-  }
-
   function confirmCurrentStep() {
     commitCurrentStep(true);
   }
@@ -392,15 +348,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   function choosePending(stepId: StepId, value: string) {
     clearValidation();
     setPendingValues((current) => ({ ...current, [stepId]: value }));
-  }
-
-  async function copy(value: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      notify.success(`${label} copiado`);
-    } catch {
-      notify.error("No se pudo copiar");
-    }
   }
 
   function selectionLabel(step: StepDefinition) {
@@ -517,22 +464,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               )}
             </div>
           </section>
-          <div className="facePromptMini">
-            <div>
-              <WandSparkles size={16} />
-              <span>Prompt en vivo</span>
-            </div>
-            <button type="button" onClick={() => setPromptOpen((value) => !value)}>
-              {promptOpen ? "Ocultar" : "Ver prompt"}
-            </button>
-          </div>
         </div>
 
         <section className="faceControls faceWizard">
-          <div className="faceControlsIntro">
-            <div>
-              <strong>{currentStep.label}</strong>
-            </div>
+          <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
               {Math.min(activeStep + 1, STEPS.length)}/{STEPS.length}
             </span>
@@ -565,25 +500,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           </div>
 
           <div className="faceStepShell">
-            <button
-              type="button"
-              className="faceStepArrow prev"
-              onClick={() => moveStep(-1)}
-              disabled={activeStep === 0}
-              aria-label="Paso anterior"
-            >
-              <ChevronLeft size={22} />
-            </button>
-
             <div className="faceStepContent">
               <div className="faceStepHeading">
                 <span>{currentStep.hint}</span>
-                <h3>{currentStep.label}</h3>
-                {currentStep.kind !== "summary" && (
-                  <p>
-                    Haz click en una opción para previsualizarla. Puedes pulsar <b>Elegir</b> o avanzar con la flecha derecha para confirmarla.
-                  </p>
-                )}
               </div>
 
               {currentStep.kind === "media" && (() => {
@@ -894,15 +813,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               )}
             </div>
 
-            <button
-              type="button"
-              className="faceStepArrow next"
-              onClick={() => moveStep(1)}
-              disabled={activeStep === STEPS.length - 1}
-              aria-label="Siguiente paso"
-            >
-              <ChevronRight size={22} />
-            </button>
           </div>
         </section>
       </div>
@@ -915,50 +825,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         Generar modelo
       </button>
 
-      {promptOpen && (
-        <section className="facePromptPanel">
-          <header>
-            <div>
-              <span>PROMPT BUILDER · FRONTEND</span>
-              <h2>Prompt listo para conectar al pipeline</h2>
-            </div>
-            <button
-              className="modelIconBtn"
-              onClick={() => setPromptOpen(false)}
-            >
-              ×
-            </button>
-          </header>
-          <div className="facePromptColumns">
-            <div>
-              <div className="facePromptLabel">
-                <strong>Positive prompt</strong>
-                <button onClick={() => copy(built.prompt, "Prompt")}>
-                  <Copy size={14} /> Copiar
-                </button>
-              </div>
-              <pre>{built.prompt}</pre>
-            </div>
-            <div>
-              <div className="facePromptLabel">
-                <strong>Negative prompt</strong>
-                <button
-                  onClick={() =>
-                    copy(built.negativePrompt, "Negative prompt")
-                  }
-                >
-                  <Copy size={14} /> Copiar
-                </button>
-              </div>
-              <pre>{built.negativePrompt || "—"}</pre>
-            </div>
-          </div>
-          <p className="facePromptNotice">
-            Ancestry conserva su implementación actual. Esta experiencia guiada
-            solo reorganiza los nuevos selectores de identidad.
-          </p>
-        </section>
-      )}
     </div>
   );
 }

@@ -2821,13 +2821,13 @@ output.modelSliderValue{
 .faceTimelineStep.active small{color:#fff;font-weight:800}
 .faceTimelineStep.complete .faceTimelineIcon{color:#fff;border-color:rgba(225,29,53,.55);background:#1a1013}
 
-.faceStepShell{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;gap:10px;align-items:stretch;min-height:420px}
+.faceStepShell{display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:stretch;min-height:420px}
 .faceStepContent{min-width:0;border:1px solid rgba(255,255,255,.055);border-radius:20px;background:radial-gradient(circle at 50% 0,rgba(225,29,53,.035),transparent 38%),rgba(255,255,255,.008);padding:18px}
 .faceStepArrow{align-self:stretch;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:#0b0b0d;color:#b5b5bd;display:grid;place-items:center;cursor:pointer;transition:.18s ease}
 .faceStepArrow:hover:not(:disabled){border-color:rgba(225,29,53,.42);color:#fff;background:#141015;box-shadow:0 0 18px rgba(225,29,53,.08)}
 .faceStepArrow:disabled{opacity:.18;cursor:not-allowed}
-.faceStepHeading{text-align:center;margin:2px auto 18px;max-width:560px}
-.faceStepHeading>span{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:#e11d35;font-weight:800}
+.faceStepHeading{text-align:center;margin:2px auto 14px;max-width:560px}
+.faceStepHeading>span{font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:#f4f4f5;font-weight:800}
 .faceStepHeading h3{margin:5px 0 6px;color:#fff;font-size:20px}
 .faceStepHeading p{margin:0;color:#85858d;font-size:10px;line-height:1.55}
 .faceStepHeading p b{color:#d4d4d8}
@@ -2948,3 +2948,20 @@ output.modelSliderValue{
  .faceBodyRefineCard{left:8px;right:8px;bottom:66px;padding:13px;max-height:calc(100% - 82px)}
  .faceBodyFineValues{width:100%;margin-left:0}
 }
+
+
+@keyframes faceTimelineActivePulse{
+  0%,100%{transform:translateY(0) scale(1);box-shadow:0 0 0 3px rgba(225,29,53,.12),0 0 22px rgba(225,29,53,.20)}
+  50%{transform:translateY(-2px) scale(1.09);box-shadow:0 0 0 6px rgba(225,29,53,.10),0 0 34px rgba(225,29,53,.38)}
+}
+@keyframes faceTimelineActiveHalo{
+  0%{opacity:.7;transform:scale(.9)}
+  70%,100%{opacity:0;transform:scale(1.45)}
+}
+.faceTimelineStep.active .faceTimelineIcon{position:relative;animation:faceTimelineActivePulse 1.8s ease-in-out infinite}
+.faceTimelineStep.active .faceTimelineIcon::after{content:"";position:absolute;inset:-5px;border:1px solid rgba(225,29,53,.45);border-radius:999px;pointer-events:none;animation:faceTimelineActiveHalo 1.8s ease-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .faceTimelineStep.active .faceTimelineIcon,.faceTimelineStep.active .faceTimelineIcon::after{animation:none}
+}
+
+.faceControlsIntroCompact{justify-content:flex-end;margin-bottom:14px}
