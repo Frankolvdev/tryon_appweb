@@ -15,7 +15,7 @@ import {
   Sparkles,
   WandSparkles,
 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { getAiModel } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
@@ -153,6 +153,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
+  const [validationMessage, setValidationMessage] = useState("");
 
   useEffect(() => {
     getAiModel(modelId)
@@ -178,7 +179,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         } catch {}
       })
       .catch((error) =>
-        toast.error(
+        notify.error(
           error instanceof Error
             ? error.message
             : "No se pudo abrir el estudio de rostro",
@@ -193,7 +194,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     )
       .then((entries) => setMediaAssets(Object.fromEntries(entries)))
       .catch(() =>
-        toast.error("No se pudieron cargar algunas previews de identidad."),
+        notify.error("No se pudieron cargar algunas previews de identidad."),
       );
   }, [modelId]);
 
@@ -265,16 +266,27 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     (step) => step.kind !== "summary" && !step.optional,
   ).every((step) => completedSteps.includes(step.id));
 
+  function showValidation(message: string) {
+    setValidationMessage(message);
+    notify.error(message);
+  }
+
+  function clearValidation() {
+    setValidationMessage("");
+  }
+
   function goToStep(index: number) {
     const target = STEPS[index];
     if (target?.id === "summary" && !summaryReady) {
-      toast.error("Completa los pasos obligatorios antes de abrir el resumen.");
+      showValidation("Completa los pasos obligatorios antes de abrir el resumen.");
       return;
     }
+    clearValidation();
     setActiveStep(index);
   }
 
   function setCustom(key: string, value: string) {
+    clearValidation();
     setCustomValues((current) => ({
       ...current,
       [key]: value.slice(0, 10),
@@ -294,13 +306,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     if (step.optional) return true;
 
     if (requireConfirmed && !completedSteps.includes(step.id)) {
-      toast.error(`Primero pulsa Elegir en ${step.label}.`);
+      showValidation(`Primero pulsa Elegir en ${step.label}.`);
       return false;
     }
 
     const value = pendingFor(step);
     if (!value) {
-      toast.error(`Debes elegir una opción en ${step.label}.`);
+      showValidation(`Debes elegir una opción en ${step.label}.`);
       return false;
     }
 
@@ -308,7 +320,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       value === "custom" &&
       !(customValues[step.id] || "").trim()
     ) {
-      toast.error("Completa el campo Custom antes de continuar.");
+      showValidation("Completa el campo Custom antes de continuar.");
       return false;
     }
 
@@ -317,6 +329,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   function moveStep(direction: 1 | -1) {
     if (direction === 1 && !validateStep(currentStep, true)) return;
+    clearValidation();
     setActiveStep((index) =>
       Math.min(Math.max(index + direction, 0), STEPS.length - 1),
     );
@@ -327,6 +340,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     if (step.kind === "summary") return;
 
     if (step.kind === "extra") {
+      clearValidation();
       const value = (customValues.extraDetails || "").trim();
       setPendingValues((current) => ({
         ...current,
@@ -341,7 +355,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
     const value = pendingFor(step);
     if (!value) {
-      toast.error(`Debes elegir una opción en ${step.label}.`);
+      showValidation(`Debes elegir una opción en ${step.label}.`);
       return;
     }
 
@@ -349,9 +363,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       value === "custom" &&
       !(customValues[step.id] || "").trim()
     ) {
-      toast.error("Completa el campo Custom antes de continuar.");
+      showValidation("Completa el campo Custom antes de continuar.");
       return;
     }
+
+    clearValidation();
 
     if (step.kind === "media") {
       setMediaSelected((current) => ({ ...current, [step.id]: value }));
@@ -367,15 +383,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }
 
   function choosePending(stepId: StepId, value: string) {
+    clearValidation();
     setPendingValues((current) => ({ ...current, [stepId]: value }));
   }
 
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      toast.success(`${label} copiado`);
+      notify.success(`${label} copiado`);
     } catch {
-      toast.error("No se pudo copiar");
+      notify.error("No se pudo copiar");
     }
   }
 
@@ -810,6 +827,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                       <strong>{selectionLabel(STEPS[6])}</strong>
                     </article>
                   </div>
+                </div>
+              )}
+
+              {validationMessage && currentStep.kind !== "summary" && (
+                <div className="faceStepValidation" role="alert" aria-live="polite">
+                  <span>!</span>
+                  <p>{validationMessage}</p>
                 </div>
               )}
 
