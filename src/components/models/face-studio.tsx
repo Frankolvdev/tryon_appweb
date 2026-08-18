@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   ArrowLeft,
   Check,
@@ -8,15 +8,11 @@ import {
   ChevronRight,
   Copy,
   Eye,
-  ListChecks,
-  Palette,
-  Scissors,
-  Smile,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
-import { getAiModel } from "@/lib/ai-model-api";
+import { getAiModel, listBodyVariants, listBubbleButtVariants } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
   buildIdentityPrompt,
@@ -113,7 +109,7 @@ const STEPS: StepDefinition[] = [
     id: "extraDetails",
     label: "Extra details",
     shortLabel: "Extra",
-    hint: "Detalle opcional de hasta 10 caracteres",
+    hint: "Detalle opcional de hasta 150 caracteres",
     kind: "extra",
     optional: true,
   },
@@ -126,16 +122,26 @@ const STEPS: StepDefinition[] = [
   },
 ];
 
-function StepIcon({ id, size = 16 }: { id: StepId; size?: number }) {
-  if (id === "eyeColor") return <Eye size={size} />;
-  if (id === "eyebrows") return <Sparkles size={size} />;
-  if (id === "lips") return <Smile size={size} />;
-  if (id === "skinTone") return <Palette size={size} />;
-  if (id === "hairstyle") return <Scissors size={size} />;
-  if (id === "hairColor") return <Palette size={size} />;
-  if (id === "extraDetails") return <WandSparkles size={size} />;
-  return <ListChecks size={size} />;
+function StepIcon({ id }: { id: StepId }) {
+  return (
+    <img
+      src={`/identity-icons/${id}.svg`}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
+  );
 }
+
+const BODY_FINE_VALUES = Array.from({ length: 17 }, (_, index) => round1(-0.8 + index * 0.1));
+function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
+function signed(value: number) { return `${value > 0 ? "+" : ""}${round1(value).toFixed(1)}`; }
+function normalizeBodyDelta(value: unknown) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return round1(Math.min(0.8, Math.max(-0.8, Math.round(number * 10) / 10)));
+}
+
 
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
@@ -154,6 +160,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
+  const [bodyRefineOpen, setBodyRefineOpen] = useState(false);
+  const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
+  const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
+  const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
 
   useEffect(() => {
     getAiModel(modelId)
@@ -170,6 +180,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             setMediaSelected(data.mediaSelected || {});
             setCustomValues(data.customValues || {});
             setCompletedSteps(data.completedSteps || []);
+            if (data.bodyAdjustments) {
+              const safeBody = {
+                ass: normalizeBodyDelta(data.bodyAdjustments.ass),
+                fat: normalizeBodyDelta(data.bodyAdjustments.fat),
+                breasts: normalizeBodyDelta(data.bodyAdjustments.breasts),
+                butt_elevation: normalizeBodyDelta(data.bodyAdjustments.butt_elevation),
+              };
+              setBodyAdjustments(safeBody);
+              setBodyDraft(safeBody);
+            }
             setActiveStep(
               Number.isInteger(data.activeStep)
                 ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
@@ -199,6 +219,26 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [modelId]);
 
   useEffect(() => {
+    if (!model?.body_proportion_preset_id) return;
+    Promise.all([
+      listBodyVariants(model.sex),
+      listBubbleButtVariants(model.body_proportion_preset_id),
+    ])
+      .then(([catalog, bubbles]) => {
+        const body = catalog.items.find((item) => item.id === model.body_proportion_preset_id);
+        const bubble = bubbles.items.find((item) => item.id === model.bubble_butt_preset_id)
+          || bubbles.items.find((item) => item.variant_index === model.bubble_butt_variant_index);
+        setBodyBase({
+          ass: body?.hips_size ?? 0,
+          fat: body?.fat_thin ?? 0,
+          breasts: body?.breasts_size ?? 0,
+          butt_elevation: bubble?.bubble_butt ?? 0,
+        });
+      })
+      .catch(() => notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento."));
+  }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(
         `${STORAGE_PREFIX}${modelId}`,
@@ -208,6 +248,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           customValues,
           completedSteps,
           activeStep,
+          bodyAdjustments,
+          bodyRefinements: {
+            ass: round1(bodyBase.ass + bodyAdjustments.ass),
+            fat: round1(bodyBase.fat + bodyAdjustments.fat),
+            breasts: round1(bodyBase.breasts + bodyAdjustments.breasts),
+            butt_elevation: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
+          },
         }),
       );
     } catch {}
@@ -218,6 +265,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     customValues,
     completedSteps,
     activeStep,
+    bodyAdjustments,
+    bodyBase,
   ]);
 
   const mediaValues = useMemo(
@@ -251,16 +300,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     ],
   );
 
-  const selectedCount =
-    (ancestry ? 1 : 0) +
-    colorCategories.filter((category) =>
-      completedSteps.includes(category.id),
-    ).length +
-    MEDIA_TOOLS.filter((tool) => completedSteps.includes(tool.id)).length +
-    (completedSteps.includes("extraDetails") ? 1 : 0);
-
-  const total = 1 + colorCategories.length + MEDIA_TOOLS.length + 1;
-
   const currentStep = STEPS[activeStep];
   const summaryReady = STEPS.filter(
     (step) => step.kind !== "summary" && !step.optional,
@@ -287,9 +326,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   function setCustom(key: string, value: string) {
     clearValidation();
+    const limit = key === "extraDetails" ? 150 : 25;
     setCustomValues((current) => ({
       ...current,
-      [key]: value.slice(0, 10),
+      [key]: value.slice(0, limit),
     }));
   }
 
@@ -301,85 +341,52 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     return "";
   }
 
-  function validateStep(step: StepDefinition, requireConfirmed = false) {
-    if (step.kind === "summary") return true;
-    if (step.optional) return true;
 
-    if (requireConfirmed && !completedSteps.includes(step.id)) {
-      showValidation(`Primero pulsa Elegir en ${step.label}.`);
-      return false;
-    }
-
-    const value = pendingFor(step);
-    if (!value) {
-      showValidation(`Debes elegir una opción en ${step.label}.`);
-      return false;
-    }
-
-    if (
-      value === "custom" &&
-      !(customValues[step.id] || "").trim()
-    ) {
-      showValidation("Completa el campo Custom antes de continuar.");
-      return false;
-    }
-
-    return true;
-  }
-
-  function moveStep(direction: 1 | -1) {
-    if (direction === 1 && !validateStep(currentStep, true)) return;
-    clearValidation();
-    setActiveStep((index) =>
-      Math.min(Math.max(index + direction, 0), STEPS.length - 1),
-    );
-  }
-
-  function confirmCurrentStep() {
+  function commitCurrentStep(advance = true) {
     const step = currentStep;
-    if (step.kind === "summary") return;
+    if (step.kind === "summary") return true;
 
     if (step.kind === "extra") {
       clearValidation();
       const value = (customValues.extraDetails || "").trim();
-      setPendingValues((current) => ({
-        ...current,
-        extraDetails: value,
-      }));
-      setCompletedSteps((current) =>
-        current.includes(step.id) ? current : [...current, step.id],
-      );
-      setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
-      return;
+      setPendingValues((current) => ({ ...current, extraDetails: value }));
+      setCompletedSteps((current) => current.includes(step.id) ? current : [...current, step.id]);
+      if (advance) setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
+      return true;
     }
 
     const value = pendingFor(step);
     if (!value) {
       showValidation(`Debes elegir una opción en ${step.label}.`);
-      return;
+      return false;
     }
-
-    if (
-      value === "custom" &&
-      !(customValues[step.id] || "").trim()
-    ) {
+    if (value === "custom" && !(customValues[step.id] || "").trim()) {
       showValidation("Completa el campo Custom antes de continuar.");
-      return;
+      return false;
     }
 
     clearValidation();
-
     if (step.kind === "media") {
       setMediaSelected((current) => ({ ...current, [step.id]: value }));
     } else if (step.kind === "color") {
       setSelections((current) => ({ ...current, [step.id]: value }));
     }
+    setCompletedSteps((current) => current.includes(step.id) ? current : [...current, step.id]);
+    if (advance) setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
+    return true;
+  }
 
-    setCompletedSteps((current) =>
-      current.includes(step.id) ? current : [...current, step.id],
-    );
+  function moveStep(direction: 1 | -1) {
+    if (direction === 1) {
+      commitCurrentStep(true);
+      return;
+    }
+    clearValidation();
+    setActiveStep((index) => Math.max(index - 1, 0));
+  }
 
-    setActiveStep((index) => Math.min(index + 1, STEPS.length - 1));
+  function confirmCurrentStep() {
+    commitCurrentStep(true);
   }
 
   function choosePending(stepId: StepId, value: string) {
@@ -469,10 +476,45 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              <div className="facePreviewHud">
-                <span>BODY LOCKED</span>
-                <strong>{selectedCount} rasgos definidos</strong>
-              </div>
+              <button
+                type="button"
+                className="facePreviewHud faceBodyRefineTrigger"
+                onClick={() => {
+                  setBodyDraft(bodyAdjustments);
+                  setBodyRefineOpen(true);
+                }}
+              >
+                <span>BODY</span>
+                <strong>Mejorar proporciones corporales</strong>
+                <ChevronRight size={16} />
+              </button>
+              {bodyRefineOpen && (
+                <div className="faceBodyRefineCard">
+                  <div className="faceBodyRefineHead">
+                    <div>
+                      <span>AJUSTE FINO · ±0.8</span>
+                      <strong>Mejorar proporciones corporales</strong>
+                      <small>Los cambios son relativos al cuerpo elegido en el paso anterior y avanzan en incrementos de 0.1.</small>
+                    </div>
+                    <button type="button" onClick={() => setBodyRefineOpen(false)} aria-label="Cerrar">×</button>
+                  </div>
+                  <BodyFineTuneSlider label="Hips" internalKey="ass" base={bodyBase.ass} delta={bodyDraft.ass} onChange={(value) => setBodyDraft((current) => ({ ...current, ass: value }))} />
+                  <BodyFineTuneSlider label="Fat / Thin" internalKey="fat" base={bodyBase.fat} delta={bodyDraft.fat} onChange={(value) => setBodyDraft((current) => ({ ...current, fat: value }))} />
+                  <BodyFineTuneSlider label="Breasts" internalKey="breasts" base={bodyBase.breasts} delta={bodyDraft.breasts} onChange={(value) => setBodyDraft((current) => ({ ...current, breasts: value }))} />
+                  <BodyFineTuneSlider label="Butt Elevation" internalKey="butt_elevation" base={bodyBase.butt_elevation} delta={bodyDraft.butt_elevation} onChange={(value) => setBodyDraft((current) => ({ ...current, butt_elevation: value }))} />
+                  <button
+                    type="button"
+                    className="faceBodyRefineAccept"
+                    onClick={() => {
+                      setBodyAdjustments(bodyDraft);
+                      setBodyRefineOpen(false);
+                      notify.success("Proporciones corporales refinadas");
+                    }}
+                  >
+                    <Check size={16} /> Elegir
+                  </button>
+                </div>
+              )}
             </div>
           </section>
           <div className="facePromptMini">
@@ -489,7 +531,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         <section className="faceControls faceWizard">
           <div className="faceControlsIntro">
             <div>
-              <span>IDENTIDAD · EXPERIENCIA GUIADA</span>
               <strong>{currentStep.label}</strong>
             </div>
             <span>
@@ -512,10 +553,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   title={step.label}
                 >
                   <span className="faceTimelineIcon">
-                    {complete && step.id !== "summary" ? (
-                      <Check size={14} />
-                    ) : (
-                      <StepIcon id={step.id} size={15} />
+                    <StepIcon id={step.id} />
+                    {complete && step.id !== "summary" && (
+                      <b className="faceTimelineDone"><Check size={9} /></b>
                     )}
                   </span>
                   <small>{step.shortLabel}</small>
@@ -541,8 +581,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 <h3>{currentStep.label}</h3>
                 {currentStep.kind !== "summary" && (
                   <p>
-                    Haz click en una opción para previsualizarla. El cambio se
-                    confirma únicamente cuando pulses <b>Elegir</b>.
+                    Haz click en una opción para previsualizarla. Puedes pulsar <b>Elegir</b> o avanzar con la flecha derecha para confirmarla.
                   </p>
                 )}
               </div>
@@ -620,11 +659,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                           onChange={(event) =>
                             setCustom(currentStep.id, event.target.value)
                           }
-                          maxLength={10}
-                          placeholder="Máx. 10 caracteres"
+                          maxLength={25}
+                          placeholder="Máx. 25 caracteres"
                         />
                         <span>
-                          {(customValues[currentStep.id] || "").length}/10
+                          {(customValues[currentStep.id] || "").length}/25
                         </span>
                       </div>
                     )}
@@ -684,11 +723,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                           onChange={(event) =>
                             setCustom(currentStep.id, event.target.value)
                           }
-                          maxLength={10}
-                          placeholder="Máx. 10 caracteres"
+                          maxLength={25}
+                          placeholder="Máx. 25 caracteres"
                         />
                         <span>
-                          {(customValues[currentStep.id] || "").length}/10
+                          {(customValues[currentStep.id] || "").length}/25
                         </span>
                       </div>
                     )}
@@ -699,17 +738,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               {currentStep.kind === "extra" && (
                 <div className="faceExtraStep">
                   <div className="faceExtraDetails">
-                    <input
+                    <textarea
                       autoFocus
+                      rows={4}
                       value={customValues.extraDetails || ""}
                       onChange={(event) =>
                         setCustom("extraDetails", event.target.value)
                       }
-                      maxLength={10}
-                      placeholder="Ej. freckles"
+                      maxLength={150}
+                      placeholder="Ej. freckles, beauty mark, soft dimples..."
                     />
                     <span>
-                      {(customValues.extraDetails || "").length}/10
+                      {(customValues.extraDetails || "").length}/150
                     </span>
                   </div>
                   <p>
@@ -850,11 +890,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                       ? "Continuar sin detalle"
                       : "Elegir"}
                   </button>
-                  <span>
-                    {completedSteps.includes(currentStep.id)
-                      ? `Seleccionado: ${selectionLabel(currentStep)}`
-                      : "Aún no confirmado"}
-                  </span>
                 </div>
               )}
             </div>
@@ -927,3 +962,77 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     </div>
   );
 }
+
+function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { label: string; internalKey: "ass" | "fat" | "breasts" | "butt_elevation"; base: number; delta: number; onChange: (value: number) => void }) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef(false);
+  const index = BODY_FINE_VALUES.findIndex((value) => Math.abs(value - delta) < 0.0001);
+  const safeIndex = index >= 0 ? index : 8;
+  const percent = (safeIndex / (BODY_FINE_VALUES.length - 1)) * 100;
+  const finalValue = round1(base + delta);
+
+  const updateFromClientX = (clientX: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)));
+    const nextIndex = Math.round(ratio * (BODY_FINE_VALUES.length - 1));
+    onChange(BODY_FINE_VALUES[nextIndex] ?? 0);
+  };
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    draggingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateFromClientX(event.clientX);
+  };
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (draggingRef.current) updateFromClientX(event.clientX);
+  };
+  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    draggingRef.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    let nextIndex = safeIndex;
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") nextIndex = Math.min(BODY_FINE_VALUES.length - 1, safeIndex + 1);
+    else if (event.key === "ArrowLeft" || event.key === "ArrowDown") nextIndex = Math.max(0, safeIndex - 1);
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = BODY_FINE_VALUES.length - 1;
+    else return;
+    event.preventDefault();
+    onChange(BODY_FINE_VALUES[nextIndex] ?? 0);
+  };
+
+  return (
+    <div className="modelAxis faceBodyFineAxis">
+      <div>
+        <label>{label}</label>
+        <span className="faceBodyFineValues">Base {signed(base)} · Ajuste {signed(delta)} · Final <b>{signed(finalValue)}</b></span>
+      </div>
+      <div
+        ref={trackRef}
+        className="modelDiscreteSlider"
+        role="slider"
+        tabIndex={0}
+        aria-label={`${label} adjustment`}
+        aria-valuemin={-0.8}
+        aria-valuemax={0.8}
+        aria-valuenow={delta}
+        data-internal-key={internalKey}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={stopDrag}
+        onPointerCancel={stopDrag}
+        onKeyDown={onKeyDown}
+      >
+        <div className="modelDiscreteRail" />
+        <div className="modelDiscreteFill" style={{ width: `${percent}%` }} />
+        {BODY_FINE_VALUES.map((value, tickIndex) => (
+          <span key={`${internalKey}-${value}`} className={`modelDiscreteTick${tickIndex === safeIndex ? " active" : ""}`} style={{ left: `${(tickIndex / (BODY_FINE_VALUES.length - 1)) * 100}%` }} />
+        ))}
+        <span className="modelDiscreteThumb" style={{ left: `${percent}%` }} />
+      </div>
+      <div className="modelAxisEnds"><span>-0.8</span><span>0</span><span>+0.8</span></div>
+    </div>
+  );
+}
+

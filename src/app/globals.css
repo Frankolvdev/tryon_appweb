@@ -2910,3 +2910,41 @@ output.modelSliderValue{
   font-weight:900;
 }
 .faceStepValidation p{margin:1px 0 0;font-size:10px;line-height:1.55;font-weight:650}
+
+/* Identity timeline semantic icons + body fine tuning — FaceStudio only */
+.faceTimelineIcon{position:relative}
+.faceTimelineIcon img{width:20px;height:20px;display:block;object-fit:contain;opacity:.78;filter:brightness(.82);pointer-events:none}
+.faceTimelineStep.active .faceTimelineIcon img{opacity:1;filter:brightness(1.6)}
+.faceTimelineStep.complete .faceTimelineIcon img{opacity:.95;filter:brightness(1.28)}
+.faceTimelineDone{position:absolute;right:-3px;bottom:-3px;width:15px;height:15px;border-radius:999px;display:grid;place-items:center;background:#e11d35;color:#fff;border:2px solid #0b0b0d;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+
+.facePreviewHud.faceBodyRefineTrigger{appearance:none;width:auto;color:inherit;cursor:pointer;text-align:left;z-index:5;transition:border-color .18s ease,background .18s ease,transform .18s ease}
+.facePreviewHud.faceBodyRefineTrigger:hover{border-color:rgba(225,29,53,.36);background:rgba(12,8,10,.86);transform:translateY(-1px)}
+.facePreviewHud.faceBodyRefineTrigger svg{margin-left:auto;color:#b9b9c0}
+.faceBodyRefineCard{position:absolute;z-index:8;left:16px;right:16px;bottom:72px;max-height:calc(100% - 96px);overflow:auto;padding:16px 18px 18px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:linear-gradient(145deg,rgba(14,14,17,.90),rgba(7,7,9,.84));box-shadow:0 28px 70px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.025);backdrop-filter:blur(22px)}
+.faceBodyRefineHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.07)}
+.faceBodyRefineHead>div{display:grid;gap:3px}
+.faceBodyRefineHead span{font-size:8px;letter-spacing:.15em;color:#e11d35;font-weight:900}
+.faceBodyRefineHead strong{font-size:15px;color:#fff}
+.faceBodyRefineHead small{max-width:520px;color:#85858d;font-size:9px;line-height:1.45}
+.faceBodyRefineHead>button{flex:0 0 auto;width:30px;height:30px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#101013;color:#bbb;cursor:pointer;font-size:20px;line-height:1}
+.faceBodyFineAxis{padding:12px 0 8px!important}
+.faceBodyFineAxis>div:first-child{gap:12px;flex-wrap:wrap}
+.faceBodyFineAxis label{font-size:12px!important}
+.faceBodyFineValues{margin-left:auto;color:#8a8a92;font-size:8px;font-variant-numeric:tabular-nums}
+.faceBodyFineValues b{color:#fff;font-size:9px}
+.faceBodyFineAxis .modelDiscreteSlider{margin:8px 0 4px;height:28px}
+.faceBodyFineAxis .modelAxisEnds{font-size:8px}
+.faceBodyFineAxis .modelAxisEnds span:nth-child(2){margin:auto}
+.faceBodyRefineAccept{width:100%;margin-top:10px;min-height:40px;border:1px solid rgba(225,29,53,.55);border-radius:11px;background:linear-gradient(90deg,#e11d35,#a90f24);color:#fff;font-size:11px;font-weight:850;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;box-shadow:0 9px 22px rgba(225,29,53,.14)}
+
+.faceExtraDetails textarea{flex:1;min-height:90px;resize:vertical;border:1px solid #303038;background:#0b0b0d;color:#fff;border-radius:9px;padding:10px;font:inherit;font-size:11px;line-height:1.5;outline:none}
+.faceExtraDetails textarea:focus{border-color:#e11d35}
+.faceStepConfirmRow{justify-content:center}
+
+@media(max-width:700px){
+ .faceTimelineStep small{display:block!important;font-size:7px;max-width:64px}
+ .faceTimelineIcon img{width:18px;height:18px}
+ .faceBodyRefineCard{left:8px;right:8px;bottom:66px;padding:13px;max-height:calc(100% - 82px)}
+ .faceBodyFineValues{width:100%;margin-left:0}
+}
