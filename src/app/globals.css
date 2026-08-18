@@ -3852,3 +3852,93 @@ output.modelSliderValue{
     margin:0!important;
   }
 }
+
+
+/* =========================================================
+   HOTFIX — DONE centered completion experience.
+   Scoped only to the DONE summary. Ancestry/timelines untouched.
+   ========================================================= */
+.faceStepContent:has(.faceSummaryMinimal){
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:420px;
+}
+.faceSummaryMinimal{
+  width:min(760px,100%)!important;
+  min-height:330px;
+  margin:auto!important;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:24px;
+  text-align:center;
+}
+.faceSummaryMinimal .faceSummaryHero{
+  width:100%;
+  min-height:220px;
+  margin:0!important;
+  padding:30px 28px!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:16px!important;
+  text-align:center;
+  border-color:rgba(225,29,53,.34)!important;
+  background:radial-gradient(circle at 50% 35%,rgba(225,29,53,.12),rgba(225,29,53,.025) 52%,rgba(255,255,255,.006) 100%)!important;
+}
+.faceSummaryMinimal .faceSummaryDoneIcon{
+  width:96px!important;
+  height:96px!important;
+  flex:0 0 96px;
+  margin:0 auto;
+  background:linear-gradient(145deg,#f01d3a,#b90f28)!important;
+  box-shadow:
+    0 0 0 8px rgba(225,29,53,.08),
+    0 0 42px rgba(225,29,53,.34),
+    0 18px 40px rgba(0,0,0,.32)!important;
+  animation:faceDoneHeroPulse 2.2s ease-in-out infinite;
+}
+.faceSummaryMinimal .faceSummaryHero>div{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+.faceSummaryMinimal .faceSummaryHero>div>span{
+  font-size:9px;
+  letter-spacing:.2em;
+}
+.faceSummaryMinimal .faceSummaryHero h3{
+  margin:6px 0 8px!important;
+  color:#f11d3b!important;
+  font-size:24px!important;
+  line-height:1.1;
+}
+.faceSummaryMinimal .faceSummaryHero p{
+  max-width:520px;
+  margin:0 auto!important;
+  color:#d1d1d6!important;
+  font-size:11px!important;
+  line-height:1.65;
+}
+.faceSummaryMinimal .faceGenerateModelButtonDone{
+  width:min(620px,92%)!important;
+  margin:0!important;
+  padding:16px 20px!important;
+  font-size:14px!important;
+}
+@keyframes faceDoneHeroPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 8px rgba(225,29,53,.08),0 0 36px rgba(225,29,53,.26),0 18px 40px rgba(0,0,0,.32)}
+  50%{transform:scale(1.045);box-shadow:0 0 0 13px rgba(225,29,53,.045),0 0 54px rgba(225,29,53,.42),0 18px 40px rgba(0,0,0,.32)}
+}
+@media(max-width:700px){
+  .faceStepContent:has(.faceSummaryMinimal){min-height:360px}
+  .faceSummaryMinimal{min-height:300px;gap:18px}
+  .faceSummaryMinimal .faceSummaryHero{min-height:205px;padding:24px 16px!important}
+  .faceSummaryMinimal .faceSummaryDoneIcon{width:82px!important;height:82px!important;flex-basis:82px}
+  .faceSummaryMinimal .faceSummaryHero h3{font-size:20px!important}
+  .faceSummaryMinimal .faceGenerateModelButtonDone{width:100%!important}
+}

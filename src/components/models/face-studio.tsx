@@ -905,7 +905,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 <div className="faceSummary faceSummaryMinimal">
                   <div className="faceSummaryHero">
                     <span className="faceSummaryDoneIcon">
-                      <Check size={24} />
+                      <Check size={54} strokeWidth={2.5} />
                     </span>
                     <div>
                       <span>STEP DONE</span>
