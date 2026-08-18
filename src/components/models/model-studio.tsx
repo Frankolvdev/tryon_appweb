@@ -1,6 +1,6 @@
 "use client";
 import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Sparkles, X, Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
 import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody,saveAiModelDraft } from "@/lib/ai-model-api";
@@ -27,6 +27,8 @@ const resolveVariant=(rows:BodyVariant[],s:AxisState)=>{
 
 export function ModelStudio({modelId}:{modelId:number}){
  const router=useRouter();
+ const searchParams=useSearchParams();
+ const forceBodyStage=searchParams.get("stage")==="body";
  const [model,setModel]=useState<AiModelProfile|null>(null);
  const [nameEditing,setNameEditing]=useState(false);
  const [items,setItems]=useState<BodyVariant[]>([]);
@@ -48,6 +50,10 @@ export function ModelStudio({modelId}:{modelId:number}){
  const MIN_SCANNER_MS=1300;
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
+   if(m.body_proportion_preset_id&&!forceBodyStage){
+     router.replace(`/models/${modelId}/face`);
+     return;
+   }
    setModel(m);setItems(c.items);
    const draft=m.draft_json as {kind?:string;body_proportion_preset_id?:number;bubble_butt_variant_index?:number}|undefined;
    const draftBodyId=draft?.kind==="body"?draft.body_proportion_preset_id:undefined;
@@ -55,7 +61,7 @@ export function ModelStudio({modelId}:{modelId:number}){
    setSelected(initial);
    setSelectedBubbleLevel(draft?.kind==="body"&&draft.bubble_butt_variant_index!=null?draft.bubble_butt_variant_index:(m.bubble_butt_variant_index ?? 1));
    if(initial)setAxes({hips:initial.hips_size,fat:initial.fat_thin,breasts:initial.breasts_size,breastBand:initial.breast_band||""});
- }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar el estudio"))},[modelId]);
+ }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar el estudio"))},[modelId,forceBodyStage,router]);
 
  const values=useMemo(()=>({
   hips:[...new Set(items.map(x=>x.hips_size))].sort((a,b)=>a-b),

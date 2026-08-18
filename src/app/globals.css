@@ -4315,3 +4315,51 @@ output.modelSliderValue{
     padding-top:54px!important;
   }
 }
+
+
+/* =========================================================
+   GLOBAL TIMELINE — active-stage animation
+   Mirrors the guided identity timeline language without changing layout.
+   ========================================================= */
+@keyframes modelGlobalStageActivePulse{
+  0%,100%{
+    transform:translateY(0) scale(1);
+    box-shadow:
+      0 0 0 4px rgba(225,29,53,.12),
+      0 0 24px rgba(225,29,53,.22);
+  }
+  50%{
+    transform:translateY(-2px) scale(1.10);
+    box-shadow:
+      0 0 0 8px rgba(225,29,53,.08),
+      0 0 42px rgba(225,29,53,.42);
+  }
+}
+@keyframes modelGlobalStageActiveHalo{
+  0%{opacity:.78;transform:scale(.92)}
+  72%,100%{opacity:0;transform:scale(1.52)}
+}
+.modelStudioStageRail .modelGlobalStage.active .modelGlobalStageIcon{
+  position:relative;
+  animation:modelGlobalStageActivePulse 1.8s ease-in-out infinite!important;
+}
+.modelStudioStageRail .modelGlobalStage.active .modelGlobalStageIcon::after{
+  content:"";
+  position:absolute;
+  inset:-7px;
+  border:1px solid rgba(225,29,53,.48);
+  border-radius:999px;
+  pointer-events:none;
+  animation:modelGlobalStageActiveHalo 1.8s ease-out infinite;
+}
+@media(max-width:1023px){
+  .modelStudioStageRail .modelGlobalStage.active .modelGlobalStageIcon::after{
+    inset:-5px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .modelStudioStageRail .modelGlobalStage.active .modelGlobalStageIcon,
+  .modelStudioStageRail .modelGlobalStage.active .modelGlobalStageIcon::after{
+    animation:none!important;
+  }
+}
