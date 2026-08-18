@@ -3125,3 +3125,27 @@ output.modelSliderValue{
 .modelDraftSaveButton:disabled{opacity:.55;cursor:wait}
 .faceGenerateModelButton{margin-left:auto;margin-right:auto}
 @media(max-width:700px){.modelDraftSaveButton{padding:7px 8px;font-size:9px}.modelSculptWidget{flex-wrap:wrap}}
+
+/* HOTFIX Body Studio — match approved Identity header spacing/back arrow.
+   Scoped only to Step 01 / Model Studio. */
+.modelStudio.pageEnter:not(.faceStudio){
+  padding-top:0!important;
+}
+
+.modelStudio.pageEnter:not(.faceStudio) .modelBackOutside{
+  top:-0px!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  padding:0!important;
+  width:auto!important;
+  height:auto!important;
+  border-radius:0!important;
+  backdrop-filter:none!important;
+}
+
+.modelStudio.pageEnter:not(.faceStudio) .modelBackOutside:hover{
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
