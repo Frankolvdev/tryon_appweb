@@ -3149,3 +3149,8 @@ output.modelSliderValue{
   background:transparent!important;
   box-shadow:none!important;
 }
+
+/* HOTFIX Body Studio — compact sculpt header spacing only. */
+.modelStudio.pageEnter:not(.faceStudio) .modelSculptWidget{
+  margin-bottom:20px!important;
+}
