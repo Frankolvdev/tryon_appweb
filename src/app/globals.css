@@ -3154,3 +3154,227 @@ output.modelSliderValue{
 .modelStudio.pageEnter:not(.faceStudio) .modelSculptWidget{
   margin-bottom:20px!important;
 }
+
+/* =========================================================
+   FaceStudio guided identity — MOBILE ONLY responsive repair
+   Desktop/tablet-large layout intentionally untouched.
+   ========================================================= */
+@media (max-width:700px){
+  .modelStudio.faceStudio.pageEnter{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  .faceWizard{
+    overflow:visible;
+    min-width:0;
+  }
+
+  .faceControls.faceWizard{
+    width:100%;
+    min-width:0;
+    padding:14px 10px 16px;
+  }
+
+  .faceControlsIntroCompact{
+    margin-bottom:8px;
+  }
+
+  /* Timeline becomes a native horizontal step rail instead of squeezing 9 items. */
+  .faceStepTimeline{
+    display:flex!important;
+    grid-template-columns:none!important;
+    gap:8px!important;
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    overflow-y:visible;
+    padding:10px 8px 12px!important;
+    margin:0 0 14px!important;
+    scroll-snap-type:x proximity;
+    scroll-padding-inline:8px;
+    overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .faceStepTimeline::-webkit-scrollbar{display:none}
+  .faceStepTimeline:before{display:none!important}
+
+  .faceTimelineStep{
+    flex:0 0 68px;
+    width:68px;
+    min-width:68px;
+    padding:2px 1px 4px;
+    gap:6px;
+    scroll-snap-align:center;
+  }
+  .faceTimelineIcon{
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+  }
+  .faceTimelineIcon img{width:19px;height:19px}
+  .faceTimelineStep small{
+    display:block!important;
+    width:100%;
+    max-width:68px!important;
+    min-height:18px;
+    font-size:7px!important;
+    line-height:1.2!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    text-align:center;
+    letter-spacing:.025em!important;
+    text-transform:uppercase;
+  }
+
+  .faceStepShell{
+    display:block!important;
+    min-height:0;
+    width:100%;
+  }
+  .faceStepContent{
+    width:100%;
+    min-width:0;
+    padding:12px 10px!important;
+    border-radius:16px;
+    overflow:visible;
+  }
+  .faceStepHeading{margin:0 auto 11px}
+
+  /* Media previews need enough physical size for touch targets and video preview. */
+  .faceMediaOptionGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+    padding:0!important;
+  }
+  .faceMediaOption,.faceCustomTile{
+    min-width:0;
+    border-radius:11px;
+  }
+  .faceMediaOption>span,.faceCustomTile>span{
+    font-size:9px;
+    padding:6px 3px 2px;
+  }
+  .faceCustomTile{min-height:104px}
+
+  /* Color circles remain compact but readable/tappable. */
+  .faceColorGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:8px!important;
+    padding:0!important;
+  }
+  .faceColorOption{
+    min-width:0;
+    padding:9px 4px;
+    gap:6px;
+  }
+  .faceColorSwatch{width:40px;height:40px}
+  .faceColorOption>b{font-size:8px;line-height:1.15;text-align:center}
+
+  .faceCustomField,.faceExtraDetails{
+    width:100%;
+    min-width:0;
+    margin-left:0!important;
+    margin-right:0!important;
+    padding:8px;
+  }
+  .faceCustomField input,.faceExtraDetails textarea{
+    min-width:0;
+    width:100%;
+  }
+  .faceExtraStep{
+    width:100%;
+    max-width:none;
+    margin:18px auto 0;
+  }
+
+  .faceStepConfirmRow{
+    margin-top:14px;
+    padding-top:12px;
+  }
+  .faceChooseButton{
+    width:100%;
+    min-width:0;
+    min-height:44px;
+  }
+
+  /* Occupations: readable 2-column touch grid. */
+  .faceOccupationGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    padding:0!important;
+  }
+  .faceOccupationTile{
+    min-width:0;
+    min-height:68px;
+    padding:8px!important;
+  }
+  .faceOccupationTile.selected{padding:7px!important}
+  .faceOccupationTile b{
+    width:100%;
+    font-size:10px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .faceOccupationTile small{
+    width:100%;
+    font-size:7px;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+
+  /* Search modal behaves like a mobile sheet, without horizontal overflow. */
+  .faceOccupationModalBackdrop{
+    padding:10px;
+    align-items:center;
+  }
+  .faceOccupationModal{
+    width:100%;
+    max-width:100%;
+    max-height:88dvh;
+    border-radius:18px;
+  }
+  .faceOccupationModal>header{padding:15px 14px 11px}
+  .faceOccupationModal>header h3{font-size:18px}
+  .faceOccupationSearch{padding:11px 12px 8px}
+  .faceOccupationModalList{
+    grid-template-columns:1fr!important;
+    gap:6px;
+    padding:4px 10px 12px;
+  }
+  .faceOccupationModalList>button{padding:11px 10px;min-height:48px}
+  .faceOccupationModalList>button b{font-size:10px}
+
+  .faceSummaryGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px;
+  }
+  .faceSummaryHero{align-items:flex-start;padding:12px;gap:10px}
+
+  .faceGenerateButton{
+    min-height:46px;
+    padding:12px;
+  }
+
+  /* Body refinement overlay must fit inside narrow preview cards. */
+  .faceBodyRefineCard{
+    left:6px!important;
+    right:6px!important;
+    width:auto;
+    max-width:none;
+    padding:12px!important;
+  }
+}
+
+@media (max-width:390px){
+  .faceControls.faceWizard{padding-left:8px;padding-right:8px}
+  .faceTimelineStep{flex-basis:62px;width:62px;min-width:62px}
+  .faceTimelineStep small{max-width:62px!important;font-size:6.5px!important}
+  .faceMediaOptionGrid{gap:6px!important}
+  .faceColorGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+  .faceColorSwatch{width:36px;height:36px}
+  .faceOccupationGrid{gap:6px!important}
+}
