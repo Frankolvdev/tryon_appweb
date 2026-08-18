@@ -126,7 +126,7 @@ const STEPS: StepDefinition[] = [
     id: "summary",
     label: "Resumen",
     shortLabel: "Done",
-    hint: "Revisa todas tus selecciones",
+    hint: "",
     kind: "summary",
   },
 ];
@@ -617,9 +617,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
           <div className="faceStepShell">
             <div className="faceStepContent">
-              <div className="faceStepHeading">
-                <span>{currentStep.hint}</span>
-              </div>
+              {currentStep.hint ? (
+                <div className="faceStepHeading">
+                  <span>{currentStep.hint}</span>
+                </div>
+              ) : null}
 
               {currentStep.kind === "media" && (() => {
                 const stepId = currentStep.id as ModelGenerationToolKey;
