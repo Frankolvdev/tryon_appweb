@@ -109,7 +109,7 @@ const STEPS: StepDefinition[] = [
   {
     id: "occupation",
     label: "Ocupación",
-    shortLabel: "Trabajo",
+    shortLabel: "Ocupación",
     hint: "Elige la ocupación para la preview del modelo",
     kind: "occupation",
   },
