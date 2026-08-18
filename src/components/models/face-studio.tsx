@@ -8,8 +8,10 @@ import {
   Eye,
   Sparkles,
   WandSparkles,
+  Pencil,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { getAiModel, listBodyVariants, listBubbleButtVariants } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
@@ -152,6 +154,7 @@ function normalizeBodyDelta(value: unknown) {
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
   const [model, setModel] = useState<AiModelProfile | null>(null);
+  const [nameEditing, setNameEditing] = useState(false);
   const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
@@ -278,7 +281,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   ]);
 
   const currentStep = STEPS[activeStep];
-  const occupationFeatured = OCCUPATIONS.slice(0, 11);
+  const occupationFeatured = useMemo(() => {
+    const activeOccupation = pendingValues.occupation || selections.occupation;
+    const promoted = activeOccupation && activeOccupation !== "custom"
+      ? OCCUPATIONS.find((item) => item.id === activeOccupation)
+      : undefined;
+    const base = OCCUPATIONS.filter((item) => item.id !== promoted?.id);
+    return promoted ? [promoted, ...base.slice(0, 10)] : base.slice(0, 11);
+  }, [pendingValues.occupation, selections.occupation]);
   const occupationResults = useMemo(() => {
     const query = occupationSearch.trim().toLowerCase();
     if (!query) return OCCUPATIONS;
@@ -398,6 +408,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     return "";
   }
 
+  const [displayName, setDisplayName] = useModelDisplayName(modelId, model?.name);
   if (!model)
     return (
       <div className="modelLoading pageEnter">
@@ -417,7 +428,26 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </button>
         <header className="modelStudioHead">
           <div className="modelHeaderRail faceHeaderRail">
-            <h1>{model.name}</h1>
+            <div className="modelEditableName">
+              {nameEditing ? (
+                <input
+                  autoFocus
+                  value={displayName}
+                  maxLength={40}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  onBlur={() => setNameEditing(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === "Escape") setNameEditing(false);
+                  }}
+                  aria-label="Nombre temporal de la modelo"
+                />
+              ) : (
+                <button type="button" onClick={() => setNameEditing(true)} title="Editar nombre temporal">
+                  <h1>{displayName}</h1>
+                  <Pencil size={13} />
+                </button>
+              )}
+            </div>
             <div className="modelSculptWidget faceStepWidget">
               <div className="modelSculptWidgetBadge">02</div>
               <div className="modelSculptWidgetCopy">
@@ -441,7 +471,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               {model.body_image_url ? (
                 <ModelImage
                   src={model.body_image_url}
-                  alt={`Cuerpo seleccionado de ${model.name}`}
+                  alt={`Cuerpo seleccionado de ${displayName}`}
                   className="faceBodyPreview"
                 />
               ) : (
@@ -694,7 +724,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                           className={`faceOccupationTile${pending === occupation.id ? " selected" : ""}`}
                           onClick={() => choosePending("occupation", occupation.id)}
                         >
-                          <span className="faceOccupationGlyph" aria-hidden="true">⌁</span>
                           <b>{getOccupationLabel(occupation.id, occupationLocale)}</b>
                           <small>{occupation.en}</small>
                         </button>
@@ -707,7 +736,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                           setOccupationModalOpen(true);
                         }}
                       >
-                        <span className="faceOccupationGlyph" aria-hidden="true">•••</span>
                         <b>More</b>
                         <small>100+ ocupaciones</small>
                       </button>
@@ -716,7 +744,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                         className={`faceOccupationTile custom${pending === "custom" ? " selected" : ""}`}
                         onClick={() => choosePending("occupation", "custom")}
                       >
-                        <span className="faceOccupationGlyph" aria-hidden="true">+</span>
                         <b>Custom</b>
                         <small>Otra ocupación</small>
                       </button>

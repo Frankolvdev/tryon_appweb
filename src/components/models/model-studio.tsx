@@ -1,11 +1,12 @@
 "use client";
 import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, Sparkles, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody } from "@/lib/ai-model-api";
 import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
 import { ModelImage } from "./model-image";
+import { useModelDisplayName } from "@/lib/use-model-display-name";
 
 type AxisState={hips:number;fat:number;breasts:number;breastBand:string};
 const EPS=1e-6;
@@ -26,6 +27,7 @@ const resolveVariant=(rows:BodyVariant[],s:AxisState)=>{
 export function ModelStudio({modelId}:{modelId:number}){
  const router=useRouter();
  const [model,setModel]=useState<AiModelProfile|null>(null);
+ const [nameEditing,setNameEditing]=useState(false);
  const [items,setItems]=useState<BodyVariant[]>([]);
  const [selected,setSelected]=useState<BodyVariant|null>(null);
  const [axes,setAxes]=useState<AxisState>({hips:0,fat:0,breasts:0,breastBand:""});
@@ -191,13 +193,16 @@ export function ModelStudio({modelId}:{modelId:number}){
    router.push(`/models/${modelId}/face`);
   }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}
  }
+ const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
   <div className="modelHeaderShell">
    <button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button>
    <header className="modelStudioHead">
     <div className="modelHeaderRail">
-     <h1>{model.name}</h1>
+     <div className="modelEditableName">
+      {nameEditing?<input autoFocus value={displayName} maxLength={40} onChange={e=>setDisplayName(e.target.value)} onBlur={()=>setNameEditing(false)} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")setNameEditing(false)}} aria-label="Nombre temporal de la modelo"/>:<button type="button" onClick={()=>setNameEditing(true)} title="Editar nombre temporal"><h1>{displayName}</h1><Pencil size={13}/></button>}
+     </div>
      <div className="modelSculptWidget">
       <div className="modelSculptWidgetBadge">01</div>
       <div className="modelSculptWidgetCopy">
