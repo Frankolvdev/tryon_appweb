@@ -31,6 +31,11 @@ export const colorCategories:ColorCategory[]=[
   {id:"platinum",label:"Platinum",tone:"#dedbd2",prompt:"cool pale platinum-blonde hair color"},
   {id:"auburn",label:"Auburn",tone:"#7a3529",prompt:"rich natural auburn hair color"},
   {id:"red",label:"Red",tone:"#9d272b",prompt:"vivid fashion red hair color"},
+  {id:"blue",label:"Blue",tone:"#315f9f",prompt:"vivid fashion blue hair color"},
+  {id:"purple",label:"Purple",tone:"#6f4aa8",prompt:"vivid fashion purple hair color"},
+  {id:"pink",label:"Pink",tone:"#d97c9f",prompt:"soft fashion pink hair color"},
+  {id:"rose-gold",label:"Rose gold",tone:"#c98e85",prompt:"soft rose-gold fashion hair color"},
+  {id:"silver",label:"Silver",tone:"#aaaeb8",prompt:"cool metallic silver hair color"},
  ]},
 ];
 
