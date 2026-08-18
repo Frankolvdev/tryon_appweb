@@ -3113,3 +3113,15 @@ output.modelSliderValue{
   font-size:clamp(29px,4vw,44px)!important;
   line-height:.96!important;
 }
+
+
+/* Draft-save header polish — Body + Identity */
+.faceBack{top:-0px!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;width:auto!important;height:auto!important;border-radius:0!important}
+.faceBack:hover{background:transparent!important;border:0!important;box-shadow:none!important}
+.modelSculptWidget.faceStepWidget{margin-bottom:20px!important}
+.modelSculptWidget{position:relative}
+.modelDraftSaveButton{margin-left:auto;align-self:center;flex:0 0 auto;border:1px solid rgba(255,255,255,.13);border-radius:10px;background:rgba(255,255,255,.045);color:#f4f4f5;padding:8px 11px;font-size:10px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer;transition:.18s ease;white-space:nowrap}
+.modelDraftSaveButton:hover:not(:disabled){background:rgba(255,255,255,.085);border-color:rgba(255,255,255,.25);transform:translateY(-1px)}
+.modelDraftSaveButton:disabled{opacity:.55;cursor:wait}
+.faceGenerateModelButton{margin-left:auto;margin-right:auto}
+@media(max-width:700px){.modelDraftSaveButton{padding:7px 8px;font-size:9px}.modelSculptWidget{flex-wrap:wrap}}

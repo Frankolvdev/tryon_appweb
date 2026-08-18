@@ -9,10 +9,11 @@ import {
   Sparkles,
   WandSparkles,
   Pencil,
+  Save,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
-import { getAiModel, listBodyVariants, listBubbleButtVariants } from "@/lib/ai-model-api";
+import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
   colorCategories,
@@ -175,6 +176,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
+  const [draftSaving, setDraftSaving] = useState(false);
 
   useEffect(() => {
     getAiModel(modelId)
@@ -182,8 +184,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         setModel(result);
         try {
           const saved = localStorage.getItem(`${STORAGE_PREFIX}${modelId}`);
-          if (saved) {
-            const data = JSON.parse(saved);
+          const data = result.draft_json && Object.keys(result.draft_json).length ? result.draft_json : (saved ? JSON.parse(saved) : null);
+          if (data) {
             setSelections({
               ...defaultIdentitySelections,
               ...(data.selections || {}),
@@ -279,6 +281,26 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     bodyAdjustments,
     bodyBase,
   ]);
+
+  async function saveDraft() {
+    setDraftSaving(true);
+    const draft = {
+      kind: "identity", selections, mediaSelected, customValues, completedSteps, activeStep, bodyAdjustments,
+      bodyRefinements: {
+        ass: round1(bodyBase.ass + bodyAdjustments.ass),
+        fat: round1(bodyBase.fat + bodyAdjustments.fat),
+        breasts: round1(bodyBase.breasts + bodyAdjustments.breasts),
+        butt_elevation: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
+      },
+    };
+    try {
+      const updated = await saveAiModelDraft(modelId, draft, displayName.trim() || model?.name);
+      setModel(updated);
+      notify.success("Borrador guardado");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "No se pudo guardar el borrador");
+    } finally { setDraftSaving(false); }
+  }
 
   const currentStep = STEPS[activeStep];
   const occupationFeatured = useMemo(() => {
@@ -457,6 +479,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   paso.
                 </p>
               </div>
+              <button type="button" className="modelDraftSaveButton" onClick={saveDraft} disabled={draftSaving}>
+                <Save size={15} /> {draftSaving ? "Guardando…" : "Guardar borrador"}
+              </button>
             </div>
           </div>
         </header>

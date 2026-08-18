@@ -1,9 +1,9 @@
 "use client";
 import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Sparkles, X, Pencil } from "lucide-react";
+import { ArrowLeft, Check, Sparkles, X, Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
-import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody } from "@/lib/ai-model-api";
+import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody,saveAiModelDraft } from "@/lib/ai-model-api";
 import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
 import { ModelImage } from "./model-image";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
@@ -34,6 +34,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [gallery,setGallery]=useState(false);
  const [fatFilter,setFatFilter]=useState("all"); const [hipFilter,setHipFilter]=useState("all"); const [breastFilter,setBreastFilter]=useState("all");
  const [saving,setSaving]=useState(false);
+ const [draftSaving,setDraftSaving]=useState(false);
  const [transitionKey,setTransitionKey]=useState(0);
  const [loadingTarget,setLoadingTarget]=useState<BodyVariant|null>(null);
  const [scannerFinishing,setScannerFinishing]=useState(false);
@@ -47,9 +48,11 @@ export function ModelStudio({modelId}:{modelId:number}){
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
    setModel(m);setItems(c.items);
-   const initial=c.items.find(x=>x.id===m.body_proportion_preset_id)||c.items[0]||null;
+   const draft=m.draft_json as {kind?:string;body_proportion_preset_id?:number;bubble_butt_variant_index?:number}|undefined;
+   const draftBodyId=draft?.kind==="body"?draft.body_proportion_preset_id:undefined;
+   const initial=c.items.find(x=>x.id===draftBodyId)||c.items.find(x=>x.id===m.body_proportion_preset_id)||c.items[0]||null;
    setSelected(initial);
-   setSelectedBubbleLevel(m.bubble_butt_variant_index ?? 1);
+   setSelectedBubbleLevel(draft?.kind==="body"&&draft.bubble_butt_variant_index!=null?draft.bubble_butt_variant_index:(m.bubble_butt_variant_index ?? 1));
    if(initial)setAxes({hips:initial.hips_size,fat:initial.fat_thin,breasts:initial.breasts_size,breastBand:initial.breast_band||""});
  }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar el estudio"))},[modelId]);
 
@@ -181,6 +184,15 @@ export function ModelStudio({modelId}:{modelId:number}){
 
  const filtered=items.filter(x=>(fatFilter==="all"||x.fat_band===fatFilter)&&(hipFilter==="all"||x.hips_band===hipFilter)&&(breastFilter==="all"||x.breast_band===breastFilter));
  const bands=(key:"fat_band"|"hips_band"|"breast_band")=>[...new Set(items.map(x=>x[key]).filter(Boolean))] as string[];
+ async function saveDraft(){
+  if(!selected){toast.error("Selecciona un cuerpo antes de guardar el borrador.");return;}
+  setDraftSaving(true);
+  try{
+   const updated=await saveAiModelDraft(modelId,{kind:"body",body_proportion_preset_id:selected.id,bubble_butt_variant_index:selectedBubbleLevel,axes},displayName.trim()||model?.name);
+   setModel(updated);
+   toast.success("Borrador guardado");
+  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar el borrador")}finally{setDraftSaving(false)}
+ }
  async function confirm(){
   if(!selected)return;
   const selectedBubble=bubbleVariants.find(item=>item.variant_index===selectedBubbleLevel);
@@ -209,6 +221,9 @@ export function ModelStudio({modelId}:{modelId:number}){
        <h2>Esculpe tu cuerpo</h2>
        <p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p>
       </div>
+      <button type="button" className="modelDraftSaveButton" onClick={saveDraft} disabled={draftSaving}>
+       <Save size={15}/>{draftSaving?"Guardando…":"Guardar borrador"}
+      </button>
      </div>
     </div>
    </header>

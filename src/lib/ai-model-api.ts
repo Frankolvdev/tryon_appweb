@@ -7,3 +7,5 @@ export const listBodyVariants=(sex:ModelSex)=>apiFetch<BodyVariantCatalog>(`/api
 export const setAiModelBody=(id:number,presetId:number,bubbleButtPresetId:number)=>apiFetch<AiModelProfile>(`/api/v1/ai-models/${id}/body`,{method:"PUT",body:JSON.stringify({body_proportion_preset_id:presetId,bubble_butt_preset_id:bubbleButtPresetId})});
 
 export const listBubbleButtVariants=(presetId:number)=>apiFetch<BubbleButtVariantCatalog>(`/api/v1/ai-models/body-variants/${presetId}/bubble-butt`);
+
+export const saveAiModelDraft=(id:number,draft:Record<string,unknown>,name?:string)=>apiFetch<AiModelProfile>(`/api/v1/ai-models/${id}/draft`,{method:"PUT",body:JSON.stringify({draft,name})});
