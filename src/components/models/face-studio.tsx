@@ -28,6 +28,7 @@ import type {
   ModelGenerationToolKey,
 } from "@/types/model-generation-asset";
 import { ModelImage } from "./model-image";
+import { ModelGlobalTimeline } from "./model-global-timeline";
 import { AncestryExperience } from "./ancestry-experience";
 import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { useRouter } from "next/navigation";
@@ -334,7 +335,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }
 
   function goToStep(index: number) {
+    if (index === activeStep) return;
     const target = STEPS[index];
+    if (currentStep.kind !== "summary" && !completedSteps.includes(currentStep.id)) {
+      const pending = pendingFor(currentStep);
+      if (pending === "custom" && !(customValues[currentStep.id] || "").trim()) {
+        showValidation("Completa el campo Custom y pulsa Elegir antes de cambiar de paso.");
+      } else if (pending) {
+        showValidation(`Confirma tu selección de ${currentStep.label} con Elegir antes de cambiar de paso.`);
+      } else if (currentStep.optional) {
+        showValidation(`Confirma ${currentStep.label} con Elegir antes de cambiar de paso.`);
+      } else {
+        showValidation(`Debes elegir una opción en ${currentStep.label} antes de cambiar de paso.`);
+      }
+      return;
+    }
     if (target?.id === "summary" && !summaryReady) {
       showValidation("Completa los pasos obligatorios antes de abrir el resumen.");
       return;
@@ -350,6 +365,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       ...current,
       [key]: value.slice(0, limit),
     }));
+    if (completedSteps.includes(key)) {
+      setCompletedSteps((current) => current.filter((id) => id !== key));
+    }
   }
 
   function pendingFor(step: StepDefinition) {
@@ -403,6 +421,12 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   function choosePending(stepId: StepId, value: string) {
     clearValidation();
     setPendingValues((current) => ({ ...current, [stepId]: value }));
+    const committed = stepId === "eyebrows" || stepId === "lips" || stepId === "hairstyle"
+      ? mediaSelected[stepId]
+      : selections[stepId];
+    if (completedSteps.includes(stepId) && committed !== value) {
+      setCompletedSteps((current) => current.filter((id) => id !== stepId));
+    }
   }
 
   function selectionLabel(step: StepDefinition) {
@@ -441,6 +465,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   return (
     <div className="modelStudio faceStudio pageEnter">
+      <ModelGlobalTimeline modelId={modelId} active="identity" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
       <div className="modelHeaderShell">
         <button
           onClick={() => router.push(`/models/${modelId}`)}
@@ -884,110 +909,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     </div>
                   </div>
 
-                  <div className="faceSummaryGrid">
-                    {ancestry && (
-                      <article className="faceSummaryCard ancestry">
-                        <div className="faceSummaryMedia">
-                          {ancestry.video_url ? (
-                            <video
-                              src={ancestry.video_url}
-                              poster={ancestry.poster_url || undefined}
-                              muted
-                              loop
-                              playsInline
-                              autoPlay
-                              controls={false}
-                            />
-                          ) : ancestry.poster_url ? (
-                            <img src={ancestry.poster_url} alt="" />
-                          ) : (
-                            <Sparkles size={24} />
-                          )}
-                        </div>
-                        <span>Ancestry</span>
-                        <strong>{ancestry.display_name}</strong>
-                      </article>
-                    )}
-
-                    {STEPS.filter(
-                      (step) =>
-                        step.kind !== "summary" && step.id !== "extraDetails",
-                    ).map((step) => {
-                      if (step.kind === "media") {
-                        const key = mediaSelected[step.id];
-                        const item = mediaAssets[step.id]?.find(
-                          (asset) => asset.asset_key === key,
-                        );
-                        return (
-                          <article className="faceSummaryCard" key={step.id}>
-                            <div className="faceSummaryMedia">
-                              {key === "custom" ? (
-                                <WandSparkles size={26} />
-                              ) : item?.video_url ? (
-                                <video
-                                  src={item.video_url}
-                                  poster={item.poster_url || undefined}
-                                  muted
-                                  loop
-                                  playsInline
-                                  autoPlay
-                                  controls={false}
-                                  disablePictureInPicture
-                                />
-                              ) : item?.poster_url ? (
-                                <img src={item.poster_url} alt="" />
-                              ) : (
-                                <Sparkles size={24} />
-                              )}
-                            </div>
-                            <span>{step.label}</span>
-                            <strong>{selectionLabel(step)}</strong>
-                          </article>
-                        );
-                      }
-
-                      if (step.kind === "occupation") {
-                        return (
-                          <article className="faceSummaryCard occupation" key={step.id}>
-                            <div className="faceSummaryMedia faceSummaryOccupation">
-                              <span aria-hidden="true">⌁</span>
-                            </div>
-                            <span>{step.label}</span>
-                            <strong>{selectionLabel(step)}</strong>
-                          </article>
-                        );
-                      }
-
-                      const selected = colorOption(
-                        step.id,
-                        selections[step.id],
-                      );
-                      const custom = selections[step.id] === "custom";
-                      return (
-                        <article className="faceSummaryCard" key={step.id}>
-                          <div className="faceSummaryColor">
-                            <span
-                              style={{
-                                background: custom
-                                  ? "conic-gradient(#f43f5e,#eab308,#22c55e,#3b82f6,#a855f7,#f43f5e)"
-                                  : selected?.tone || "#333",
-                              }}
-                            />
-                          </div>
-                          <span>{step.label}</span>
-                          <strong>{selectionLabel(step)}</strong>
-                        </article>
-                      );
-                    })}
-
-                    <article className="faceSummaryCard extra">
-                      <div className="faceSummaryMedia">
-                        <WandSparkles size={24} />
-                      </div>
-                      <span>Extra Details</span>
-                      <strong>{selectionLabel(STEPS.find((step) => step.id === "extraDetails")!)}</strong>
-                    </article>
-                  </div>
+                  <SummaryCarousel
+                    ancestry={ancestry}
+                    steps={STEPS}
+                    mediaSelected={mediaSelected}
+                    mediaAssets={mediaAssets}
+                    selections={selections}
+                    customValues={customValues}
+                    occupationLocale={occupationLocale}
+                  />
                 </div>
               )}
 
@@ -1029,6 +959,85 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
     </div>
   );
+}
+
+
+type SummaryCarouselItem = {
+  id: string;
+  label: string;
+  value: string;
+  video?: string | null;
+  poster?: string | null;
+  tone?: string | null;
+  icon?: "sparkles" | "occupation";
+};
+
+function SummaryCarousel({ ancestry, steps, mediaSelected, mediaAssets, selections, customValues, occupationLocale }: {
+  ancestry: AncestryMediaAsset | null;
+  steps: StepDefinition[];
+  mediaSelected: Record<string,string>;
+  mediaAssets: Record<string,ModelGenerationAsset[]>;
+  selections: IdentitySelections;
+  customValues: Record<string,string>;
+  occupationLocale: OccupationLocale;
+}) {
+  const items: SummaryCarouselItem[] = [];
+  if (ancestry) items.push({ id:"ancestry", label:"Ancestry", value:ancestry.display_name, video:ancestry.video_url, poster:ancestry.poster_url });
+  for (const step of steps) {
+    if (step.kind === "summary") continue;
+    if (step.kind === "media") {
+      const key=mediaSelected[step.id];
+      const asset=mediaAssets[step.id]?.find((row)=>row.asset_key===key);
+      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues[step.id]||"Custom"):(asset?.title||"Sin elegir"),video:asset?.video_url,poster:asset?.poster_url,icon:key==="custom"?"sparkles":undefined });
+    } else if (step.kind === "color") {
+      const key=selections[step.id];
+      const opt=colorOption(step.id,key);
+      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues[step.id]||"Custom"):(opt?.label||"Sin elegir"),tone:key==="custom"?"conic-gradient(#f43f5e,#eab308,#22c55e,#3b82f6,#a855f7,#f43f5e)":(opt?.tone||"#333") });
+    } else if (step.kind === "occupation") {
+      const key=selections.occupation;
+      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues.occupation||"Custom"):(getOccupationLabel(key,occupationLocale)||"Sin elegir"),icon:"occupation" });
+    } else if (step.kind === "extra") {
+      items.push({ id:step.id,label:"Extra Details",value:customValues.extraDetails?.trim()||"Sin detalle",icon:"sparkles" });
+    }
+  }
+  const [index,setIndex]=useState(0);
+  const [dragX,setDragX]=useState(0);
+  const dragStart=useRef<number|null>(null);
+  const dragging=useRef(false);
+  const count=Math.max(items.length,1);
+  const move=(direction:number)=>setIndex((current)=>(current+direction+count)%count);
+  useEffect(()=>{
+    if(items.length<=1)return;
+    const timer=window.setInterval(()=>{if(!dragging.current)move(1)},2300);
+    return()=>window.clearInterval(timer);
+  },[items.length]);
+  useEffect(()=>{if(index>=items.length&&items.length)setIndex(0)},[items.length,index]);
+  if(!items.length)return null;
+  const item=items[index];
+  return <div className="faceSummaryCarousel">
+    <div
+      className={`faceSummaryCarouselViewport${dragging.current?" dragging":""}`}
+      onPointerDown={(event)=>{dragging.current=true;dragStart.current=event.clientX;setDragX(0);event.currentTarget.setPointerCapture(event.pointerId)}}
+      onPointerMove={(event)=>{if(!dragging.current||dragStart.current==null)return;setDragX(event.clientX-dragStart.current)}}
+      onPointerUp={(event)=>{if(!dragging.current)return;const dx=dragX;if(Math.abs(dx)>45)move(dx<0?1:-1);dragging.current=false;dragStart.current=null;setDragX(0);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId)}}
+      onPointerCancel={()=>{dragging.current=false;dragStart.current=null;setDragX(0)}}
+    >
+      <article className="faceSummaryCarouselCard" style={{transform:`translateX(${dragX}px) rotate(${Math.max(-2,Math.min(2,dragX/80))}deg)`}}>
+        <div className="faceSummaryCarouselMedia">
+          {item.video?<video key={`${item.id}-${item.video}`} src={item.video} poster={item.poster||undefined} muted loop playsInline autoPlay controls={false} disablePictureInPicture/>:
+           item.poster?<img src={item.poster} alt="" draggable={false}/>:
+           item.tone?<span className="faceSummaryCarouselColor" style={{background:item.tone}}/>:
+           item.icon==="occupation"?<img className="faceSummaryCarouselIcon" src="/identity-icons/occupation.svg" alt=""/>:<WandSparkles size={34}/>} 
+        </div>
+        <span>{item.label}</span><strong>{item.value}</strong>
+      </article>
+    </div>
+    <div className="faceSummaryCarouselFooter">
+      <span>{index+1}/{items.length}</span>
+      <div className="faceSummaryCarouselDots">{items.map((row,i)=><button key={row.id} type="button" className={i===index?"active":""} onClick={()=>setIndex(i)} aria-label={`Ver ${row.label}`}/>)}</div>
+      <small>Arrastra para recorrer</small>
+    </div>
+  </div>;
 }
 
 function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { label: string; internalKey: "ass" | "fat" | "breasts" | "butt_elevation"; base: number; delta: number; onChange: (value: number) => void }) {

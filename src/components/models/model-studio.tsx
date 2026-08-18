@@ -7,6 +7,7 @@ import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody,saveA
 import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
 import { ModelImage } from "./model-image";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
+import { ModelGlobalTimeline } from "./model-global-timeline";
 
 type AxisState={hips:number;fat:number;breasts:number;breastBand:string};
 const EPS=1e-6;
@@ -208,6 +209,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudio pageEnter">
+  <ModelGlobalTimeline modelId={modelId} active="body" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
   <div className="modelHeaderShell">
    <button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button>
    <header className="modelStudioHead">
