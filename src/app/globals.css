@@ -4254,3 +4254,64 @@ output.modelSliderValue{
     margin:0!important;
   }
 }
+
+
+/* =========================================================
+   GLOBAL TIMELINE — larger desktop nodes + mobile appbar clearance
+   Scoped only to the encapsulated global stage rail.
+   ========================================================= */
+
+/* Desktop: ~30% larger than the approved 48px global-stage nodes. */
+@media (min-width:1281px){
+  .modelStudioStageRail .modelGlobalStageIcon{
+    width:62px!important;
+    height:62px!important;
+    flex:0 0 62px!important;
+  }
+  .modelStudioStageRail .modelGlobalStageIcon img,
+  .modelStudioStageRail .modelGlobalStageIcon svg{
+    width:32px!important;
+    height:32px!important;
+  }
+  .modelStudioStageRail .modelGlobalStage{
+    gap:9px!important;
+  }
+  .modelStudioStageRail .modelGlobalStageCopy small{
+    font-size:8px!important;
+  }
+  .modelStudioStageRail .modelGlobalStageCopy strong{
+    font-size:11px!important;
+  }
+}
+
+/* Medium desktop: preserve the same proportional increase. */
+@media (max-width:1280px) and (min-width:1024px){
+  .modelStudioStageRail .modelGlobalStageIcon{
+    width:55px!important;
+    height:55px!important;
+    flex:0 0 55px!important;
+  }
+  .modelStudioStageRail .modelGlobalStageIcon img,
+  .modelStudioStageRail .modelGlobalStageIcon svg{
+    width:28px!important;
+    height:28px!important;
+  }
+}
+
+/* Mobile/tablet: keep the global rail below the fixed/sticky appbar. */
+@media (max-width:1023px){
+  .modelStudioStageRail{
+    padding-top:58px!important;
+  }
+
+  .modelStudioStageRail > .modelGlobalTimeline{
+    margin-top:0!important;
+  }
+}
+
+/* Smaller phones need a little less but still clear the header safely. */
+@media (max-width:520px){
+  .modelStudioStageRail{
+    padding-top:54px!important;
+  }
+}
