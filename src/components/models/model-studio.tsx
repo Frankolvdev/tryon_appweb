@@ -208,8 +208,12 @@ export function ModelStudio({modelId}:{modelId:number}){
  }
  const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
- return <div className="modelStudio pageEnter">
-  <ModelGlobalTimeline modelId={modelId} active="body" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
+ return <div className="modelStudioViewport">
+  <aside className="modelStudioStageRail">
+   <ModelGlobalTimeline modelId={modelId} active="body" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
+  </aside>
+  <div className="modelStudioStageContent">
+   <div className="modelStudio pageEnter">
   <div className="modelHeaderShell">
    <button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button>
    <header className="modelStudioHead">
@@ -277,6 +281,8 @@ export function ModelStudio({modelId}:{modelId:number}){
      <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
   {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
+   </div>
+  </div>
  </div>
 }
 
@@ -414,6 +420,8 @@ function BreastAxis({levels,selectedBand,onChange}:{levels:{band:string;value:nu
      <span className="modelDiscreteThumb" style={{left:`${percent}%`}}/>
    </div>
    <div className="modelAxisEnds"><span>Small</span><span>Huge</span></div>
+ </div>
+  </div>
  </div>
 }
 function Filter({label,value,options,onChange}:{label:string;value:string;options:string[];onChange:(v:string)=>void}){return <label><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}><option value="all">Todos</option>{options.map(x=><option value={x} key={x}>{x.replaceAll("_"," ")}</option>)}</select></label>}

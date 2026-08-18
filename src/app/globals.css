@@ -4086,3 +4086,171 @@ output.modelSliderValue{
 .faceStepContent:has(.faceSummaryMinimal){
   padding-top:0!important;
 }
+
+
+/* =========================================================
+   GLOBAL STUDIO VIEWPORT — structural isolation
+   The existing Body/Identity content is preserved inside
+   modelStudioStageContent. Global timeline gets its own column.
+   ========================================================= */
+.modelStudioViewport{
+  width:100%;
+  min-width:0;
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  gap:18px;
+  align-items:start;
+  position:relative;
+}
+.modelStudioStageRail{
+  min-width:0;
+  width:92px;
+  align-self:stretch;
+  position:relative;
+  z-index:4;
+}
+.modelStudioStageContent{
+  width:100%;
+  min-width:0;
+  position:relative;
+}
+
+/* Completely neutralize previous floating/fixed global timeline rules. */
+.modelStudioStageRail > .modelGlobalTimeline{
+  position:sticky!important;
+  inset:auto!important;
+  left:auto!important;
+  right:auto!important;
+  top:50vh!important;
+  bottom:auto!important;
+  transform:translateY(-50%)!important;
+  width:92px!important;
+  min-height:520px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;
+  box-shadow:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:0!important;
+  overflow:visible!important;
+}
+.modelStudioStageRail .modelGlobalStage{
+  width:92px!important;
+  min-width:92px!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  text-align:center!important;
+}
+.modelStudioStageRail .modelGlobalStageCopy{
+  display:grid!important;
+  justify-items:center!important;
+  gap:2px!important;
+}
+.modelStudioStageRail .modelGlobalStageCopy small{
+  font-size:7px!important;
+  letter-spacing:.12em!important;
+}
+.modelStudioStageRail .modelGlobalStageCopy strong{
+  font-size:10px!important;
+}
+.modelStudioStageRail .modelGlobalStageIcon{
+  width:48px!important;
+  height:48px!important;
+  flex:0 0 48px!important;
+}
+.modelStudioStageRail .modelGlobalStageIcon img,
+.modelStudioStageRail .modelGlobalStageIcon svg{
+  width:25px!important;
+  height:25px!important;
+}
+.modelStudioStageRail .modelGlobalLine{
+  width:2px!important;
+  height:230px!important;
+  margin:10px 0!important;
+  display:block!important;
+  background:#292930!important;
+}
+.modelStudioStageRail .modelGlobalLine.complete{
+  background:linear-gradient(180deg,#e11d35,#751522)!important;
+}
+
+/* Medium desktop: compact the rail, still structural and never overlaying content. */
+@media(max-width:1280px) and (min-width:1024px){
+  .modelStudioViewport{
+    grid-template-columns:74px minmax(0,1fr);
+    gap:10px;
+  }
+  .modelStudioStageRail{width:74px}
+  .modelStudioStageRail > .modelGlobalTimeline{width:74px!important;min-height:460px!important}
+  .modelStudioStageRail .modelGlobalStage{width:74px!important;min-width:74px!important}
+  .modelStudioStageRail .modelGlobalStageIcon{width:42px!important;height:42px!important;flex-basis:42px!important}
+  .modelStudioStageRail .modelGlobalLine{height:190px!important}
+}
+
+/* Mobile/tablet: rail becomes first row, content remains second row. */
+@media(max-width:1023px){
+  .modelStudioViewport{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    gap:8px;
+  }
+  .modelStudioStageRail{
+    width:100%;
+    align-self:auto;
+    order:0;
+  }
+  .modelStudioStageContent{
+    width:100%;
+    order:1;
+  }
+  .modelStudioStageRail > .modelGlobalTimeline{
+    position:relative!important;
+    inset:auto!important;
+    top:auto!important;
+    transform:none!important;
+    width:min(100%,560px)!important;
+    min-height:0!important;
+    margin:0 auto!important;
+    padding:7px 8px!important;
+    display:grid!important;
+    grid-template-columns:1fr minmax(48px,110px) 1fr!important;
+    align-items:center!important;
+  }
+  .modelStudioStageRail .modelGlobalStage{
+    width:auto!important;
+    min-width:0!important;
+    flex-direction:row!important;
+    gap:7px!important;
+    justify-content:center!important;
+  }
+  .modelStudioStageRail .modelGlobalStageCopy{
+    justify-items:start!important;
+    text-align:left!important;
+  }
+  .modelStudioStageRail .modelGlobalStageIcon{
+    width:36px!important;
+    height:36px!important;
+    flex-basis:36px!important;
+  }
+  .modelStudioStageRail .modelGlobalStageIcon img,
+  .modelStudioStageRail .modelGlobalStageIcon svg{
+    width:19px!important;
+    height:19px!important;
+  }
+  .modelStudioStageRail .modelGlobalLine{
+    width:100%!important;
+    height:2px!important;
+    margin:0!important;
+  }
+}

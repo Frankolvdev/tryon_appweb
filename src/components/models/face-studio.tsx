@@ -472,8 +472,12 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     );
 
   return (
-    <div className="modelStudio faceStudio pageEnter">
-      <ModelGlobalTimeline modelId={modelId} active="identity" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
+    <div className="modelStudioViewport">
+      <aside className="modelStudioStageRail">
+        <ModelGlobalTimeline modelId={modelId} active="identity" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
+      </aside>
+      <div className="modelStudioStageContent">
+        <div className="modelStudio faceStudio pageEnter">
       <div className="modelHeaderShell">
         <button
           onClick={() => router.push(`/models/${modelId}`)}
@@ -955,8 +959,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           </div>
         </section>
       </div>
-
+      </div>
     </div>
+  </div>
   );
 }
 
@@ -1031,6 +1036,9 @@ function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { lab
         <span className="modelDiscreteThumb" style={{ left: `${percent}%` }} />
       </div>
       <div className="modelAxisEnds"><span>-0.8</span><span>0</span><span>+0.8</span></div>
+    </div>
+        </div>
+      </div>
     </div>
   );
 }
