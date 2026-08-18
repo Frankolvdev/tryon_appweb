@@ -30,7 +30,6 @@ import type {
 import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
 import { AncestryExperience } from "./ancestry-experience";
-import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { useRouter } from "next/navigation";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
@@ -132,6 +131,9 @@ const STEPS: StepDefinition[] = [
   },
 ];
 
+const IDENTITY_COMPLETABLE_STEP_IDS = STEPS.filter((step) => step.kind !== "summary").map((step) => step.id);
+const IDENTITY_DONE_STEP_INDEX = STEPS.findIndex((step) => step.kind === "summary");
+
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
@@ -164,8 +166,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   >({ eyebrows: [], lips: [], hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
-  const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
-
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
@@ -193,7 +193,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             });
             setMediaSelected(data.mediaSelected || {});
             setCustomValues(data.customValues || {});
-            setCompletedSteps(data.completedSteps || []);
+            const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
+              ? data.completedSteps
+              : [];
+            setCompletedSteps(restoredCompletedSteps);
             if (data.bodyAdjustments) {
               const safeBody = {
                 ass: normalizeBodyDelta(data.bodyAdjustments.ass),
@@ -204,10 +207,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               setBodyAdjustments(safeBody);
               setBodyDraft(safeBody);
             }
+            const restoredIsComplete = IDENTITY_COMPLETABLE_STEP_IDS.every((stepId) =>
+              restoredCompletedSteps.includes(stepId),
+            );
             setActiveStep(
-              Number.isInteger(data.activeStep)
-                ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
-                : 0,
+              restoredIsComplete
+                ? IDENTITY_DONE_STEP_INDEX
+                : Number.isInteger(data.activeStep)
+                  ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
+                  : 0,
             );
           }
         } catch {}
@@ -512,7 +520,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </header>
       </div>
 
-      <AncestryExperience modelId={modelId} onChange={setAncestry} />
+      <AncestryExperience modelId={modelId} onChange={() => {}} />
 
       <div className="faceBuilder">
         <div className="facePreviewRail">
@@ -894,30 +902,27 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               )}
 
               {currentStep.kind === "summary" && (
-                <div className="faceSummary">
+                <div className="faceSummary faceSummaryMinimal">
                   <div className="faceSummaryHero">
                     <span className="faceSummaryDoneIcon">
                       <Check size={24} />
                     </span>
                     <div>
                       <span>STEP DONE</span>
-                      <h3>Tu identidad está lista para revisar</h3>
+                      <h3>Tu identidad está lista</h3>
                       <p>
-                        Las previews animadas muestran exactamente las
-                        selecciones confirmadas.
+                        Todos los pasos fueron confirmados. Ya puedes generar tu modelo.
                       </p>
                     </div>
                   </div>
 
-                  <SummaryCarousel
-                    ancestry={ancestry}
-                    steps={STEPS}
-                    mediaSelected={mediaSelected}
-                    mediaAssets={mediaAssets}
-                    selections={selections}
-                    customValues={customValues}
-                    occupationLocale={occupationLocale}
-                  />
+                  <button
+                    className="faceGenerateModelButton faceGenerateModelButtonDone"
+                    type="button"
+                  >
+                    <WandSparkles size={19} />
+                    Generar modelo
+                  </button>
                 </div>
               )}
 
@@ -949,99 +954,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </section>
       </div>
 
-      <button
-        className="faceGenerateModelButton"
-        type="button"
-      >
-        <WandSparkles size={19} />
-        Generar modelo
-      </button>
-
     </div>
   );
 }
 
 
-type SummaryCarouselItem = {
-  id: string;
-  label: string;
-  value: string;
-  video?: string | null;
-  poster?: string | null;
-  tone?: string | null;
-  icon?: "sparkles" | "occupation";
-};
-
-function SummaryCarousel({ ancestry, steps, mediaSelected, mediaAssets, selections, customValues, occupationLocale }: {
-  ancestry: AncestryMediaAsset | null;
-  steps: StepDefinition[];
-  mediaSelected: Record<string,string>;
-  mediaAssets: Record<string,ModelGenerationAsset[]>;
-  selections: IdentitySelections;
-  customValues: Record<string,string>;
-  occupationLocale: OccupationLocale;
-}) {
-  const items: SummaryCarouselItem[] = [];
-  if (ancestry) items.push({ id:"ancestry", label:"Ancestry", value:ancestry.display_name, video:ancestry.video_url, poster:ancestry.poster_url });
-  for (const step of steps) {
-    if (step.kind === "summary") continue;
-    if (step.kind === "media") {
-      const key=mediaSelected[step.id];
-      const asset=mediaAssets[step.id]?.find((row)=>row.asset_key===key);
-      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues[step.id]||"Custom"):(asset?.title||"Sin elegir"),video:asset?.video_url,poster:asset?.poster_url,icon:key==="custom"?"sparkles":undefined });
-    } else if (step.kind === "color") {
-      const key=selections[step.id];
-      const opt=colorOption(step.id,key);
-      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues[step.id]||"Custom"):(opt?.label||"Sin elegir"),tone:key==="custom"?"conic-gradient(#f43f5e,#eab308,#22c55e,#3b82f6,#a855f7,#f43f5e)":(opt?.tone||"#333") });
-    } else if (step.kind === "occupation") {
-      const key=selections.occupation;
-      items.push({ id:step.id,label:step.label,value:key==="custom"?(customValues.occupation||"Custom"):(getOccupationLabel(key,occupationLocale)||"Sin elegir"),icon:"occupation" });
-    } else if (step.kind === "extra") {
-      items.push({ id:step.id,label:"Extra Details",value:customValues.extraDetails?.trim()||"Sin detalle",icon:"sparkles" });
-    }
-  }
-  const [index,setIndex]=useState(0);
-  const [dragX,setDragX]=useState(0);
-  const dragStart=useRef<number|null>(null);
-  const dragging=useRef(false);
-  const count=Math.max(items.length,1);
-  const move=(direction:number)=>setIndex((current)=>(current+direction+count)%count);
-  useEffect(()=>{
-    if(items.length<=1)return;
-    const timer=window.setInterval(()=>{if(!dragging.current)move(1)},2300);
-    return()=>window.clearInterval(timer);
-  },[items.length]);
-  useEffect(()=>{if(index>=items.length&&items.length)setIndex(0)},[items.length,index]);
-  if(!items.length)return null;
-  const visibleCount=Math.min(3,items.length);
-  const visibleItems=Array.from({length:visibleCount},(_,offset)=>items[(index+offset)%items.length]);
-  return <div className="faceSummaryCarousel">
-    <div
-      className={`faceSummaryCarouselViewport${dragging.current?" dragging":""}`}
-      onPointerDown={(event)=>{dragging.current=true;dragStart.current=event.clientX;setDragX(0);event.currentTarget.setPointerCapture(event.pointerId)}}
-      onPointerMove={(event)=>{if(!dragging.current||dragStart.current==null)return;setDragX(event.clientX-dragStart.current)}}
-      onPointerUp={(event)=>{if(!dragging.current)return;const dx=dragX;if(Math.abs(dx)>45)move(dx<0?1:-1);dragging.current=false;dragStart.current=null;setDragX(0);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId)}}
-      onPointerCancel={()=>{dragging.current=false;dragStart.current=null;setDragX(0)}}
-    >
-      <div className="faceSummaryCarouselRail" style={{transform:`translateX(${Math.max(-70,Math.min(70,dragX))}px)`}}>
-        {visibleItems.map((item,offset)=><article key={`${item.id}-${index}-${offset}`} className={`faceSummaryCarouselCard${offset===0?" current":""}`}>
-          <div className="faceSummaryCarouselMedia">
-            {item.video?<video key={`${item.id}-${item.video}`} src={item.video} poster={item.poster||undefined} muted loop playsInline autoPlay controls={false} disablePictureInPicture/>:
-             item.poster?<img src={item.poster} alt="" draggable={false}/>:
-             item.tone?<span className="faceSummaryCarouselColor" style={{background:item.tone}}/>:
-             item.icon==="occupation"?<img className="faceSummaryCarouselIcon" src="/identity-icons/occupation.svg" alt=""/>:<WandSparkles size={34}/>}
-          </div>
-          <span>{item.label}</span><strong>{item.value}</strong>
-        </article>)}
-      </div>
-    </div>
-    <div className="faceSummaryCarouselFooter">
-      <span>{index+1}/{items.length}</span>
-      <div className="faceSummaryCarouselDots">{items.map((row,i)=><button key={row.id} type="button" className={i===index?"active":""} onClick={()=>setIndex(i)} aria-label={`Ver ${row.label}`}/>)}</div>
-      <small>Arrastra para recorrer</small>
-    </div>
-  </div>;
-}
 
 function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { label: string; internalKey: "ass" | "fat" | "breasts" | "butt_elevation"; base: number; delta: number; onChange: (value: number) => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);

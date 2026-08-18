@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, UserRound, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { notify } from "@/lib/notify";
 
@@ -34,7 +34,10 @@ export function ModelGlobalTimeline({
         onClick={() => go("body")}
         aria-current={active === "body" ? "step" : undefined}
       >
-        <span className="modelGlobalStageIcon"><UserRound size={16}/>{bodyConfirmed && <b><Check size={9}/></b>}</span>
+        <span className="modelGlobalStageIcon">
+          <img src="/model-stage-icons/body.svg" alt="" aria-hidden="true" />
+          {bodyConfirmed && <b><Check size={10}/></b>}
+        </span>
         <span className="modelGlobalStageCopy"><small>PASO 01</small><strong>Cuerpo</strong></span>
       </button>
       <i className={`modelGlobalLine${bodyConfirmed ? " complete" : ""}`} aria-hidden="true"/>
@@ -44,7 +47,9 @@ export function ModelGlobalTimeline({
         onClick={() => go("identity")}
         aria-current={active === "identity" ? "step" : undefined}
       >
-        <span className="modelGlobalStageIcon"><Sparkles size={16}/></span>
+        <span className="modelGlobalStageIcon">
+          <img src="/model-stage-icons/identity.svg" alt="" aria-hidden="true" />
+        </span>
         <span className="modelGlobalStageCopy"><small>PASO 02</small><strong>Identidad</strong></span>
       </button>
     </nav>
