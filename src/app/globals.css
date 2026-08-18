@@ -3378,3 +3378,63 @@ output.modelSliderValue{
   .faceColorSwatch{width:36px;height:36px}
   .faceOccupationGrid{gap:6px!important}
 }
+
+
+/* HOTFIX 2026-08-17 — Identity mobile timeline: show every step at once.
+   Desktop is intentionally untouched. */
+@media (max-width:700px){
+  .faceStepTimeline{
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    grid-auto-rows:auto;
+    gap:10px 4px!important;
+    overflow:visible!important;
+    overflow-x:visible!important;
+    width:100%;
+    max-width:100%;
+    padding:10px 2px 12px!important;
+    scroll-snap-type:none!important;
+  }
+  .faceTimelineStep{
+    width:auto!important;
+    min-width:0!important;
+    flex:none!important;
+    padding:2px 0 4px!important;
+    gap:5px!important;
+  }
+  .faceTimelineIcon{
+    width:34px!important;
+    height:34px!important;
+    margin:0 auto;
+    flex:0 0 34px!important;
+  }
+  .faceTimelineIcon img{
+    width:18px!important;
+    height:18px!important;
+  }
+  .faceTimelineStep small{
+    width:100%!important;
+    max-width:none!important;
+    min-height:17px;
+    font-size:6.6px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+    text-align:center;
+    overflow:visible!important;
+  }
+}
+
+@media (max-width:360px){
+  .faceStepTimeline{
+    gap:9px 2px!important;
+  }
+  .faceTimelineIcon{
+    width:32px!important;
+    height:32px!important;
+    flex-basis:32px!important;
+  }
+  .faceTimelineStep small{
+    font-size:6.1px!important;
+    letter-spacing:0!important;
+  }
+}

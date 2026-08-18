@@ -309,7 +309,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       ? OCCUPATIONS.find((item) => item.id === activeOccupation)
       : undefined;
     const base = OCCUPATIONS.filter((item) => item.id !== promoted?.id);
-    return promoted ? [promoted, ...base.slice(0, 10)] : base.slice(0, 11);
+    return promoted ? [promoted, ...base.slice(0, 14)] : base.slice(0, 15);
   }, [pendingValues.occupation, selections.occupation]);
   const occupationResults = useMemo(() => {
     const query = occupationSearch.trim().toLowerCase();
