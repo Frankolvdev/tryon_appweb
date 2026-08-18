@@ -421,7 +421,5 @@ function BreastAxis({levels,selectedBand,onChange}:{levels:{band:string;value:nu
    </div>
    <div className="modelAxisEnds"><span>Small</span><span>Huge</span></div>
  </div>
-  </div>
- </div>
 }
 function Filter({label,value,options,onChange}:{label:string;value:string;options:string[];onChange:(v:string)=>void}){return <label><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}><option value="all">Todos</option>{options.map(x=><option value={x} key={x}>{x.replaceAll("_"," ")}</option>)}</select></label>}

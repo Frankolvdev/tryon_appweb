@@ -1037,9 +1037,6 @@ function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { lab
       </div>
       <div className="modelAxisEnds"><span>-0.8</span><span>0</span><span>+0.8</span></div>
     </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
