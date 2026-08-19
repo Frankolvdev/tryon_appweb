@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useAppSession } from "@/components/app/app-session";
+import { isOwnerAccount } from "@/lib/owner-account";
 
 export default function DashboardPage() {
   const { user } = useAppSession();
   const firstName = user.full_name?.trim().split(/\s+/)[0] || "creador";
+  const owner = isOwnerAccount(user);
 
   return (
     <div className="dashboard pageEnter">
@@ -15,10 +17,17 @@ export default function DashboardPage() {
           <h1>Hola, {firstName}</h1>
           <p>Tu espacio creativo está preparado para la próxima transformación.</p>
         </div>
-        <Link href="/billing" className="tokenBadge" aria-label="Consultar tokens y plan">
-          <span>◇</span>
-          <div><small>Tokens disponibles</small><strong>{user.token_balance ?? "—"}</strong></div>
-        </Link>
+        {owner ? (
+          <div className="tokenBadge" aria-label="Cuenta de propietario">
+            <span>◇</span>
+            <div><small>Cuenta propietario</small><strong>Owner Local</strong></div>
+          </div>
+        ) : (
+          <Link href="/billing" className="tokenBadge" aria-label="Consultar tokens y plan">
+            <span>◇</span>
+            <div><small>Tokens disponibles</small><strong>{user.token_balance ?? "—"}</strong></div>
+          </Link>
+        )}
       </header>
 
       <section className="heroAction">

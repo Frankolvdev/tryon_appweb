@@ -23,6 +23,8 @@ import {
 } from "@/components/generation/dynamic-generation-form";
 import { GenerationResults } from "@/components/generation/generation-results";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
+import { useAppSession } from "@/components/app/app-session";
+import { isOwnerAccount } from "@/lib/owner-account";
 
 const ACTIVE = ["queued", "running"];
 const EXECUTION_HISTORY_LIMIT = 20;
@@ -114,7 +116,8 @@ function ExecutionInputAssets({
 function executionEngineLabel(engine: GenerationExecution["engine"]) {
   if (engine === "modal") return "Modal";
   if (engine === "beam") return "Beam";
-  if (engine === "local_docker") return "Local";
+  if (engine === "local_docker") return "Docker Local";
+  if (engine === "owner_local") return "Owner Local";
   if (engine === "runpod_serverless") return "RunPod Serverless";
   return "Simulado";
 }
@@ -319,6 +322,8 @@ function ExecutionCard({
 
 export function GenerationStudio() {
   const { track } = useGenerationJobs();
+  const { user } = useAppSession();
+  const owner = isOwnerAccount(user);
   const [modules, setModules] = useState<GenerationModule[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -483,7 +488,7 @@ export function GenerationStudio() {
                 </div>
                 <div>
                   <span className="generationBadge">
-                    {selected.default_execution_engine.replaceAll("_", " ")}
+                    {owner ? "owner local" : selected.default_execution_engine.replaceAll("_", " ")}
                   </span>
                 </div>
               </div>
@@ -495,40 +500,50 @@ export function GenerationStudio() {
                 disabled={busy || restoring}
               />
 
-              {selected.pricing?.is_active && (
+              {(owner || selected.pricing?.is_active) && (
                 <section className="generationEstimate" aria-label="Estimación de la ejecución">
                   <div>
                     <span>Tiempo estimado</span>
-                    <strong>{formatDuration(selected.pricing.estimated_duration_seconds)}</strong>
-                    <small>{estimationSourceLabel(
+                    <strong>{formatDuration(selected.pricing?.estimated_duration_seconds)}</strong>
+                    <small>{selected.pricing ? estimationSourceLabel(
                       selected.pricing.estimated_duration_source,
                       selected.pricing.historical_samples_used ?? 0,
                       selected.pricing.estimate_confidence,
-                    )}</small>
+                    ) : "La cuenta Owner ejecuta sin regla comercial."}</small>
                   </div>
-                  <div>
-                    <span>Tokens estimados</span>
-                    <strong>{selected.pricing.required_tokens} ✦</strong>
-                    <small>El cobro final se ajusta al tiempo real.</small>
-                  </div>
+                  {owner ? (
+                    <div>
+                      <span>Cuenta</span>
+                      <strong>Propietario</strong>
+                      <small>Sin consumo de tokens ni movimientos comerciales.</small>
+                    </div>
+                  ) : selected.pricing ? (
+                    <div>
+                      <span>Tokens estimados</span>
+                      <strong>{selected.pricing.required_tokens} ✦</strong>
+                      <small>El cobro final se ajusta al tiempo real.</small>
+                    </div>
+                  ) : null}
                   <div>
                     <span>Infraestructura</span>
-                    <strong>{selected.pricing.provider ? executionEngineLabel(selected.pricing.provider as GenerationExecution["engine"]) : executionEngineLabel(selected.default_execution_engine)}</strong>
-                    <small>{selected.pricing.gpu_key || "GPU definida por el proveedor"}</small>
+                    <strong>{owner ? "Owner Local" : selected.pricing?.provider ? executionEngineLabel(selected.pricing.provider as GenerationExecution["engine"]) : executionEngineLabel(selected.default_execution_engine)}</strong>
+                    <small>{owner ? "GPU local configurada en BackOffice" : selected.pricing?.gpu_key || "GPU definida por el proveedor"}</small>
                   </div>
                 </section>
               )}
 
               <button
                 className="primaryButton generationRun"
-                disabled={busy || restoring || !selected.pricing?.is_active}
+                disabled={busy || restoring || (!owner && !selected.pricing?.is_active)}
                 onClick={run}
               >
                 {restoring
                   ? "Recuperando ejecución…"
-                  : selected.pricing?.is_active
-                    ? `${activeExecutionIds.length > 0 ? "Agregar otro a la cola" : "Ejecutar"} por ${selected.pricing.required_tokens} tokens ✦`
-                    : "Precio no configurado"}
+                  : owner
+                    ? `${activeExecutionIds.length > 0 ? "Agregar otro a la cola" : "Ejecutar"} · Owner Local`
+                    : selected.pricing?.is_active
+                      ? `${activeExecutionIds.length > 0 ? "Agregar otro a la cola" : "Ejecutar"} por ${selected.pricing.required_tokens} tokens ✦`
+                      : "Precio no configurado"}
               </button>
             </>
           )}

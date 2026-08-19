@@ -8,6 +8,7 @@ import { useAppSession } from "@/components/app/app-session";
 import { clearSession } from "@/lib/auth-storage";
 import { GenerationJobsProvider } from "@/components/generation/generation-jobs-provider";
 import { ActiveGenerationJobs } from "@/components/generation/active-generation-jobs";
+import { isOwnerAccount } from "@/lib/owner-account";
 
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
@@ -51,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppBrand collapsed={collapsed}/>
       <nav className="appNav" aria-label="Navegación principal">
         {!collapsed && <p className="appNavGroup">MI ESTUDIO</p>}
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.filter((item)=>!(isOwnerAccount(user) && item.href==="/billing")).map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return <Link key={href} href={href} title={collapsed ? label : undefined} className={`appNavItem${active ? " appNavItemActive" : ""}`} onClick={()=>setMobileOpen(false)}><Icon size={17} strokeWidth={1.8}/>{!collapsed && <span>{label}</span>}</Link>;
         })}

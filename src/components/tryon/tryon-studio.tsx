@@ -4,10 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageDrop } from "@/components/tryon/image-drop";
 import { createTryOn } from "@/lib/tryon-api";
+import { useAppSession } from "@/components/app/app-session";
+import { isOwnerAccount } from "@/lib/owner-account";
 import type { TryOnItemType, TryOnQualityMode } from "@/types/tryon";
 
 export function TryOnStudio() {
   const router = useRouter();
+  const { user } = useAppSession();
+  const owner = isOwnerAccount(user);
   const [personImage, setPersonImage] = useState<File | null>(null);
   const [itemImage, setItemImage] = useState<File | null>(null);
   const [itemType, setItemType] = useState<TryOnItemType>("clothing");
@@ -40,7 +44,7 @@ export function TryOnStudio() {
       <label className="promptField"><small>INDICACIONES OPCIONALES</small><textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={500} placeholder="Ejemplo: conservar la pose y la iluminación original."/><span>{prompt.length}/500</span></label>
       {error && <div className="formError">{error}</div>}
       <button className="primaryButton generateButton" disabled={busy} onClick={submit}>{busy ? "Creando trabajo…" : "Generar Try-On ✦"}</button>
-      <p className="studioNote">El consumo real de tokens y los límites son determinados por el backend.</p>
+      <p className="studioNote">{owner ? "Cuenta propietario: este Try-On se ejecuta mediante Owner Local sin consumir tokens ni generar movimientos comerciales." : "El consumo real de tokens y los límites son determinados por el backend."}</p>
     </aside>
   </div>;
 }

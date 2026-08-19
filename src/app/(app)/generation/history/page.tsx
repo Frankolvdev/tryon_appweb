@@ -15,7 +15,8 @@ const active = new Set(["queued", "running"]);
 function providerLabel(engine: GenerationExecution["engine"]) {
   if (engine === "modal") return "Modal";
   if (engine === "beam") return "Beam";
-  if (engine === "local_docker") return "Local";
+  if (engine === "local_docker") return "Docker Local";
+  if (engine === "owner_local") return "Owner Local";
   if (engine === "runpod_serverless") return "RunPod Serverless";
   return "Simulado";
 }
@@ -23,7 +24,7 @@ function providerLabel(engine: GenerationExecution["engine"]) {
 function queueLabel(item: GenerationExecution) {
   if (item.queue_position) return `${item.queue_name ?? "Cola"} · posición ${item.queue_position}`;
   if (item.provider_status === "IN_QUEUE") return "En cola de RunPod";
-  if (item.status === "queued" && item.engine === "local_docker") return "Esperando GPU local";
+  if (item.status === "queued" && (item.engine === "local_docker" || item.engine === "owner_local")) return "Esperando GPU local";
   return item.queue_name ?? item.provider_status ?? "—";
 }
 
@@ -82,7 +83,7 @@ export default function GenerationHistoryPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[.28em] text-red-400">Generaciones</p>
           <h1 className="mt-2 text-3xl font-semibold text-white">Historial unificado de trabajos</h1>
-          <p className="mt-2 text-sm text-zinc-500">Local, RunPod Serverless, Modal, Beam y Simulado comparten el mismo historial, control y recuperación.</p>
+          <p className="mt-2 text-sm text-zinc-500">Docker Local, Owner Local, RunPod Serverless, Modal, Beam y Simulado comparten el mismo historial, control y recuperación.</p>
         </div>
         <div className="flex gap-2">
           <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-sm text-white">
