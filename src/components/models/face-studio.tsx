@@ -155,6 +155,14 @@ function StepIcon({ id }: { id: StepId }) {
 
 const BODY_FINE_VALUES = Array.from({ length: 17 }, (_, index) => round1(-0.8 + index * 0.1));
 function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
+
+function backendTimestampMs(value: string | null | undefined): number {
+  if (!value) return Number.NaN;
+  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+    ? value
+    : `${value}Z`;
+  return Date.parse(normalized);
+}
 function signed(value: number) { return `${value > 0 ? "+" : ""}${round1(value).toFixed(1)}`; }
 function normalizeBodyDelta(value: unknown) {
   const number = Number(value);
@@ -279,6 +287,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const owner = isOwnerAccount(user);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
+  const [generationRecoveryPending, setGenerationRecoveryPending] = useState(true);
+  const [generatedAspectRatio, setGeneratedAspectRatio] = useState<number | null>(null);
   const [model, setModel] = useState<AiModelProfile | null>(null);
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
   const [generatingModel, setGeneratingModel] = useState(false);
@@ -365,8 +375,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 ? data.last_generation_execution_id
                 : null;
             if (lastExecutionId) {
-              // The execution id is stored in the model's backend draft, not
-              // only in browser state, so a page/backend restart can recover it.
+              // Keep the scanner visible while the persisted execution is
+              // recovered. This prevents the old body preview from flashing
+              // before the generated result is known.
               void getGenerationExecution(lastExecutionId)
                 .then((execution) => {
                   setGeneratedExecution(execution);
@@ -377,18 +388,26 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     label: "Create Model IA",
                   });
                 })
-                .catch(() => undefined);
+                .catch(() => undefined)
+                .finally(() => setGenerationRecoveryPending(false));
+            } else {
+              setGenerationRecoveryPending(false);
             }
+          } else {
+            setGenerationRecoveryPending(false);
           }
-        } catch {}
+        } catch {
+          setGenerationRecoveryPending(false);
+        }
       })
-      .catch((error) =>
+      .catch((error) => {
+        setGenerationRecoveryPending(false);
         notify.error(
           error instanceof Error
             ? error.message
             : "No se pudo abrir el estudio de rostro",
-        ),
-      );
+        );
+      });
 
     Promise.all(
       MEDIA_TOOLS.map(
@@ -530,6 +549,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
 
     setGeneratingModel(true);
+    setGeneratedAspectRatio(null);
     try {
       // Generar siempre guarda primero el mismo progreso que el botón
       // "Guardar borrador", pero sin un toast intermedio.
@@ -713,18 +733,20 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       return Math.max(0, Math.min(100, generatedExecution.progress || 0));
     }
 
-    const backendProgress = Math.max(0, Math.min(96, generatedExecution.progress || 0));
-    if (generatedExecution.status === "queued") return Math.max(2, backendProgress);
+    const backendProgress = Math.max(0, Math.min(100, generatedExecution.progress || 0));
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
-      return Math.max(8, backendProgress);
+      return Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress);
     }
 
+    // This bar is intentionally an ETA visualization, not provider progress.
+    // It advances linearly through the historical/default estimate and may
+    // remain at 100% while the real provider finishes.
     const startedAt = generatedExecution.started_at || generatedExecution.created_at;
-    const startedMs = Date.parse(startedAt);
-    if (!Number.isFinite(startedMs)) return Math.max(8, backendProgress);
+    const startedMs = backendTimestampMs(startedAt);
+    if (!Number.isFinite(startedMs)) return Math.max(2, backendProgress);
 
     const elapsedSeconds = Math.max(0, (progressClock - startedMs) / 1000);
-    const timeProgress = Math.min(96, (elapsedSeconds / estimatedGenerationSeconds) * 100);
+    const timeProgress = Math.min(100, (elapsedSeconds / estimatedGenerationSeconds) * 100);
     return Math.max(backendProgress, timeProgress);
   }, [estimatedGenerationSeconds, generatedExecution, progressClock]);
 
@@ -1042,8 +1064,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       <div className="faceBuilder">
         <div className="facePreviewRail">
           <section className="facePreviewCard">
-            <div className="facePreviewStage">
-              {generatingModel || (generatedExecution && generatedExecution.status !== "failed") ? (
+            <div
+              className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
+              style={generatedAspectRatio ? { aspectRatio: `${generatedAspectRatio}` } : undefined}
+            >
+              {generationRecoveryPending || generatingModel || (generatedExecution && generatedExecution.status !== "failed") ? (
                 <ParticleMorphLoader
                   sourceImages={[
                     "/generation-loaders/model-woman/silhouette-1.webp",
@@ -1056,6 +1081,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
                   estimatedSeconds={estimatedGenerationSeconds}
+                  onResultAspectRatio={setGeneratedAspectRatio}
                   config={{
                     particleCount: 4500,
                     morphDurationMs: 1800,
@@ -1082,7 +1108,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              {!generatingModel && !generationIsActive && (
+              {!generationRecoveryPending && !generatingModel && !generationIsActive && (
                 <button
                   type="button"
                   className="facePreviewHud faceBodyRefineTrigger"
@@ -1096,7 +1122,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <ChevronRight size={16} />
                 </button>
               )}
-              {!generatingModel && !generationIsActive && bodyRefineOpen && (
+              {!generationRecoveryPending && !generatingModel && !generationIsActive && bodyRefineOpen && (
                 <div className="faceBodyRefineCard">
                   <div className="faceBodyRefineHead">
                     <div>

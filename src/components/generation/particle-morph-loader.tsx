@@ -25,6 +25,7 @@ type ParticleMorphLoaderProps = {
   className?: string;
   progress?: number;
   estimatedSeconds?: number | null;
+  onResultAspectRatio?: (ratio: number) => void;
   config?: ParticleMorphLoaderConfig;
 };
 
@@ -148,6 +149,7 @@ export function ParticleMorphLoader({
   className = "",
   progress = 0,
   estimatedSeconds = null,
+  onResultAspectRatio,
   config,
 }: ParticleMorphLoaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -160,12 +162,17 @@ export function ParticleMorphLoader({
     setResultReady(false);
     if (!resultUrl) return;
     const image = new Image();
-    image.onload = () => setResultReady(true);
+    image.onload = () => {
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        onResultAspectRatio?.(image.naturalWidth / image.naturalHeight);
+      }
+      setResultReady(true);
+    };
     image.src = resultUrl;
     return () => {
       image.onload = null;
     };
-  }, [resultUrl]);
+  }, [resultUrl, onResultAspectRatio]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -439,12 +446,12 @@ export function ParticleMorphLoader({
                 ? "Generación lista"
                 : "Preparando preview…"}
           </span>
-          <strong>{showResult ? "100%" : `${Math.round(Math.max(0, Math.min(99, progress)))}%`}</strong>
+          <strong>{showResult ? "100%" : `${Math.round(Math.max(0, Math.min(100, progress)))}%`}</strong>
         </div>
         <div className="particleMorphProgressTrack" aria-label="Progreso estimado de generación">
           <span
             className="particleMorphProgressFill"
-            style={{ width: `${showResult ? 100 : Math.max(2, Math.min(99, progress))}%` }}
+            style={{ width: `${showResult ? 100 : Math.max(2, Math.min(100, progress))}%` }}
           />
         </div>
         {estimatedSeconds != null && estimatedSeconds > 0 && (
