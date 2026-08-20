@@ -357,21 +357,23 @@ export function ParticleMorphLoader({
       ctx.fillStyle = gradient;
       ctx.fillRect(0, bandTop, width, cfg.scanWidth);
 
+      // Use the exact visual language of the Step 01 body scanner line:
+      // transparent edges, red glow and a bright white center. Keep the rest
+      // of the particle/HUD animation unchanged.
       ctx.save();
-      ctx.shadowColor = `rgba(255,45,70,${Math.min(
+      const scannerLineGradient = ctx.createLinearGradient(0, 0, width, 0);
+      scannerLineGradient.addColorStop(0, "rgba(255,70,100,0)");
+      scannerLineGradient.addColorStop(0.28, "rgba(255,70,100,0.98)");
+      scannerLineGradient.addColorStop(0.5, "rgba(255,255,255,1)");
+      scannerLineGradient.addColorStop(0.72, "rgba(255,70,100,0.98)");
+      scannerLineGradient.addColorStop(1, "rgba(255,70,100,0)");
+      ctx.shadowColor = `rgba(255,45,78,${Math.min(
         1,
-        0.95 * cfg.scanIntensity,
+        0.92 * cfg.scanIntensity,
       )})`;
-      ctx.shadowBlur = 18 * cfg.scanIntensity;
-      ctx.strokeStyle = `rgba(255,70,90,${Math.min(
-        1,
-        0.9 * cfg.scanIntensity,
-      )})`;
-      ctx.lineWidth = 1.25;
-      ctx.beginPath();
-      ctx.moveTo(0, scanY);
-      ctx.lineTo(width, scanY);
-      ctx.stroke();
+      ctx.shadowBlur = 12 * cfg.scanIntensity;
+      ctx.fillStyle = scannerLineGradient;
+      ctx.fillRect(0, scanY - 1.5, width, 3);
       ctx.restore();
 
       // Compact HUD.
