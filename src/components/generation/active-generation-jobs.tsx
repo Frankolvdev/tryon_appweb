@@ -1,35 +1,141 @@
 "use client";
-import Link from "next/link";
-import { Activity, ChevronRight } from "lucide-react";
+
+import { Activity, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useGenerationJobs } from "./generation-jobs-provider";
 
-function labelFor(count: number) {
-  return `${count} ejecución${count === 1 ? "" : "es"} activa${count === 1 ? "" : "s"}`;
-}
+type ModuleGroup = {
+  moduleId: number;
+  moduleKey: string;
+  count: number;
+  href: string | null;
+  label: string;
+  clickable: boolean;
+};
 
 export function ActiveGenerationJobs() {
   const { jobs, navigationFor } = useGenerationJobs();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  const groups = useMemo<ModuleGroup[]>(() => {
+    const map = new Map<number, ModuleGroup>();
+
+    for (const job of jobs) {
+      const navigation = navigationFor(job);
+      const current = map.get(job.module_id);
+      if (current) {
+        current.count += 1;
+        if (!current.href && navigation.href) current.href = navigation.href;
+        continue;
+      }
+
+      map.set(job.module_id, {
+        moduleId: job.module_id,
+        moduleKey: job.module_key,
+        count: 1,
+        href: navigation.href,
+        label: navigation.label || job.module_key.replaceAll("_", " "),
+        clickable: navigation.clickable,
+      });
+    }
+
+    return [...map.values()];
+  }, [jobs, navigationFor]);
+
   if (!jobs.length) return null;
 
-  // Preserve the compact historical pill. With one active execution it now
-  // follows that execution's own navigation policy instead of a hardcoded page.
-  if (jobs.length === 1) {
-    const job = jobs[0];
-    const navigation = navigationFor(job);
-    const content = (
-      <>
-        <Activity size={16}/>
-        <span>{labelFor(1)}</span>
-        {navigation.clickable && navigation.href ? <ChevronRight size={15}/> : null}
-      </>
-    );
-    if (!navigation.clickable || !navigation.href) {
-      return <div className="activeJobsPill" title="La generación continúa en esta misma vista">{content}</div>;
+  function openModule(group: ModuleGroup) {
+    if (!group.clickable || !group.href) return;
+
+    // If the user is already inside the target view, clicking the module
+    // intentionally does nothing except close the disc.
+    const targetPath = group.href.split("?")[0];
+    if (pathname === targetPath || pathname.startsWith(`${targetPath}/`)) {
+      setOpen(false);
+      return;
     }
-    return <Link href={navigation.href} className="activeJobsPill" title="Volver a esta generación">{content}</Link>;
+
+    setOpen(false);
+    router.push(group.href);
   }
 
-  // Several active jobs cannot safely share one destination. Keep the alert
-  // informative and non-clickable instead of routing to an unrelated module.
-  return <div className="activeJobsPill" title="Hay varias ejecuciones activas"><Activity size={16}/><span>{labelFor(jobs.length)}</span></div>;
+  return (
+    <div className={`generationOrbDock${open ? " isOpen" : ""}`}>
+      {open && (
+        <>
+          <button
+            type="button"
+            className="generationOrbBackdrop"
+            aria-label="Cerrar ejecuciones activas"
+            onClick={() => setOpen(false)}
+          />
+          <div className="generationOrbDisc" role="dialog" aria-label="Ejecuciones activas">
+            <div className="generationOrbDiscCenter">
+              <strong>{jobs.length}</strong>
+              <span>activas</span>
+            </div>
+
+            {groups.map((group, index) => {
+              const count = groups.length;
+              const angle = count === 1
+                ? -90
+                : -90 + (360 / count) * index;
+              const radius = count <= 4 ? 118 : 132;
+              const x = Math.cos((angle * Math.PI) / 180) * radius;
+              const y = Math.sin((angle * Math.PI) / 180) * radius;
+              const targetPath = group.href?.split("?")[0] ?? "";
+              const alreadyHere = Boolean(
+                targetPath && (pathname === targetPath || pathname.startsWith(`${targetPath}/`)),
+              );
+              const enabled = group.clickable && Boolean(group.href) && !alreadyHere;
+
+              return (
+                <button
+                  key={group.moduleId}
+                  type="button"
+                  className={`generationOrbModule${enabled ? "" : " isCurrent"}`}
+                  style={{
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    animationDelay: `${index * 45}ms`,
+                  }}
+                  onClick={() => openModule(group)}
+                  disabled={!group.clickable || !group.href}
+                  title={alreadyHere ? "Ya estás en esta vista" : group.label}
+                >
+                  <span className="generationOrbSlice">
+                    <b>{group.count}</b>
+                    <small>{group.label}</small>
+                  </span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              className="generationOrbClose"
+              onClick={() => setOpen(false)}
+              aria-label="Cerrar"
+            >
+              <X size={15}/>
+            </button>
+          </div>
+        </>
+      )}
+
+      <button
+        type="button"
+        className="generationOrbTrigger"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={`${jobs.length} ejecuciones activas`}
+      >
+        <span className="generationOrbPulse"/>
+        <Activity size={20}/>
+        <strong>{jobs.length}</strong>
+      </button>
+    </div>
+  );
 }

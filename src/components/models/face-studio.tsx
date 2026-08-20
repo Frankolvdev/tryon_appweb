@@ -230,6 +230,45 @@ function generatedImageUrl(file: GeneratedImageResult | null): string | null {
   return file.preview_url ?? file.public_url ?? file.download_url ?? null;
 }
 
+function identityDraftSnapshot({
+  selections,
+  mediaSelected,
+  customValues,
+  completedSteps,
+  activeStep,
+  bodyAdjustments,
+  bodyBase,
+  lastGenerationExecutionId,
+}: {
+  selections: IdentitySelections;
+  mediaSelected: Record<string, string>;
+  customValues: Record<string, string>;
+  completedSteps: string[];
+  activeStep: number;
+  bodyAdjustments: { ass: number; fat: number; breasts: number; butt_elevation: number };
+  bodyBase: { ass: number; fat: number; breasts: number; butt_elevation: number };
+  lastGenerationExecutionId?: string | null;
+}) {
+  return {
+    kind: "identity",
+    selections,
+    mediaSelected,
+    customValues,
+    completedSteps,
+    activeStep,
+    bodyAdjustments,
+    bodyRefinements: {
+      ass: round1(bodyBase.ass + bodyAdjustments.ass),
+      fat: round1(bodyBase.fat + bodyAdjustments.fat),
+      breasts: round1(bodyBase.breasts + bodyAdjustments.breasts),
+      butt_elevation: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
+    },
+    ...(lastGenerationExecutionId
+      ? { last_generation_execution_id: lastGenerationExecutionId }
+      : {}),
+  };
+}
+
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
   const { track } = useGenerationJobs();
@@ -294,13 +333,32 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const restoredIsComplete = IDENTITY_COMPLETABLE_STEP_IDS.every((stepId) =>
               restoredCompletedSteps.includes(stepId),
             );
-            setActiveStep(
-              restoredIsComplete
-                ? IDENTITY_DONE_STEP_INDEX
-                : Number.isInteger(data.activeStep)
-                  ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
-                  : 0,
-            );
+            const restoredStep = restoredIsComplete
+              ? IDENTITY_DONE_STEP_INDEX
+              : Number.isInteger(data.activeStep)
+                ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
+                : 0;
+            setActiveStep(restoredStep);
+
+            const lastExecutionId =
+              typeof data.last_generation_execution_id === "string"
+                ? data.last_generation_execution_id
+                : null;
+            if (lastExecutionId) {
+              // The execution id is stored in the model's backend draft, not
+              // only in browser state, so a page/backend restart can recover it.
+              void getGenerationExecution(lastExecutionId)
+                .then((execution) => {
+                  setGeneratedExecution(execution);
+                  setActiveStep(IDENTITY_DONE_STEP_INDEX);
+                  track(execution, {
+                    clickable: true,
+                    href: `/models/${modelId}/face`,
+                    label: "Create Model IA",
+                  });
+                })
+                .catch(() => undefined);
+            }
           }
         } catch {}
       })
@@ -322,7 +380,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       .catch(() =>
         notify.error("No se pudieron cargar algunas previews de identidad."),
       );
-  }, [modelId, router]);
+  }, [modelId, router, track]);
 
   useEffect(() => {
     if (!model?.body_proportion_preset_id) return;
@@ -357,7 +415,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         const latest = await getGenerationExecution(executionId);
         if (cancelled) return;
         setGeneratedExecution(latest);
-        track(latest, { clickable: false, href: null });
+        track(latest, {
+          clickable: true,
+          href: `/models/${modelId}/face`,
+          label: "Create Model IA",
+        });
         if (latest.status === "failed") {
           notify.error(latest.error || "La generación del modelo falló.");
         }
@@ -370,7 +432,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [generatedExecution?.id, generatedExecution?.status, track]);
+  }, [generatedExecution?.id, generatedExecution?.status, modelId, track]);
 
   useEffect(() => {
     try {
@@ -389,6 +451,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             breasts: round1(bodyBase.breasts + bodyAdjustments.breasts),
             butt_elevation: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
           },
+          ...(generatedExecution?.id
+            ? { last_generation_execution_id: generatedExecution.id }
+            : {}),
         }),
       );
     } catch {}
@@ -401,19 +466,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     activeStep,
     bodyAdjustments,
     bodyBase,
+    generatedExecution?.id,
   ]);
 
   async function saveDraft() {
     setDraftSaving(true);
-    const draft = {
-      kind: "identity", selections, mediaSelected, customValues, completedSteps, activeStep, bodyAdjustments,
-      bodyRefinements: {
-        ass: round1(bodyBase.ass + bodyAdjustments.ass),
-        fat: round1(bodyBase.fat + bodyAdjustments.fat),
-        breasts: round1(bodyBase.breasts + bodyAdjustments.breasts),
-        butt_elevation: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
-      },
-    };
+    const draft = identityDraftSnapshot({
+      selections,
+      mediaSelected,
+      customValues,
+      completedSteps,
+      activeStep,
+      bodyAdjustments,
+      bodyBase,
+      lastGenerationExecutionId: generatedExecution?.id,
+    });
     try {
       const updated = await saveAiModelDraft(modelId, draft, displayName.trim() || model?.name);
       setModel(updated);
@@ -524,7 +591,36 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
       const execution = await executeGenerationModule(generationModule.id, payload);
       setGeneratedExecution(execution);
-      track(execution, { clickable: false, href: null });
+      setActiveStep(IDENTITY_DONE_STEP_INDEX);
+      track(execution, {
+        clickable: true,
+        href: `/models/${modelId}/face`,
+        label: "Create Model IA",
+      });
+
+      // Persist the execution pointer immediately in the model itself. This is
+      // what allows the generation screen to recover after an AppWeb or
+      // Backend restart.
+      try {
+        const updated = await saveAiModelDraft(
+          modelId,
+          identityDraftSnapshot({
+            selections,
+            mediaSelected,
+            customValues,
+            completedSteps,
+            activeStep: IDENTITY_DONE_STEP_INDEX,
+            bodyAdjustments,
+            bodyBase,
+            lastGenerationExecutionId: execution.id,
+          }),
+          displayName.trim() || model.name,
+        );
+        setModel(updated);
+      } catch (persistError) {
+        console.warn("[Create Model IA] No se pudo persistir el execution_id:", persistError);
+      }
+
       notify.success("Modelo enviado a generación.");
     } catch (error) {
       notify.error(
