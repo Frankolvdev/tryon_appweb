@@ -25,6 +25,43 @@ const resolveVariant=(rows:BodyVariant[],s:AxisState)=>{
  return [...rows].sort((a,b)=>distance(a,s)-distance(b,s))[0]??null;
 };
 
+function BodyStepScannerOverlay() {
+ const [scanPercent,setScanPercent]=useState(10);
+
+ useEffect(()=>{
+   let raf=0;
+   let disposed=false;
+   const started=performance.now();
+
+   const frame=(now:number)=>{
+     if(disposed)return;
+     // Same triangle-wave movement used by ParticleMorphLoader:
+     // scanSpeed=0.27 and vertical travel from 10% to 90%.
+     const scanT=((now-started)*0.001*0.27)%1;
+     const wave=scanT<0.5?scanT*2:(1-scanT)*2;
+     setScanPercent(10+wave*80);
+     raf=requestAnimationFrame(frame);
+   };
+
+   raf=requestAnimationFrame(frame);
+   return()=>{disposed=true;cancelAnimationFrame(raf)};
+ },[]);
+
+ return <div className="modelStep02ScannerOverlay" aria-hidden="true">
+   <div
+     className="modelStep02ScannerBand"
+     style={{top:`${scanPercent}%`}}
+   >
+     <span className="modelStep02ScannerBracket left"/>
+     <span className="modelStep02ScannerBracket right"/>
+     <span className="modelStep02ScannerText">
+       <b>ANALYZING</b>
+       <small>{String(Math.round(scanPercent)).padStart(3,"0")}%</small>
+     </span>
+   </div>
+ </div>;
+}
+
 export function ModelStudio({modelId}:{modelId:number}){
  const router=useRouter();
  const searchParams=useSearchParams();
@@ -249,7 +286,7 @@ export function ModelStudio({modelId}:{modelId:number}){
     <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
      <div className={`modelPreviewHybrid${loadingTarget?" loading":""}${scannerFinishing?" finishing":""}`}>
        {selected&&<div key={transitionKey} className="modelPreviewCurrent"><ModelImage src={selected.image_url} alt={displayBodyName(selected.display_name)} className="modelHeroImage"/></div>}
-       {(loadingTarget||scannerFinishing)&&<div className="modelLoadingScanner" aria-hidden="true"><span/></div>}
+       {(loadingTarget||scannerFinishing)&&<BodyStepScannerOverlay/>}
      </div>
     </section>
          
