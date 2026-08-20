@@ -2,7 +2,9 @@
 
 import { Activity, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
+import type { GenerationExecution } from "@/types/generation";
 import { useGenerationJobs } from "./generation-jobs-provider";
 
 type ModuleGroup = {
@@ -19,19 +21,34 @@ export function ActiveGenerationJobs() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [displayJobs, setDisplayJobs] = useState<GenerationExecution[]>(jobs);
+  const [leaving, setLeaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (jobs.length) {
+      setLeaving(false);
+      setDisplayJobs(jobs);
+      return;
+    }
+    if (!displayJobs.length) return;
+    setOpen(false);
+    setLeaving(true);
+    const timer = window.setTimeout(() => {
+      setDisplayJobs([]);
+      setLeaving(false);
+    }, 520);
+    return () => window.clearTimeout(timer);
+  }, [jobs, displayJobs.length]);
 
   const groups = useMemo<ModuleGroup[]>(() => {
     const map = new Map<number, ModuleGroup>();
-
-    for (const job of jobs) {
+    for (const job of displayJobs) {
       const navigation = navigationFor(job);
       const current = map.get(job.module_id);
-      if (current) {
-        current.count += 1;
-        if (!current.href && navigation.href) current.href = navigation.href;
-        continue;
-      }
-
+      if (current) { current.count += 1; continue; }
       map.set(job.module_id, {
         moduleId: job.module_id,
         moduleKey: job.module_key,
@@ -41,101 +58,68 @@ export function ActiveGenerationJobs() {
         clickable: navigation.clickable,
       });
     }
-
     return [...map.values()];
-  }, [jobs, navigationFor]);
+  }, [displayJobs, navigationFor]);
 
-  if (!jobs.length) return null;
+  if (!mounted || !displayJobs.length) return null;
 
   function openModule(group: ModuleGroup) {
     if (!group.clickable || !group.href) return;
-
-    // If the user is already inside the target view, clicking the module
-    // intentionally does nothing except close the disc.
     const targetPath = group.href.split("?")[0];
     if (pathname === targetPath || pathname.startsWith(`${targetPath}/`)) {
       setOpen(false);
       return;
     }
-
     setOpen(false);
     router.push(group.href);
   }
 
-  return (
-    <div className={`generationOrbDock${open ? " isOpen" : ""}`}>
-      {open && (
+  return createPortal(
+    <div className={`generationOrbDock${open ? " isOpen" : ""}${leaving ? " isLeaving" : ""}`}>
+      {open ? (
         <>
-          <button
-            type="button"
-            className="generationOrbBackdrop"
-            aria-label="Cerrar ejecuciones activas"
-            onClick={() => setOpen(false)}
-          />
+          <button type="button" className="generationOrbBackdrop" aria-label="Cerrar ejecuciones activas" onClick={() => setOpen(false)} />
           <div className="generationOrbDisc" role="dialog" aria-label="Ejecuciones activas">
             <div className="generationOrbDiscCenter">
-              <strong>{jobs.length}</strong>
-              <span>activas</span>
+              <strong>{displayJobs.length}</strong><span>activas</span>
             </div>
-
-            {groups.map((group, index) => {
-              const count = groups.length;
-              const angle = count === 1
-                ? -90
-                : -90 + (360 / count) * index;
-              const radius = count <= 4 ? 118 : 132;
-              const x = Math.cos((angle * Math.PI) / 180) * radius;
-              const y = Math.sin((angle * Math.PI) / 180) * radius;
-              const targetPath = group.href?.split("?")[0] ?? "";
-              const alreadyHere = Boolean(
-                targetPath && (pathname === targetPath || pathname.startsWith(`${targetPath}/`)),
-              );
-              const enabled = group.clickable && Boolean(group.href) && !alreadyHere;
-
+            {groups.map((group,index)=>{
+              const count=groups.length;
+              const angle=count===1?-90:-90+(360/count)*index;
+              const radius=count<=4?112:126;
+              const x=Math.cos((angle*Math.PI)/180)*radius;
+              const y=Math.sin((angle*Math.PI)/180)*radius;
+              const targetPath=group.href?.split("?")[0]??"";
+              const alreadyHere=Boolean(targetPath&&(pathname===targetPath||pathname.startsWith(`${targetPath}/`)));
               return (
                 <button
                   key={group.moduleId}
                   type="button"
-                  className={`generationOrbModule${enabled ? "" : " isCurrent"}`}
-                  style={{
-                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
-                    animationDelay: `${index * 45}ms`,
-                  }}
-                  onClick={() => openModule(group)}
-                  disabled={!group.clickable || !group.href}
-                  title={alreadyHere ? "Ya estás en esta vista" : group.label}
+                  className={`generationOrbModule${alreadyHere ? " isCurrent" : ""}`}
+                  style={{transform:`translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,animationDelay:`${index*45}ms`}}
+                  onClick={()=>openModule(group)}
+                  disabled={!group.clickable||!group.href}
+                  title={alreadyHere?"Ya estás en esta vista":group.label}
                 >
-                  <span className="generationOrbSlice">
-                    <b>{group.count}</b>
-                    <small>{group.label}</small>
-                  </span>
+                  <span className="generationOrbSlice"><b>{group.count}</b><small>{group.label}</small></span>
                 </button>
               );
             })}
-
-            <button
-              type="button"
-              className="generationOrbClose"
-              onClick={() => setOpen(false)}
-              aria-label="Cerrar"
-            >
-              <X size={15}/>
-            </button>
+            <button type="button" className="generationOrbClose" onClick={()=>setOpen(false)} aria-label="Cerrar"><X size={15}/></button>
           </div>
         </>
+      ) : (
+        <button
+          type="button"
+          className="generationOrbTrigger"
+          onClick={()=>!leaving&&setOpen(true)}
+          aria-expanded={false}
+          aria-label={`${displayJobs.length} ejecuciones activas`}
+        >
+          <span className="generationOrbPulse"/><Activity size={20}/><strong>{displayJobs.length}</strong>
+        </button>
       )}
-
-      <button
-        type="button"
-        className="generationOrbTrigger"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={`${jobs.length} ejecuciones activas`}
-      >
-        <span className="generationOrbPulse"/>
-        <Activity size={20}/>
-        <strong>{jobs.length}</strong>
-      </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -16,6 +16,7 @@ import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
+import { ParticleMorphLoader } from "@/components/generation/particle-morph-loader";
 import type { AiModelProfile } from "@/types/ai-model";
 import type { GenerationExecution } from "@/types/generation";
 import {
@@ -496,9 +497,40 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       showValidation("Completa los pasos obligatorios antes de generar el modelo.");
       return;
     }
+    if (!ancestry) {
+      showValidation("Elige una ascendencia antes de generar el modelo.");
+      notify.error("La ascendencia es obligatoria para generar.");
+      return;
+    }
 
     setGeneratingModel(true);
     try {
+      // Generar siempre guarda primero el mismo progreso que el botón
+      // "Guardar borrador", pero sin un toast intermedio.
+      const savedBeforeGeneration = await saveAiModelDraft(
+        modelId,
+        {
+          ...identityDraftSnapshot({
+            selections,
+            mediaSelected,
+            customValues,
+            completedSteps,
+            activeStep: IDENTITY_DONE_STEP_INDEX,
+            bodyAdjustments,
+            bodyBase,
+            lastGenerationExecutionId: generatedExecution?.id,
+          }),
+          ancestry: {
+            id: ancestry.id,
+            ancestry_key: ancestry.ancestry_key,
+            display_name: ancestry.display_name,
+            country_code: ancestry.country_code,
+          },
+        },
+        displayName.trim() || model.name,
+      );
+      setModel(savedBeforeGeneration);
+
       const moduleResponse = await listGenerationModules();
       const generationModule = moduleResponse.items.find(
         (item) => item.key === CREATE_MODEL_WOMAN_MODULE_KEY && item.is_active,
@@ -912,7 +944,31 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         <div className="facePreviewRail">
           <section className="facePreviewCard">
             <div className="facePreviewStage">
-              {model.body_image_url ? (
+              {generatingModel || (generatedExecution && generatedExecution.status !== "failed") ? (
+                <ParticleMorphLoader
+                  sourceImages={[
+                    "/generation-loaders/model-woman/silhouette-1.webp",
+                    "/generation-loaders/model-woman/silhouette-2.webp",
+                    "/generation-loaders/model-woman/silhouette-3.webp",
+                  ]}
+                  resultUrl={generatedExecution?.status === "completed" ? generatedPreviewUrl : null}
+                  active={generationIsActive || generatingModel}
+                  label="CREATE MODEL IA"
+                  className="faceGenerationMorph"
+                  config={{
+                    particleCount: 4500,
+                    morphDurationMs: 1800,
+                    holdDurationMs: 900,
+                    dispersion: 34,
+                    pointSize: 1.3,
+                    silhouetteZoom: 1,
+                    whiteThreshold: 238,
+                    scanSpeed: 0.27,
+                    scanWidth: 58,
+                    scanIntensity: 1.5,
+                  }}
+                />
+              ) : model.body_image_url ? (
                 <ModelImage
                   src={model.body_image_url}
                   alt={`Cuerpo seleccionado de ${displayName}`}
@@ -925,19 +981,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              <button
-                type="button"
-                className="facePreviewHud faceBodyRefineTrigger"
-                onClick={() => {
-                  setBodyDraft(bodyAdjustments);
-                  setBodyRefineOpen(true);
-                }}
-              >
-                <span>BODY</span>
-                <strong>Mejorar proporciones corporales</strong>
-                <ChevronRight size={16} />
-              </button>
-              {bodyRefineOpen && (
+              {!generatingModel && (!generatedExecution || generatedExecution.status === "failed") && (
+                <button
+                  type="button"
+                  className="facePreviewHud faceBodyRefineTrigger"
+                  onClick={() => {
+                    setBodyDraft(bodyAdjustments);
+                    setBodyRefineOpen(true);
+                  }}
+                >
+                  <span>BODY</span>
+                  <strong>Mejorar proporciones corporales</strong>
+                  <ChevronRight size={16} />
+                </button>
+              )}
+              {!generatingModel && (!generatedExecution || generatedExecution.status === "failed") && bodyRefineOpen && (
                 <div className="faceBodyRefineCard">
                   <div className="faceBodyRefineHead">
                     <div>
@@ -1304,40 +1362,30 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     </div>
                   </div>
 
-                  {generatedPreviewUrl && generatedExecution?.status === "completed" && (
-                    <div style={{ width: "min(100%, 520px)", margin: "8px auto 4px" }}>
-                      <img
-                        src={generatedPreviewUrl}
-                        alt={`Variante generada de ${displayName}`}
-                        style={{ display: "block", width: "100%", maxHeight: 620, objectFit: "contain", borderRadius: 18, background: "#050505" }}
-                      />
-                    </div>
-                  )}
-
                   {generationIsActive ? (
                     <button className="faceGenerateModelButton faceGenerateModelButtonDone" type="button" disabled>
                       <WandSparkles size={19} />
                       Generando modelo…
                     </button>
                   ) : generatedExecution?.status === "completed" && generatedImage ? (
-                    <div style={{ display: "grid", gap: 10, width: "min(100%, 520px)", margin: "0 auto" }}>
+                    <div className="faceGeneratedActions">
                       <button
-                        className="faceGenerateModelButton faceGenerateModelButtonDone"
-                        type="button"
-                        onClick={() => void useGeneratedModel()}
-                        disabled={usingGeneratedModel}
-                      >
-                        <Check size={19} />
-                        {usingGeneratedModel ? "Guardando modelo…" : "Usar esta"}
-                      </button>
-                      <button
-                        className="faceGenerateModelButton"
+                        className="faceGenerateModelButton faceGenerateRetryButton"
                         type="button"
                         onClick={() => void generateModel()}
                         disabled={generatingModel}
                       >
                         <WandSparkles size={19} />
                         {generatingModel ? "Enviando…" : "Generar otra variante"}
+                      </button>
+                      <button
+                        className="faceGenerateModelButton faceGenerateModelButtonDone faceUseGeneratedButton"
+                        type="button"
+                        onClick={() => void useGeneratedModel()}
+                        disabled={usingGeneratedModel}
+                      >
+                        <Check size={19} />
+                        {usingGeneratedModel ? "Guardando modelo…" : "Usar esta"}
                       </button>
                     </div>
                   ) : (
