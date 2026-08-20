@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, X } from "lucide-react";
 import { useAppSession } from "@/components/app/app-session";
 import { clearSession } from "@/lib/auth-storage";
 import { GenerationJobsProvider } from "@/components/generation/generation-jobs-provider";
 import { ActiveGenerationJobs } from "@/components/generation/active-generation-jobs";
 import { isOwnerAccount } from "@/lib/owner-account";
+import { listGenerationModules } from "@/lib/generation-api";
+import { automaticGenerationModules, generationTabTitle } from "@/lib/generation-ui";
+import type { GenerationModule } from "@/types/generation";
 
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/try-on", label: "Crear Try-On", icon: Sparkles },
   { href: "/models", label: "Create Model IA", icon: Sparkles },
   { href: "/generation/history", label: "Historial", icon: History },
   { href: "/gallery", label: "Galería", icon: GalleryVerticalEnd },
@@ -37,8 +39,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAppSession();
+  const [generationModules, setGenerationModules] = useState<GenerationModule[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    listGenerationModules()
+      .then((response) => {
+        if (!cancelled) setGenerationModules(automaticGenerationModules(response.items));
+      })
+      .catch(() => {
+        if (!cancelled) setGenerationModules([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const generationNavItems = generationModules.map((module) => ({
+    href: `/try-on/${module.id}`,
+    label: generationTabTitle(module),
+    icon: Sparkles,
+    moduleId: String(module.id),
+  }));
 
   function logout() {
     setMobileOpen(false);
@@ -52,10 +74,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       <AppBrand collapsed={collapsed}/>
       <nav className="appNav" aria-label="Navegación principal">
         {!collapsed && <p className="appNavGroup">MI ESTUDIO</p>}
-        {items.filter((item)=>!(isOwnerAccount(user) && item.href==="/billing")).map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          return <Link key={href} href={href} title={collapsed ? label : undefined} className={`appNavItem${active ? " appNavItemActive" : ""}`} onClick={()=>setMobileOpen(false)}><Icon size={17} strokeWidth={1.8}/>{!collapsed && <span>{label}</span>}</Link>;
-        })}
+        {[items[0], ...generationNavItems, ...items.slice(1)]
+          .filter((item)=>!(isOwnerAccount(user) && item.href==="/billing"))
+          .map((item) => {
+            const { href, label, icon: Icon } = item;
+            const moduleId = "moduleId" in item ? item.moduleId : null;
+            const active = moduleId
+              ? pathname === href
+              : pathname === href || pathname.startsWith(`${href}/`);
+            return <Link key={href} href={href} title={collapsed ? label : undefined} className={`appNavItem${active ? " appNavItemActive" : ""}`} onClick={()=>setMobileOpen(false)}><Icon size={17} strokeWidth={1.8}/>{!collapsed && <span>{label}</span>}</Link>;
+          })}
       </nav>
       <div className="appSidebarBottom">
         <Link href="/settings" className={`appUserCard${collapsed ? " appUserCardCollapsed" : ""}`} onClick={()=>setMobileOpen(false)}>

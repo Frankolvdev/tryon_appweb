@@ -25,6 +25,7 @@ import { GenerationResults } from "@/components/generation/generation-results";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
+import { automaticGenerationModules, generationTabTitle } from "@/lib/generation-ui";
 
 const ACTIVE = ["queued", "running"];
 const EXECUTION_HISTORY_LIMIT = 20;
@@ -320,7 +321,10 @@ function ExecutionCard({
   );
 }
 
-export function GenerationStudio() {
+export function GenerationStudio({ moduleId = null }: { moduleId?: number | null } = {}) {
+  const dedicatedModuleId = typeof moduleId === "number" && Number.isInteger(moduleId) && moduleId > 0
+    ? moduleId
+    : null;
   const { track } = useGenerationJobs();
   const { user } = useAppSession();
   const owner = isOwnerAccount(user);
@@ -337,19 +341,26 @@ export function GenerationStudio() {
 
   const refreshModuleEstimates = () => {
     void listGenerationModules().then((response) => {
-      setModules(response.items);
+      setModules(automaticGenerationModules(response.items));
     }).catch(() => undefined);
   };
 
   useEffect(() => {
     listGenerationModules()
       .then((response) => {
-        setModules(response.items);
-        setSelectedId(response.items[0]?.id ?? null);
+        const automatic = automaticGenerationModules(response.items);
+        setModules(automatic);
+        const requested = dedicatedModuleId
+          ? automatic.find((module) => module.id === dedicatedModuleId)
+          : null;
+        setSelectedId(requested?.id ?? automatic[0]?.id ?? null);
+        if (dedicatedModuleId && !requested) {
+          setError("Este módulo no está publicado en modo automático. Las interfaces administradas deben utilizar su pantalla personalizada.");
+        }
       })
       .catch((cause) => setError(normalizeGenerationError(cause)))
       .finally(() => setBusy(false));
-  }, []);
+  }, [dedicatedModuleId]);
 
   const selected = useMemo(
     () => modules.find((module) => module.id === selectedId) ?? null,
@@ -441,7 +452,7 @@ export function GenerationStudio() {
     <div className="generationStudio">
       <section className="generationHero">
         <span>MÓDULOS DINÁMICOS</span>
-        <h1>Genera desde la configuración real del BackOffice.</h1>
+        <h1>{selected ? generationTabTitle(selected) : "Genera desde la configuración real del BackOffice."}</h1>
         <p>
           Las ejecuciones se conservan aunque recargues, cierres el navegador o
           vuelvas a iniciar sesión.
@@ -460,22 +471,24 @@ export function GenerationStudio() {
         </div>
       )}
 
-      <div className="generationLayout">
-        <aside className="generationModules">
-          <small>MÓDULO</small>
-          {modules.map((module) => (
-            <button
-              key={module.id}
-              className={module.id === selectedId ? "active" : ""}
-              onClick={() => setSelectedId(module.id)}
-            >
-              <strong>{module.name}</strong>
-              <span>
-                {module.category} · v{module.version}
-              </span>
-            </button>
-          ))}
-        </aside>
+      <div className={`generationLayout${dedicatedModuleId ? " generationLayoutDedicated" : ""}`}>
+        {!dedicatedModuleId && (
+          <aside className="generationModules">
+            <small>MÓDULO</small>
+            {modules.map((module) => (
+              <button
+                key={module.id}
+                className={module.id === selectedId ? "active" : ""}
+                onClick={() => setSelectedId(module.id)}
+              >
+                <strong>{generationTabTitle(module)}</strong>
+                <span>
+                  {module.category} · v{module.version}
+                </span>
+              </button>
+            ))}
+          </aside>
+        )}
 
         <main className="generationPanel">
           {selected && (
