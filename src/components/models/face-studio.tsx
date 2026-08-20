@@ -14,11 +14,14 @@ import {
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
+import { executeGenerationModule, listGenerationModules } from "@/lib/generation-api";
+import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import type { AiModelProfile } from "@/types/ai-model";
 import {
   colorCategories,
   colorOption,
   defaultIdentitySelections,
+  buildIdentityPrompt,
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
@@ -27,6 +30,7 @@ import type {
   ModelGenerationAsset,
   ModelGenerationToolKey,
 } from "@/types/model-generation-asset";
+import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
 import { AncestryExperience } from "./ancestry-experience";
@@ -154,10 +158,50 @@ function normalizeBodyDelta(value: unknown) {
   return round1(Math.min(0.8, Math.max(-0.8, Math.round(number * 10) / 10)));
 }
 
+const CREATE_MODEL_WOMAN_MODULE_KEY = "create_model_woman";
+const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
+  { key: "input_1", name: "Hips SIze", type: "float" },
+  { key: "input_2", name: "Fat - Thin", type: "float" },
+  { key: "input_3", name: "Breasts Size", type: "float" },
+  { key: "input_4", name: "Skin Tone", type: "float" },
+  { key: "input_5", name: "Hair Length", type: "float" },
+  { key: "input_6", name: "Butt Elevation", type: "float" },
+  { key: "input_7", name: "Main Prompt", type: "text" },
+] as const;
+
+function assertCreateModelWomanContract(module: {
+  key: string;
+  inputs: Array<{ key: string; name: string; input_type: string; is_required: boolean }>;
+}) {
+  if (module.key !== CREATE_MODEL_WOMAN_MODULE_KEY) {
+    throw new Error(`Se esperaba el módulo ${CREATE_MODEL_WOMAN_MODULE_KEY}.`);
+  }
+  for (const expected of CREATE_MODEL_WOMAN_INPUT_CONTRACT) {
+    const actual = module.inputs.find((input) => input.key === expected.key);
+    if (!actual) throw new Error(`El módulo ya no contiene ${expected.key} (${expected.name}).`);
+    if (actual.input_type !== expected.type) {
+      throw new Error(`${expected.key} cambió de tipo: se esperaba ${expected.type} y ahora es ${actual.input_type}.`);
+    }
+    if (!actual.is_required) {
+      throw new Error(`${expected.key} dejó de ser obligatorio. Revisa el contrato antes de generar.`);
+    }
+  }
+}
+
+function commaPrompt(value: string): string {
+  return value
+    .split(/,|\n/g)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+}
 
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
+  const { track } = useGenerationJobs();
   const [model, setModel] = useState<AiModelProfile | null>(null);
+  const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
+  const [generatingModel, setGeneratingModel] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
@@ -174,7 +218,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [occupationSearch, setOccupationSearch] = useState("");
   const [occupationLocale] = useState<OccupationLocale>("es");
   const [bodyRefineOpen, setBodyRefineOpen] = useState(false);
-  const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
+  const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, skin_tone: 0, hair_length: 0, butt_elevation: 0 });
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [draftSaving, setDraftSaving] = useState(false);
@@ -254,6 +298,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           ass: body?.hips_size ?? 0,
           fat: body?.fat_thin ?? 0,
           breasts: body?.breasts_size ?? 0,
+          skin_tone: body?.skin_tone ?? 0,
+          hair_length: body?.hair_length ?? 0,
           butt_elevation: bubble?.bubble_butt ?? 0,
         });
       })
@@ -309,6 +355,119 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "No se pudo guardar el borrador");
     } finally { setDraftSaving(false); }
+  }
+
+  async function generateModel() {
+    if (!model) return;
+    if (!summaryReady) {
+      showValidation("Completa los pasos obligatorios antes de generar el modelo.");
+      return;
+    }
+
+    setGeneratingModel(true);
+    try {
+      const moduleResponse = await listGenerationModules();
+      const generationModule = moduleResponse.items.find(
+        (item) => item.key === CREATE_MODEL_WOMAN_MODULE_KEY && item.is_active,
+      );
+      if (!generationModule) {
+        throw new Error(
+          'No se encontró activo el módulo de generación "create_model_woman".',
+        );
+      }
+
+      assertCreateModelWomanContract(generationModule);
+
+      const mediaValues: Record<string, string> = {};
+      for (const key of ["eyebrows", "lips", "hairstyle"] as const) {
+        const selectedKey = mediaSelected[key];
+        if (selectedKey === "custom") {
+          mediaValues[key] = (customValues[key] || "").trim();
+        } else {
+          mediaValues[key] =
+            mediaAssets[key]?.find((asset) => asset.asset_key === selectedKey)?.value?.trim() || "";
+        }
+      }
+
+      const identity = buildIdentityPrompt({
+        ancestryLabel: ancestry?.display_name,
+        selections,
+        mediaValues,
+        customValues,
+      });
+
+      // Pony / SDXL tag-style prompt: English, comma-separated.
+      const mainPrompt = commaPrompt([
+        "score_9",
+        "score_8_up",
+        "score_7_up",
+        "source_photo",
+        "photorealistic",
+        "1girl",
+        "solo",
+        "adult woman",
+        identity.prompt,
+        "full body",
+        "standing",
+        "front view",
+        "natural anatomy",
+        "realistic skin texture",
+        "fine skin pores",
+        "realistic hair strands",
+        "professional photography",
+        "sharp focus",
+        "high detail",
+      ].join(", "));
+
+      const payload = {
+        input_1: round1(bodyBase.ass + bodyAdjustments.ass),
+        input_2: round1(bodyBase.fat + bodyAdjustments.fat),
+        input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
+        input_4: round1(bodyBase.skin_tone),
+        input_5: round1(bodyBase.hair_length),
+        input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
+        input_7: mainPrompt,
+      };
+
+      // Requested browser diagnostics. These logs intentionally show the
+      // exact contract payload immediately before the existing Generation
+      // Module API sends it to the Backend.
+      console.groupCollapsed(
+        `%c[Create Model IA → ${generationModule.key}]`,
+        "color:#ef4444;font-weight:700",
+      );
+      console.log("Module:", {
+        id: generationModule.id,
+        key: generationModule.key,
+        engine: generationModule.default_execution_engine,
+      });
+      console.log("Main Prompt:");
+      console.log(mainPrompt);
+      console.log("Exact Generation Module inputs:");
+      console.table({
+        input_1: { name: "Hips Size", value: payload.input_1 },
+        input_2: { name: "Fat - Thin", value: payload.input_2 },
+        input_3: { name: "Breasts Size", value: payload.input_3 },
+        input_4: { name: "Skin Tone", value: payload.input_4 },
+        input_5: { name: "Hair Length", value: payload.input_5 },
+        input_6: { name: "Butt Elevation", value: payload.input_6 },
+        input_7: { name: "Main Prompt", value: payload.input_7 },
+      });
+      console.log("Payload:", { inputs: payload });
+      console.groupEnd();
+
+      const execution = await executeGenerationModule(generationModule.id, payload);
+      track(execution);
+      notify.success("Modelo enviado a generación.");
+    } catch (error) {
+      notify.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar la generación del modelo.",
+      );
+    } finally {
+      setGeneratingModel(false);
+    }
   }
 
   const currentStep = STEPS[activeStep];
@@ -553,7 +712,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </header>
       </div>
 
-      <AncestryExperience modelId={modelId} onChange={() => {}} />
+      <AncestryExperience modelId={modelId} onChange={setAncestry} />
 
       <div className="faceBuilder">
         <div className="facePreviewRail">
@@ -954,9 +1113,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <button
                     className="faceGenerateModelButton faceGenerateModelButtonDone"
                     type="button"
+                    onClick={() => void generateModel()}
+                    disabled={generatingModel}
                   >
                     <WandSparkles size={19} />
-                    Generar modelo
+                    {generatingModel ? "Enviando generación…" : "Generar modelo"}
                   </button>
                 </div>
               )}
