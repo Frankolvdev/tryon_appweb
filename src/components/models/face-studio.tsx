@@ -13,10 +13,11 @@ import {
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
-import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
-import { executeGenerationModule, listGenerationModules } from "@/lib/generation-api";
+import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
+import { executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import type { AiModelProfile } from "@/types/ai-model";
+import type { GenerationExecution } from "@/types/generation";
 import {
   colorCategories,
   colorOption,
@@ -196,12 +197,47 @@ function commaPrompt(value: string): string {
     .join(", ");
 }
 
+type GeneratedImageResult = {
+  storage_file_id?: number;
+  download_url?: string | null;
+  public_url?: string | null;
+  preview_url?: string | null;
+  content_type?: string | null;
+  filename?: string | null;
+};
+
+function collectGeneratedImages(value: unknown, found: GeneratedImageResult[] = []): GeneratedImageResult[] {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectGeneratedImages(item, found));
+    return found;
+  }
+  if (!value || typeof value !== "object") return found;
+  const item = value as Record<string, unknown>;
+  const url = item.download_url ?? item.public_url ?? item.preview_url;
+  const contentType = String(item.content_type ?? "");
+  if (
+    (typeof item.storage_file_id === "number" || typeof url === "string") &&
+    (contentType.startsWith("image/") || (typeof url === "string" && /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)))
+  ) {
+    found.push(item as GeneratedImageResult);
+  }
+  Object.values(item).forEach((nested) => collectGeneratedImages(nested, found));
+  return found;
+}
+
+function generatedImageUrl(file: GeneratedImageResult | null): string | null {
+  if (!file) return null;
+  return file.preview_url ?? file.public_url ?? file.download_url ?? null;
+}
+
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
   const { track } = useGenerationJobs();
   const [model, setModel] = useState<AiModelProfile | null>(null);
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
   const [generatingModel, setGeneratingModel] = useState(false);
+  const [generatedExecution, setGeneratedExecution] = useState<GenerationExecution | null>(null);
+  const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
@@ -226,6 +262,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   useEffect(() => {
     getAiModel(modelId)
       .then((result) => {
+        if (result.stage === "studio") {
+          router.replace(`/models/${modelId}/studio`);
+          return;
+        }
         setModel(result);
         try {
           const saved = localStorage.getItem(`${STORAGE_PREFIX}${modelId}`);
@@ -282,7 +322,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       .catch(() =>
         notify.error("No se pudieron cargar algunas previews de identidad."),
       );
-  }, [modelId]);
+  }, [modelId, router]);
 
   useEffect(() => {
     if (!model?.body_proportion_preset_id) return;
@@ -305,6 +345,32 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       })
       .catch(() => notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento."));
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
+
+  useEffect(() => {
+    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status)) return;
+
+    let cancelled = false;
+    const executionId = generatedExecution.id;
+
+    const refreshExecution = async () => {
+      try {
+        const latest = await getGenerationExecution(executionId);
+        if (cancelled) return;
+        setGeneratedExecution(latest);
+        track(latest, { clickable: false, href: null });
+        if (latest.status === "failed") {
+          notify.error(latest.error || "La generación del modelo falló.");
+        }
+      } catch {}
+    };
+
+    void refreshExecution();
+    const timer = window.setInterval(() => void refreshExecution(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [generatedExecution?.id, generatedExecution?.status, track]);
 
   useEffect(() => {
     try {
@@ -457,7 +523,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       console.groupEnd();
 
       const execution = await executeGenerationModule(generationModule.id, payload);
-      track(execution);
+      setGeneratedExecution(execution);
+      track(execution, { clickable: false, href: null });
       notify.success("Modelo enviado a generación.");
     } catch (error) {
       notify.error(
@@ -467,6 +534,37 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       );
     } finally {
       setGeneratingModel(false);
+    }
+  }
+
+  const generatedImage = useMemo(
+    () => collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
+    [generatedExecution?.outputs],
+  );
+  const generatedPreviewUrl = generatedImageUrl(generatedImage);
+  const generationIsActive = Boolean(
+    generatedExecution && ["queued", "running"].includes(generatedExecution.status),
+  );
+
+  async function useGeneratedModel() {
+    if (!generatedImage?.storage_file_id) {
+      notify.error("El resultado aún no tiene un archivo persistido que pueda asignarse a la modelo.");
+      return;
+    }
+    setUsingGeneratedModel(true);
+    try {
+      if (!generatedExecution || generatedExecution.result_locked || generatedExecution.billing_access_status === "payment_pending") {
+        notify.error("El resultado todavía no está disponible para usarlo.");
+        return;
+      }
+      const updated = await finalizeAiModel(modelId, generatedExecution.id, generatedImage.storage_file_id);
+      setModel(updated);
+      notify.success("Modelo guardado. Entrando a su estudio.");
+      router.replace(`/models/${modelId}/studio`);
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "No se pudo guardar esta variante.");
+    } finally {
+      setUsingGeneratedModel(false);
     }
   }
 
@@ -1110,15 +1208,59 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     </div>
                   </div>
 
-                  <button
-                    className="faceGenerateModelButton faceGenerateModelButtonDone"
-                    type="button"
-                    onClick={() => void generateModel()}
-                    disabled={generatingModel}
-                  >
-                    <WandSparkles size={19} />
-                    {generatingModel ? "Enviando generación…" : "Generar modelo"}
-                  </button>
+                  {generatedPreviewUrl && generatedExecution?.status === "completed" && (
+                    <div style={{ width: "min(100%, 520px)", margin: "8px auto 4px" }}>
+                      <img
+                        src={generatedPreviewUrl}
+                        alt={`Variante generada de ${displayName}`}
+                        style={{ display: "block", width: "100%", maxHeight: 620, objectFit: "contain", borderRadius: 18, background: "#050505" }}
+                      />
+                    </div>
+                  )}
+
+                  {generationIsActive ? (
+                    <button className="faceGenerateModelButton faceGenerateModelButtonDone" type="button" disabled>
+                      <WandSparkles size={19} />
+                      Generando modelo…
+                    </button>
+                  ) : generatedExecution?.status === "completed" && generatedImage ? (
+                    <div style={{ display: "grid", gap: 10, width: "min(100%, 520px)", margin: "0 auto" }}>
+                      <button
+                        className="faceGenerateModelButton faceGenerateModelButtonDone"
+                        type="button"
+                        onClick={() => void useGeneratedModel()}
+                        disabled={usingGeneratedModel}
+                      >
+                        <Check size={19} />
+                        {usingGeneratedModel ? "Guardando modelo…" : "Usar esta"}
+                      </button>
+                      <button
+                        className="faceGenerateModelButton"
+                        type="button"
+                        onClick={() => void generateModel()}
+                        disabled={generatingModel}
+                      >
+                        <WandSparkles size={19} />
+                        {generatingModel ? "Enviando…" : "Generar otra variante"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="faceGenerateModelButton faceGenerateModelButtonDone"
+                      type="button"
+                      onClick={() => void generateModel()}
+                      disabled={generatingModel}
+                    >
+                      <WandSparkles size={19} />
+                      {generatingModel ? "Enviando generación…" : "Generar modelo"}
+                    </button>
+                  )}
+
+                  {generatedExecution?.status === "failed" && (
+                    <p style={{ color: "#fca5a5", fontSize: 12 }}>
+                      {generatedExecution.error || "La generación falló. Puedes volver a intentarlo."}
+                    </p>
+                  )}
                 </div>
               )}
 

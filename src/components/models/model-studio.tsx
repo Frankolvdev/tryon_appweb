@@ -50,6 +50,10 @@ export function ModelStudio({modelId}:{modelId:number}){
  const MIN_SCANNER_MS=1300;
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
+   if(m.stage==="studio"){
+     router.replace(`/models/${modelId}/studio`);
+     return;
+   }
    if(m.body_proportion_preset_id&&!forceBodyStage){
      router.replace(`/models/${modelId}/face`);
      return;
