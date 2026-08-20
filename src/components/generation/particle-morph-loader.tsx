@@ -23,6 +23,8 @@ type ParticleMorphLoaderProps = {
   active: boolean;
   label?: string;
   className?: string;
+  progress?: number;
+  estimatedSeconds?: number | null;
   config?: ParticleMorphLoaderConfig;
 };
 
@@ -144,6 +146,8 @@ export function ParticleMorphLoader({
   active,
   label = "GENERATION PREVIEW",
   className = "",
+  progress = 0,
+  estimatedSeconds = null,
   config,
 }: ParticleMorphLoaderProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -424,14 +428,34 @@ export function ParticleMorphLoader({
         <span>{active ? "PROCESSING" : showResult ? "READY" : "FINALIZING"}</span>
       </div>
 
-      <div className="particleMorphStatus">
-        <span className="particleMorphStatusDot" />
-        {active
-          ? "Construyendo identidad…"
-          : showResult
-            ? "Generación lista"
-            : "Preparando preview…"}
+      {!showResult && (
+      <div className="particleMorphStatus particleMorphStatusProgress">
+        <div className="particleMorphStatusLine">
+          <span>
+            <span className="particleMorphStatusDot" />
+            {active
+              ? "Construyendo identidad…"
+              : showResult
+                ? "Generación lista"
+                : "Preparando preview…"}
+          </span>
+          <strong>{showResult ? "100%" : `${Math.round(Math.max(0, Math.min(99, progress)))}%`}</strong>
+        </div>
+        <div className="particleMorphProgressTrack" aria-label="Progreso estimado de generación">
+          <span
+            className="particleMorphProgressFill"
+            style={{ width: `${showResult ? 100 : Math.max(2, Math.min(99, progress))}%` }}
+          />
+        </div>
+        {estimatedSeconds != null && estimatedSeconds > 0 && (
+          <small>
+            Tiempo estimado: {estimatedSeconds >= 60
+              ? `${Math.floor(estimatedSeconds / 60)} min ${Math.round(estimatedSeconds % 60)} s`
+              : `${Math.round(estimatedSeconds)} s`}
+          </small>
+        )}
       </div>
+      )}
     </div>
   );
 }

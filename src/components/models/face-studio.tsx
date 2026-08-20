@@ -16,9 +16,11 @@ import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
+import { useAppSession } from "@/components/app/app-session";
+import { isOwnerAccount } from "@/lib/owner-account";
 import { ParticleMorphLoader } from "@/components/generation/particle-morph-loader";
 import type { AiModelProfile } from "@/types/ai-model";
-import type { GenerationExecution } from "@/types/generation";
+import type { GenerationExecution, GenerationModule } from "@/types/generation";
 import {
   colorCategories,
   colorOption,
@@ -273,6 +275,10 @@ function identityDraftSnapshot({
 export function FaceStudio({ modelId }: { modelId: number }) {
   const router = useRouter();
   const { track } = useGenerationJobs();
+  const { user } = useAppSession();
+  const owner = isOwnerAccount(user);
+  const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
+  const [progressClock, setProgressClock] = useState(() => Date.now());
   const [model, setModel] = useState<AiModelProfile | null>(null);
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
   const [generatingModel, setGeneratingModel] = useState(false);
@@ -298,6 +304,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [draftSaving, setDraftSaving] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    listGenerationModules()
+      .then((response) => {
+        if (!alive) return;
+        setGenerationModuleInfo(
+          response.items.find((item) => item.key === CREATE_MODEL_WOMAN_MODULE_KEY) ?? null,
+        );
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     getAiModel(modelId)
@@ -404,6 +423,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       })
       .catch(() => notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento."));
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
+
+  useEffect(() => {
+    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status)) return;
+    setProgressClock(Date.now());
+    const timer = window.setInterval(() => setProgressClock(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, [generatedExecution?.id, generatedExecution?.status]);
 
   useEffect(() => {
     if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status)) return;
@@ -540,6 +566,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           'No se encontró activo el módulo de generación "create_model_woman".',
         );
       }
+      setGenerationModuleInfo(generationModule);
 
       assertCreateModelWomanContract(generationModule);
 
@@ -673,6 +700,78 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationIsActive = Boolean(
     generatedExecution && ["queued", "running"].includes(generatedExecution.status),
   );
+
+  const estimatedGenerationSeconds =
+    generatedExecution?.estimated_duration_seconds ??
+    generationModuleInfo?.pricing?.estimated_duration_seconds ??
+    null;
+
+  const estimatedGenerationProgress = useMemo(() => {
+    if (!generatedExecution) return 0;
+    if (generatedExecution.status === "completed") return 100;
+    if (generatedExecution.status === "failed" || generatedExecution.status === "cancelled") {
+      return Math.max(0, Math.min(100, generatedExecution.progress || 0));
+    }
+
+    const backendProgress = Math.max(0, Math.min(96, generatedExecution.progress || 0));
+    if (generatedExecution.status === "queued") return Math.max(2, backendProgress);
+    if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
+      return Math.max(8, backendProgress);
+    }
+
+    const startedAt = generatedExecution.started_at || generatedExecution.created_at;
+    const startedMs = Date.parse(startedAt);
+    if (!Number.isFinite(startedMs)) return Math.max(8, backendProgress);
+
+    const elapsedSeconds = Math.max(0, (progressClock - startedMs) / 1000);
+    const timeProgress = Math.min(96, (elapsedSeconds / estimatedGenerationSeconds) * 100);
+    return Math.max(backendProgress, timeProgress);
+  }, [estimatedGenerationSeconds, generatedExecution, progressClock]);
+
+  const estimatedTokens =
+    generationModuleInfo?.pricing?.required_tokens ??
+    generatedExecution?.billing_breakdown?.estimated_tokens_before_execution ??
+    null;
+
+  const billingSummary = useMemo(() => {
+    if (!generatedExecution || generatedExecution.status !== "completed") return null;
+    if (generatedExecution.accounting_mode === "owner_private") {
+      return {
+        estimated: 0,
+        final: 0,
+        refunded: 0,
+        extra: 0,
+        owner: true,
+      };
+    }
+    const breakdown = generatedExecution.billing_breakdown ?? {};
+    return {
+      estimated: Number(
+        breakdown.estimated_tokens_before_execution ??
+        estimatedTokens ??
+        generatedExecution.tokens_charged ??
+        0,
+      ),
+      final: Number(
+        breakdown.final_tokens ??
+        breakdown.tokens_actually_charged ??
+        generatedExecution.tokens_charged ??
+        0,
+      ),
+      refunded: Number(breakdown.tokens_refunded ?? 0),
+      extra: Number(breakdown.extra_tokens_debited ?? 0),
+      owner: false,
+    };
+  }, [estimatedTokens, generatedExecution]);
+
+  const generateButtonLabel = generatedExecution?.status === "completed"
+    ? "Generar otra variante"
+    : "Generar modelo";
+  const generateTokenLabel = owner
+    ? "Owner Local · sin consumo de tokens"
+    : estimatedTokens != null
+      ? `${estimatedTokens} tokens estimados`
+      : "Calculando tokens…";
 
   async function useGeneratedModel() {
     if (!generatedImage?.storage_file_id) {
@@ -955,6 +1054,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   active={generationIsActive || generatingModel}
                   label="CREATE MODEL IA"
                   className="faceGenerationMorph"
+                  progress={estimatedGenerationProgress}
+                  estimatedSeconds={estimatedGenerationSeconds}
                   config={{
                     particleCount: 4500,
                     morphDurationMs: 1800,
@@ -981,7 +1082,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              {!generatingModel && (!generatedExecution || generatedExecution.status === "failed") && (
+              {!generatingModel && !generationIsActive && (
                 <button
                   type="button"
                   className="facePreviewHud faceBodyRefineTrigger"
@@ -995,7 +1096,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <ChevronRight size={16} />
                 </button>
               )}
-              {!generatingModel && (!generatedExecution || generatedExecution.status === "failed") && bodyRefineOpen && (
+              {!generatingModel && !generationIsActive && bodyRefineOpen && (
                 <div className="faceBodyRefineCard">
                   <div className="faceBodyRefineHead">
                     <div>
@@ -1376,7 +1477,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                         disabled={generatingModel}
                       >
                         <WandSparkles size={19} />
-                        {generatingModel ? "Enviando…" : "Generar otra variante"}
+                        <span>
+                          <strong>{generatingModel ? "Enviando…" : generateButtonLabel}</strong>
+                          {!generatingModel && <small>{generateTokenLabel}</small>}
+                        </span>
                       </button>
                       <button
                         className="faceGenerateModelButton faceGenerateModelButtonDone faceUseGeneratedButton"
@@ -1396,8 +1500,31 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                       disabled={generatingModel}
                     >
                       <WandSparkles size={19} />
-                      {generatingModel ? "Enviando generación…" : "Generar modelo"}
+                      <span>
+                        <strong>{generatingModel ? "Enviando generación…" : generateButtonLabel}</strong>
+                        {!generatingModel && <small>{generateTokenLabel}</small>}
+                      </span>
                     </button>
+                  )}
+
+                  {billingSummary && (
+                    <div className="faceGenerationBillingSummary">
+                      {billingSummary.owner ? (
+                        <span>Cuenta Owner · esta generación no produjo movimientos de tokens.</span>
+                      ) : (
+                        <>
+                          <span>Estimado: <b>{billingSummary.estimated}</b> tokens</span>
+                          <span>Usados: <b>{billingSummary.final}</b> tokens</span>
+                          {billingSummary.refunded > 0 ? (
+                            <span>Ajuste: se devolvieron <b>{billingSummary.refunded}</b> tokens</span>
+                          ) : billingSummary.extra > 0 ? (
+                            <span>Ajuste: se cobraron <b>{billingSummary.extra}</b> tokens adicionales</span>
+                          ) : (
+                            <span>Ajuste: <b>sin cambios</b></span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
 
                   {generatedExecution?.status === "failed" && (
