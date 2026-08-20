@@ -733,21 +733,25 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       return Math.max(0, Math.min(100, generatedExecution.progress || 0));
     }
 
-    const backendProgress = Math.max(0, Math.min(100, generatedExecution.progress || 0));
+    // While Backend still reports queued/running, neither provider progress
+    // nor the visual ETA is allowed to claim completion. 100% is reserved
+    // exclusively for the completed status handled above.
+    const backendProgress = Math.max(0, Math.min(99, generatedExecution.progress || 0));
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
-      return Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress);
+      return Math.min(99, Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress));
     }
 
-    // This bar is intentionally an ETA visualization, not provider progress.
-    // It advances linearly through the historical/default estimate and may
-    // remain at 100% while the real provider finishes.
+    // This is an ETA visualization, not proof that the provider has finished.
+    // It advances linearly using the historical/default estimate, reaches at
+    // most 99%, and stays there if the ETA expires before Backend confirms
+    // completion.
     const startedAt = generatedExecution.started_at || generatedExecution.created_at;
     const startedMs = backendTimestampMs(startedAt);
-    if (!Number.isFinite(startedMs)) return Math.max(2, backendProgress);
+    if (!Number.isFinite(startedMs)) return Math.min(99, Math.max(2, backendProgress));
 
     const elapsedSeconds = Math.max(0, (progressClock - startedMs) / 1000);
-    const timeProgress = Math.min(100, (elapsedSeconds / estimatedGenerationSeconds) * 100);
-    return Math.max(backendProgress, timeProgress);
+    const timeProgress = Math.min(99, (elapsedSeconds / estimatedGenerationSeconds) * 100);
+    return Math.min(99, Math.max(backendProgress, timeProgress));
   }, [estimatedGenerationSeconds, generatedExecution, progressClock]);
 
   const estimatedTokens =
