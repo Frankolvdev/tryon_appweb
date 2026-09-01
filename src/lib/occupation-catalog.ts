@@ -155,3 +155,177 @@ export function getOccupationPromptValue(id: string | undefined, customValue?: s
   if (id === "custom") return customValue?.trim() || "";
   return OCCUPATIONS.find((item) => item.id === id)?.en || "";
 }
+
+export type OccupationGenerationContext = {
+  place: string;
+  clothes: string;
+};
+
+const OCCUPATION_CONTEXT_GROUPS: Array<{
+  ids: string[];
+  place: string;
+  clothes: string;
+}> = [
+  {
+    ids: ["doctor", "nurse", "dentist", "pharmacist", "surgeon", "paramedic", "physical-therapist", "nutritionist", "caregiver"],
+    place: "modern bright hospital or medical clinic interior",
+    clothes: "stylish fitted professional medical uniform, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["veterinarian"],
+    place: "modern veterinary clinic interior",
+    clothes: "stylish fitted veterinary medical uniform, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["teacher", "professor", "school-principal", "librarian", "student"],
+    place: "modern elegant school or university interior",
+    clothes: "stylish fitted smart academic outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["software-developer", "data-analyst", "data-scientist", "product-manager", "project-manager", "ai-engineer", "cybersecurity-specialist", "network-engineer", "it-support", "database-administrator", "ux-designer", "ui-designer", "web-designer", "remote-worker"],
+    place: "modern technology office with elegant workstations",
+    clothes: "stylish fitted smart-casual professional outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["engineer", "architect", "civil-engineer", "mechanical-engineer", "electrical-engineer", "industrial-engineer", "aerospace-engineer"],
+    place: "modern professional design and engineering studio",
+    clothes: "stylish fitted professional engineering outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["lawyer", "judge", "paralegal"],
+    place: "elegant modern law office interior",
+    clothes: "elegant fitted professional suit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["business-owner", "accountant", "administrator", "marketing-specialist", "human-resources", "recruiter", "banker", "financial-advisor", "economist", "investment-analyst", "entrepreneur", "consultant", "operations-manager", "customer-service", "receptionist", "executive-assistant", "secretary", "office-worker"],
+    place: "elegant modern corporate office interior",
+    clothes: "elegant fitted office outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["salesperson", "store-manager"],
+    place: "modern upscale retail store interior",
+    clothes: "stylish fitted retail professional outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["psychologist", "therapist", "social-worker"],
+    place: "warm modern private consultation office",
+    clothes: "soft elegant fitted professional outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["scientist", "researcher", "biologist", "chemist", "physicist"],
+    place: "clean modern research laboratory",
+    clothes: "fitted professional laboratory outfit with clean lab coat, tasteful, fully covered, realistic",
+  },
+  {
+    ids: ["chef", "baker", "pastry-chef", "butcher"],
+    place: "modern professional kitchen interior",
+    clothes: "stylish fitted chef uniform, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["barista", "bartender", "waiter"],
+    place: "stylish upscale cafe or restaurant interior",
+    clothes: "stylish fitted hospitality uniform, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["photographer", "graphic-designer", "illustrator", "animator", "video-editor", "filmmaker", "director", "producer", "writer", "journalist", "copywriter", "translator", "interpreter"],
+    place: "stylish modern creative studio interior",
+    clothes: "fashionable fitted creative-professional outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["model", "actor", "musician", "singer", "dancer", "content-creator", "influencer", "social-media-manager", "public-relations"],
+    place: "luxurious modern photo and content studio",
+    clothes: "fashionable fitted contemporary outfit, glamorous but tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["coach", "personal-trainer", "athlete", "yoga-instructor", "fitness-instructor"],
+    place: "premium modern fitness studio or gym",
+    clothes: "stylish fitted athletic outfit, tasteful, fully covered, performance-ready and realistic",
+  },
+  {
+    ids: ["police-officer", "security-guard", "detective"],
+    place: "modern professional security or operations facility",
+    clothes: "professional fitted duty uniform appropriate to the role, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["firefighter"],
+    place: "modern fire station interior",
+    clothes: "professional fitted firefighter station uniform, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["military-officer"],
+    place: "modern military administrative facility",
+    clothes: "professional fitted service uniform, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["real-estate-agent", "insurance-agent", "travel-agent", "hotel-manager"],
+    place: "luxurious modern client-facing office or hotel lobby",
+    clothes: "elegant fitted business outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["fashion-designer", "stylist", "hair-stylist", "makeup-artist", "nail-technician", "esthetician", "tailor", "jeweler", "interior-designer", "florist"],
+    place: "elegant modern fashion, beauty or design studio",
+    clothes: "fashion-forward fitted professional outfit, tasteful, fully covered, polished and realistic",
+  },
+  {
+    ids: ["construction-worker", "carpenter", "electrician", "plumber", "welder", "mechanic"],
+    place: "clean modern workshop or active professional worksite",
+    clothes: "fitted professional workwear appropriate to the role, tasteful, fully covered, practical and realistic",
+  },
+  {
+    ids: ["farmer", "gardener"],
+    place: "beautiful well-kept outdoor garden or farm setting",
+    clothes: "stylish fitted practical outdoor workwear, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["truck-driver", "delivery-driver", "taxi-driver"],
+    place: "clean modern transport or logistics setting",
+    clothes: "stylish fitted practical driver outfit, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["pilot", "flight-attendant"],
+    place: "modern premium airport or aircraft cabin setting",
+    clothes: "elegant fitted aviation uniform appropriate to the role, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["tour-guide"],
+    place: "beautiful modern urban landmark setting",
+    clothes: "stylish fitted smart-casual guide outfit, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["housekeeper"],
+    place: "luxurious modern hotel interior",
+    clothes: "neat fitted professional housekeeping uniform, tasteful, fully covered and realistic",
+  },
+  {
+    ids: ["childcare-worker", "stay-at-home-parent"],
+    place: "bright comfortable modern home interior",
+    clothes: "stylish fitted casual outfit, tasteful, fully covered, comfortable and realistic",
+  },
+  {
+    ids: ["freelancer", "unemployed", "retired"],
+    place: "elegant modern lifestyle interior",
+    clothes: "stylish fitted smart-casual outfit, tasteful, fully covered, polished and realistic",
+  },
+];
+
+export function getOccupationGenerationContext(
+  id: string | undefined,
+  customValue?: string,
+): OccupationGenerationContext {
+  if (id === "custom") {
+    const occupation = customValue?.trim();
+    return {
+      place: occupation ? `modern professional environment appropriate for a ${occupation}` : "elegant modern professional interior",
+      clothes: occupation
+        ? `stylish fitted professional outfit appropriate for a ${occupation}, tasteful, fully covered, polished and realistic`
+        : "stylish fitted professional outfit, tasteful, fully covered, polished and realistic",
+    };
+  }
+  const group = OCCUPATION_CONTEXT_GROUPS.find((item) => item.ids.includes(id || ""));
+  return group
+    ? { place: group.place, clothes: group.clothes }
+    : {
+        place: "elegant modern professional interior",
+        clothes: "stylish fitted professional outfit, tasteful, fully covered, polished and realistic",
+      };
+}

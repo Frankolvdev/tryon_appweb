@@ -29,7 +29,7 @@ import {
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
-import { OCCUPATIONS, getOccupationLabel, type OccupationLocale } from "@/lib/occupation-catalog";
+import { OCCUPATIONS, getOccupationGenerationContext, getOccupationLabel, type OccupationLocale } from "@/lib/occupation-catalog";
 import type {
   ModelGenerationAsset,
   ModelGenerationToolKey,
@@ -178,7 +178,15 @@ const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
   { key: "input_4", name: "Skin Tone", type: "float" },
   { key: "input_5", name: "Hair Length", type: "float" },
   { key: "input_6", name: "Butt Elevation", type: "float" },
-  { key: "input_7", name: "Main Prompt", type: "text" },
+  { key: "input_7", name: "Pose", type: "text" },
+  { key: "input_8", name: "On", type: "text" },
+  { key: "input_9", name: "view", type: "text" },
+  { key: "input_10", name: "Action", type: "text" },
+  { key: "input_11", name: "Place", type: "text" },
+  { key: "input_12", name: "time_day_weather_or_lighting", type: "text" },
+  { key: "input_13", name: "Clothes", type: "text" },
+  { key: "input_14", name: "extra_details", type: "text" },
+  { key: "input_15", name: "prompt_head", type: "text" },
 ] as const;
 
 function assertCreateModelWomanContract(module: {
@@ -608,27 +616,24 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         customValues,
       });
 
-      // Pony / SDXL tag-style prompt: English, comma-separated.
-      const mainPrompt = commaPrompt([
-        "score_9",
-        "score_8_up",
-        "score_7_up",
-        "source_photo",
-        "photorealistic",
-        "1girl",
-        "solo",
-        "adult woman",
+      // The workflow contract separates body controls, scene controls and the
+      // identity/head prompt. Scene defaults stay deterministic so the same
+      // identity settings produce a predictable first preview.
+      const occupationContext = getOccupationGenerationContext(
+        selections.occupation,
+        customValues.occupation,
+      );
+      const promptHead = commaPrompt([
         identity.prompt,
-        "full body",
-        "standing",
-        "front view",
-        "natural anatomy",
+        "fitted black top",
+        "frontal upper-chest beauty portrait",
+        "looking directly at camera",
+        "neutral-cool soft beauty lighting",
+        "photorealistic",
         "realistic skin texture",
-        "fine skin pores",
+        "highly detailed eyes",
         "realistic hair strands",
-        "professional photography",
-        "sharp focus",
-        "high detail",
+        "85mm beauty photography",
       ].join(", "));
 
       const payload = {
@@ -638,12 +643,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_4: round1(bodyBase.skin_tone),
         input_5: round1(bodyBase.hair_length),
         input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
-        input_7: mainPrompt,
+        input_7: "standing full-body confident feminine pose, natural posture",
+        input_8: "standing naturally on the floor",
+        input_9: "front view, full body",
+        input_10: "standing and looking directly at camera",
+        input_11: occupationContext.place,
+        input_12: "soft flattering professional daylight, balanced neutral lighting",
+        input_13: occupationContext.clothes,
+        input_14: "photorealistic, natural anatomy, realistic skin texture, realistic fabric, professional photography, sharp focus, high detail",
+        input_15: promptHead,
       };
 
-      // Requested browser diagnostics. These logs intentionally show the
-      // exact contract payload immediately before the existing Generation
-      // Module API sends it to the Backend.
+      // Browser diagnostics: exact contract payload immediately before the
+      // existing Generation Module API sends it to the Backend.
       console.groupCollapsed(
         `%c[Create Model IA → ${generationModule.key}]`,
         "color:#ef4444;font-weight:700",
@@ -653,8 +665,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         key: generationModule.key,
         engine: generationModule.default_execution_engine,
       });
-      console.log("Main Prompt:");
-      console.log(mainPrompt);
+      console.log("Occupation scene:", occupationContext);
+      console.log("Head Prompt:");
+      console.log(promptHead);
       console.log("Exact Generation Module inputs:");
       console.table({
         input_1: { name: "Hips Size", value: payload.input_1 },
@@ -663,7 +676,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_4: { name: "Skin Tone", value: payload.input_4 },
         input_5: { name: "Hair Length", value: payload.input_5 },
         input_6: { name: "Butt Elevation", value: payload.input_6 },
-        input_7: { name: "Main Prompt", value: payload.input_7 },
+        input_7: { name: "Pose", value: payload.input_7 },
+        input_8: { name: "On", value: payload.input_8 },
+        input_9: { name: "view", value: payload.input_9 },
+        input_10: { name: "Action", value: payload.input_10 },
+        input_11: { name: "Place", value: payload.input_11 },
+        input_12: { name: "time_day_weather_or_lighting", value: payload.input_12 },
+        input_13: { name: "Clothes", value: payload.input_13 },
+        input_14: { name: "extra_details", value: payload.input_14 },
+        input_15: { name: "prompt_head", value: payload.input_15 },
       });
       console.log("Payload:", { inputs: payload });
       console.groupEnd();
