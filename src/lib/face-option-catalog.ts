@@ -45,15 +45,24 @@ export const defaultIdentitySelections:IdentitySelections={eyeColor:"brown",skin
 export function colorOption(categoryId:string,optionId:string){return colorCategories.find(c=>c.id===categoryId)?.options.find(o=>o.id===optionId)}
 
 export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:IdentitySelections;mediaValues:Record<string,string>;customValues:Record<string,string>}){
- const colors=colorCategories.map(c=>{
-   const chosen=args.selections[c.id];
-   if(chosen==="custom") return args.customValues[c.id]?.trim()?`${args.customValues[c.id].trim()} ${c.id.replace("Color"," color").replace("skinTone","skin tone")}`:"";
-   return colorOption(c.id,chosen)?.prompt||"";
- });
- const media=["eyebrows","lips","hairstyle"].map(key=>args.mediaValues[key]||args.customValues[key]||"");
+ const eyebrowValue=(args.mediaValues.eyebrows||args.customValues.eyebrows||"").trim();
+ const lipsValue=(args.mediaValues.lips||args.customValues.lips||"").trim();
+ const hairstyleValue=(args.mediaValues.hairstyle||args.customValues.hairstyle||"").trim();
+ const hairColor=colorOption("hairColor",args.selections.hairColor)?.prompt||
+   (args.selections.hairColor==="custom"&&args.customValues.hairColor?.trim()?`${args.customValues.hairColor.trim()} hair color`:"");
+ const colorsWithoutHair=colorCategories
+   .filter(c=>c.id!=="hairColor")
+   .map(c=>{
+     const chosen=args.selections[c.id];
+     if(chosen==="custom") return args.customValues[c.id]?.trim()?`${args.customValues[c.id].trim()} ${c.id.replace("Color"," color").replace("skinTone","skin tone")}`:"";
+     return colorOption(c.id,chosen)?.prompt||"";
+   });
+ const hairDescription=[hairColor,hairstyleValue?`${hairstyleValue} hair style`:""].filter(Boolean).join(", ");
+ const eyebrowDescription=eyebrowValue?`${eyebrowValue} eyebrow shape`:"";
+ const lipsDescription=lipsValue?`${lipsValue} lip shape`:"";
  const occupation=getOccupationPromptValue(args.selections.occupation,args.customValues.occupation);
  const occupationPrompt=occupation?`${occupation}, professional occupation styling appropriate to the selected role`:"";
  const extra=args.customValues.extraDetails?.trim()||"";
- const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colors,...media,occupationPrompt,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
+ const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colorsWithoutHair,hairDescription,eyebrowDescription,lipsDescription,occupationPrompt,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
  return {prompt:pieces.filter(Boolean).join(",\n"),negativePrompt:""};
 }
