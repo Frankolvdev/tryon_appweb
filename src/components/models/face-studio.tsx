@@ -189,21 +189,21 @@ function normalizeBodyDelta(value: unknown) {
 
 const CREATE_MODEL_WOMAN_MODULE_KEY = "create_model_woman";
 const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
-  { key: "input_1", name: "Hips SIze", type: "float" },
-  { key: "input_2", name: "Fat - Thin", type: "float" },
-  { key: "input_3", name: "Breasts Size", type: "float" },
-  { key: "input_4", name: "Skin Tone", type: "float" },
-  { key: "input_5", name: "Hair Length", type: "float" },
-  { key: "input_6", name: "Butt Elevation", type: "float" },
-  { key: "input_7", name: "Pose", type: "text" },
-  { key: "input_8", name: "On", type: "text" },
-  { key: "input_9", name: "view", type: "text" },
-  { key: "input_10", name: "Action", type: "text" },
-  { key: "input_11", name: "Place", type: "text" },
-  { key: "input_12", name: "time_day_weather_or_lighting", type: "text" },
-  { key: "input_13", name: "Clothes", type: "text" },
-  { key: "input_14", name: "extra_details", type: "text" },
-  { key: "input_15", name: "prompt_head", type: "text" },
+  { key: "input_1", name: "Hips SIze", type: "float", required: true },
+  { key: "input_2", name: "Fat - Thin", type: "float", required: true },
+  { key: "input_3", name: "Breasts Size", type: "float", required: true },
+  { key: "input_4", name: "Skin Tone", type: "float", required: true },
+  { key: "input_5", name: "Hair Length", type: "float", required: true },
+  { key: "input_6", name: "Butt Elevation", type: "float", required: true },
+  { key: "input_7", name: "Pose", type: "text", required: true },
+  { key: "input_8", name: "On", type: "text", required: true },
+  { key: "input_9", name: "view", type: "text", required: true },
+  { key: "input_10", name: "Action", type: "text", required: true },
+  { key: "input_11", name: "Place", type: "text", required: true },
+  { key: "input_12", name: "time_day_weather_or_lighting", type: "text", required: true },
+  { key: "input_13", name: "Clothes", type: "text", required: true },
+  { key: "input_14", name: "extra_details", type: "text", required: false },
+  { key: "input_15", name: "prompt_head", type: "text", required: true },
 ] as const;
 
 function assertCreateModelWomanContract(module: {
@@ -219,8 +219,10 @@ function assertCreateModelWomanContract(module: {
     if (actual.input_type !== expected.type) {
       throw new Error(`${expected.key} cambió de tipo: se esperaba ${expected.type} y ahora es ${actual.input_type}.`);
     }
-    if (!actual.is_required) {
-      throw new Error(`${expected.key} dejó de ser obligatorio. Revisa el contrato antes de generar.`);
+    if (actual.is_required !== expected.required) {
+      throw new Error(
+        `${expected.key} cambió su obligatoriedad: se esperaba ${expected.required ? "obligatorio" : "opcional"}. Revisa el contrato antes de generar.`,
+      );
     }
   }
 }
