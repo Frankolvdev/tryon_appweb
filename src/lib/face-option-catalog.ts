@@ -1,7 +1,5 @@
 "use client";
 
-import { getOccupationPromptValue } from "@/lib/occupation-catalog";
-
 export type ColorOption={id:string;label:string;tone:string;prompt:string;negative?:string};
 export type ColorCategory={id:"eyeColor"|"skinTone"|"hairColor";label:string;hint:string;options:ColorOption[]};
 export type IdentitySelections=Record<string,string>;
@@ -17,12 +15,12 @@ export const colorCategories:ColorCategory[]=[
   {id:"gray",label:"Gray",tone:"#9299a1",prompt:"clear cool gray irises, matching gray eye color in both eyes"},
  ]},
  {id:"skinTone",label:"Skin tone",hint:"Tono de piel",options:[
-  {id:"porcelain",label:"Porcelain",tone:"#ead4c9",prompt:"very fair neutral-cool porcelain skin tone"},
-  {id:"fair",label:"Fair",tone:"#d9b8a7",prompt:"fair light neutral skin tone with subtle rosy undertone"},
-  {id:"light",label:"Light",tone:"#cda18c",prompt:"light neutral skin tone"},
-  {id:"medium",label:"Medium",tone:"#a9765d",prompt:"medium neutral skin tone"},
-  {id:"tan",label:"Tan",tone:"#8e5f49",prompt:"warm medium-tan skin tone"},
-  {id:"deep",label:"Deep",tone:"#55362d",prompt:"deep rich brown skin tone"},
+  {id:"porcelain",label:"Porcelain",tone:"#ead4c9",prompt:"porcelain skin tone"},
+  {id:"fair",label:"Fair",tone:"#d9b8a7",prompt:"fair skin tone"},
+  {id:"light",label:"Light",tone:"#cda18c",prompt:"light skin tone"},
+  {id:"medium",label:"Medium",tone:"#a9765d",prompt:"medium skin tone"},
+  {id:"tan",label:"Tan",tone:"#8e5f49",prompt:"tan skin tone"},
+  {id:"deep",label:"Deep",tone:"#55362d",prompt:"deep skin tone"},
  ]},
  {id:"hairColor",label:"Hair color",hint:"Color de cabello",options:[
   {id:"black",label:"Black",tone:"#111214",prompt:"pure jet-black hair color from roots to ends"},
@@ -60,9 +58,7 @@ export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:Ident
  const hairDescription=[hairColor,hairstyleValue?`${hairstyleValue} hair style`:""].filter(Boolean).join(", ");
  const eyebrowDescription=eyebrowValue?`${eyebrowValue} eyebrow shape`:"";
  const lipsDescription=lipsValue?`${lipsValue} lip shape`:"";
- const occupation=getOccupationPromptValue(args.selections.occupation,args.customValues.occupation);
- const occupationPrompt=occupation?`${occupation}, professional occupation styling appropriate to the selected role`:"";
  const extra=args.customValues.extraDetails?.trim()||"";
- const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colorsWithoutHair,hairDescription,eyebrowDescription,lipsDescription,occupationPrompt,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
+ const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colorsWithoutHair,hairDescription,eyebrowDescription,lipsDescription,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
  return {prompt:pieces.filter(Boolean).join(",\n"),negativePrompt:""};
 }

@@ -653,6 +653,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         "highly detailed eyes",
         "realistic hair strands",
         "85mm beauty photography",
+        "clean white photography studio background",
       ].join(", "));
 
       const payload = {
