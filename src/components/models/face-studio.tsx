@@ -156,6 +156,23 @@ function StepIcon({ id }: { id: StepId }) {
 const BODY_FINE_VALUES = Array.from({ length: 17 }, (_, index) => round1(-0.8 + index * 0.1));
 function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
 
+function skinToneGenerationValue(selectionId: string | undefined): number {
+  const options = colorCategories.find((category) => category.id === "skinTone")?.options ?? [];
+  const selectedIndex = options.findIndex((option) => option.id === selectionId);
+  const neutralIndex = options.findIndex((option) => option.id === "medium");
+
+  if (selectedIndex < 0 || neutralIndex < 0) return 0;
+  if (selectedIndex === neutralIndex) return 0;
+
+  if (selectedIndex < neutralIndex) {
+    return round1(-4 * ((neutralIndex - selectedIndex) / neutralIndex));
+  }
+
+  const darkerSteps = options.length - 1 - neutralIndex;
+  if (darkerSteps <= 0) return 0;
+  return round1(4 * ((selectedIndex - neutralIndex) / darkerSteps));
+}
+
 function backendTimestampMs(value: string | null | undefined): number {
   if (!value) return Number.NaN;
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
@@ -640,7 +657,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_1: round1(bodyBase.ass + bodyAdjustments.ass),
         input_2: round1(bodyBase.fat + bodyAdjustments.fat),
         input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
-        input_4: round1(bodyBase.skin_tone),
+        input_4: skinToneGenerationValue(selections.skinTone),
         input_5: round1(bodyBase.hair_length),
         input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
         input_7: "standing full-body confident feminine pose, natural posture",
@@ -650,7 +667,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_11: occupationContext.place,
         input_12: "soft flattering professional daylight, balanced neutral lighting",
         input_13: occupationContext.clothes,
-        input_14: "photorealistic, natural anatomy, realistic skin texture, realistic fabric, professional photography, sharp focus, high detail",
+        input_14: "",
         input_15: promptHead,
       };
 
