@@ -1,0 +1,5 @@
+export type LegalPolicy={id:number;document_type:string;title:string;content:string;version:string;language:string;country_scope:string;is_required:boolean;is_published:boolean;content_hash:string};
+export type LegalAcceptanceBundle={acceptances:{document_id:number;version:string}[];immediate_service_start:boolean;first_token_activation_acknowledged:boolean};
+export type PublicTokenBag={id:number;source:string;original_tokens:number;remaining_tokens:number;status:string;created_at:string;expires_at:string|null;refundable:boolean;accepted_documents:{type:string;version:string;accepted_at:string}[]};
+
+export type LegalAcceptanceStatus={complete:boolean;missing_document_ids:number[];accepted_document_ids:number[]};

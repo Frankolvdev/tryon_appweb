@@ -1,0 +1,1199 @@
+"use client";
+
+import { listLegalPolicies, listMyTokenBags } from "@/lib/legal-api";
+import type { LegalPolicy, PublicTokenBag, LegalAcceptanceBundle } from "@/types/legal";
+import { LegalConsentModal } from "@/components/legal/legal-consent-modal";
+import { getLegalAcceptanceStatus } from "@/lib/legal-api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useAppSession } from "@/components/app/app-session";
+import {
+ cancelSubscription,
+ checkoutCustomTokens,
+ checkoutSubscription,
+ checkoutTokenPackage,
+ getCurrentSubscription,
+ listInvoices,
+ listPayments,
+ listPlans,
+ listTokenPackages,
+ listTokenPurchases,
+ listTokenTransactions,
+ openCustomerPortal,
+ reactivateSubscription,
+ synchronizeSubscription,
+ validateCoupon,
+} from "@/lib/billing-api";
+import type {
+ BillingInvoice,
+ BillingPayment,
+ CouponValidation,
+ SubscriptionPlan,
+ TokenPackage,
+ TokenPurchase,
+ TokenTransaction,
+ UserSubscription,
+} from "@/types/billing";
+
+const money = (value: string | number, currency = "USD") =>
+ new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: currency.toUpperCase(),
+ }).format(Number(value));
+
+const date = (value?: string | null) =>
+ value
+  ? new Intl.DateTimeFormat("es-MX", {
+     dateStyle: "medium",
+     timeStyle: "short",
+    }).format(new Date(value))
+  : "—";
+
+const statusLabel = (status?: string | null) => {
+ const normalizedStatus = (status || "").toLowerCase();
+ const labels: Record<string, string> = {
+  succeeded: "Pagado",
+  paid: "Pagado",
+  completed: "Completado",
+  credited: "Acreditado",
+  pending: "Pendiente",
+  processing: "Procesando",
+  failed: "Fallido",
+  canceled: "Cancelado",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
+  partially_refunded: "Reembolso parcial",
+  open: "Pendiente de pago",
+  void: "Anulada",
+  draft: "Borrador",
+  active: "Activo",
+ };
+ return labels[normalizedStatus] || status || "Sin estado";
+};
+
+const subscriptionMovementLabel = (paymentType: string) =>
+ paymentType === "subscription_renewal"
+  ? "Renovación de suscripción"
+  : "Compra de suscripción";
+
+const titleFromKey = (value: string) =>
+ value
+  .replace(/[_-]+/g, " ")
+  .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const friendlyTransactionDescription = (
+ transaction: TokenTransaction,
+ currentPlanName?: string | null,
+) => {
+ const description = transaction.description?.trim();
+ if (!description) {
+  return transaction.source || transaction.transaction_type;
+ }
+
+ const subscriptionMatch = description.match(
+  /Subscription tokens for plan\s+([^;]+)(?:;\s*invoice\s+\S+)?/i,
+ );
+ if (subscriptionMatch) {
+  const planName = currentPlanName || titleFromKey(subscriptionMatch[1]);
+  return `Tokens incluidos en el plan ${planName}`;
+ }
+
+ return description
+  .replace(/;\s*invoice\s+in_[A-Za-z0-9]+/gi, "")
+  .replace(/\bin_[A-Za-z0-9]+\b/g, "")
+  .trim();
+};
+
+const paymentMethodLabel = (detail?: BillingPayment | null) => {
+ if (!detail) return null;
+
+ const brands: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners Club",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+ };
+ const wallets: Record<string, string> = {
+  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
+  link: "Link",
+ };
+ const brand = detail.payment_method_brand
+  ? brands[detail.payment_method_brand] ||
+    titleFromKey(detail.payment_method_brand)
+  : null;
+ const card =
+  brand && detail.payment_method_last4
+   ? `${brand} •••• ${detail.payment_method_last4}`
+   : brand;
+ const wallet = detail.payment_method_wallet
+  ? wallets[detail.payment_method_wallet] || titleFromKey(detail.payment_method_wallet)
+  : null;
+
+ if (wallet && card) return `${wallet} · ${card}`;
+ if (card) return card;
+ if (detail.payment_method_type) {
+  return titleFromKey(detail.payment_method_type);
+ }
+ return null;
+};
+
+export function BillingCenter() {
+ const params = useSearchParams();
+ const { user, refreshUser } = useAppSession();
+ const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+ const [packages, setPackages] = useState<TokenPackage[]>([]);
+ const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+ const [transactions, setTransactions] = useState<TokenTransaction[]>([]);
+ const [purchases, setPurchases] = useState<TokenPurchase[]>([]);
+ const [payments, setPayments] = useState<BillingPayment[]>([]);
+ const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+ const [loading, setLoading] = useState(true);
+ const [busy, setBusy] = useState<string | null>(null);
+ const [error, setError] = useState<string | null>(null);
+ const [notice, setNotice] = useState<string | null>(null);
+ const [couponCode, setCouponCode] = useState("");
+ const [customCouponCode, setCustomCouponCode] = useState("");
+ const [customCouponMessage, setCustomCouponMessage] = useState<string | null>(null);
+ const [couponMessage, setCouponMessage] = useState<string | null>(null);
+ const [customCouponPreview, setCustomCouponPreview] = useState<CouponValidation | null>(null);
+ const [packageCouponPreviews, setPackageCouponPreviews] = useState<Record<number, CouponValidation>>({});
+ const [customCouponPreviewing, setCustomCouponPreviewing] = useState(false);
+ const [packageCouponPreviewing, setPackageCouponPreviewing] = useState(false);
+ const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null);
+ const [customTokens, setCustomTokens] = useState(1);
+ const [legalPolicies,setLegalPolicies]=useState<LegalPolicy[]>([]);
+ const [acceptedLegalIds,setAcceptedLegalIds]=useState<number[]>([]);
+ const [legalModalOpen,setLegalModalOpen]=useState(false);
+ const [savedLegalBundle,setSavedLegalBundle]=useState<LegalAcceptanceBundle|null>(null);
+ const [immediateStart,setImmediateStart]=useState(false);
+ const [firstUseAck,setFirstUseAck]=useState(false);
+ const [tokenBags,setTokenBags]=useState<PublicTokenBag[]>([]);
+
+ const load = useCallback(async () => {
+  setError(null);
+  const [
+   planData,
+   packageData,
+   transactionData,
+   purchaseData,
+   paymentData,
+   invoiceData,
+  ] = await Promise.all([
+   listPlans(),
+   listTokenPackages(),
+   listTokenTransactions(),
+   listTokenPurchases(),
+   listPayments(),
+   listInvoices(),
+  ]);
+
+  setPlans(planData.filter((item) => item.is_active));
+  setPackages(packageData.filter((item) => item.is_active));
+  setTransactions(transactionData);
+  setPurchases(purchaseData.items);
+  setPayments(paymentData.items);
+  setInvoices(invoiceData.items);
+
+  try {
+   setSubscription(await getCurrentSubscription());
+  } catch {
+   setSubscription(null);
+  }
+
+  try { const policies=await listLegalPolicies(); setLegalPolicies(policies); setTokenBags(await listMyTokenBags()); const st=await getLegalAcceptanceStatus(); if(st.complete){setAcceptedLegalIds(policies.filter(p=>p.is_required).map(p=>p.id));setImmediateStart(true);setFirstUseAck(true);setSavedLegalBundle({acceptances:policies.filter(p=>p.is_required).map(p=>({document_id:p.id,version:p.version})),immediate_service_start:true,first_token_activation_acknowledged:true})} } catch { /* legal panel stays unavailable until backend is ready */ }
+  await refreshUser();
+ }, [refreshUser]);
+
+ useEffect(() => {
+  load()
+   .catch((value) =>
+    setError(
+     value instanceof Error
+      ? value.message
+      : "No fue posible cargar tu información comercial.",
+    ),
+   )
+   .finally(() => setLoading(false));
+ }, [load]);
+
+ useEffect(() => {
+  const checkout = params.get("checkout");
+
+  if (checkout === "success") {
+   setNotice(
+    "Pago confirmado por Stripe. Estamos sincronizando tu saldo e historial.",
+   );
+   let attempts = 0;
+   const timer = window.setInterval(() => {
+    attempts += 1;
+    void load();
+    if (attempts >= 5) window.clearInterval(timer);
+   }, 2500);
+   return () => window.clearInterval(timer);
+  }
+
+  if (checkout === "cancelled") {
+   setNotice(
+    "El proceso de pago fue cancelado. No se realizó ningún cargo.",
+   );
+  }
+ }, [params, load]);
+
+ const currentPlan = useMemo(
+  () =>
+   plans.find(
+    (plan) => plan.id === subscription?.subscription_plan_id,
+   ),
+  [plans, subscription],
+ );
+
+ const commercialTokenValue = useMemo(() => {
+  const packageValue = packages.find(
+   (item) => Number(item.commercial_token_value) > 0,
+  )?.commercial_token_value;
+  const planValue = plans.find(
+   (item) => Number(item.commercial_token_value) > 0,
+  )?.commercial_token_value;
+  return Number(packageValue ?? planValue ?? 0);
+ }, [packages, plans]);
+
+ const customCurrency =
+  packages[0]?.currency || plans[0]?.currency || "USD";
+ const customTotal = customTokens * commercialTokenValue;
+
+ useEffect(() => {
+  const code = customCouponCode.trim();
+  if (!code || customTokens < 1 || commercialTokenValue <= 0) {
+   setCustomCouponPreview(null);
+   setCustomCouponMessage(null);
+   setCustomCouponPreviewing(false);
+   return;
+  }
+
+  let cancelled = false;
+  setCustomCouponPreviewing(true);
+  const timer = window.setTimeout(() => {
+   void validateCoupon(
+    code,
+    customTotal,
+    "free_token_purchase",
+    undefined,
+    normalizeCustomTokens(customTokens),
+   )
+    .then((result) => {
+     if (cancelled) return;
+     setCustomCouponPreview(result);
+     setCustomCouponMessage(result.message);
+    })
+    .catch((value) => {
+     if (cancelled) return;
+     setCustomCouponPreview(null);
+     setCustomCouponMessage(
+      value instanceof Error ? value.message : "No fue posible calcular el cupón.",
+     );
+    })
+    .finally(() => {
+     if (!cancelled) setCustomCouponPreviewing(false);
+    });
+  }, 450);
+
+  return () => {
+   cancelled = true;
+   window.clearTimeout(timer);
+  };
+ }, [customCouponCode, customTokens, customTotal, commercialTokenValue]);
+
+ useEffect(() => {
+  const code = couponCode.trim();
+  if (!code || packages.length === 0) {
+   setPackageCouponPreviews({});
+   setCouponMessage(null);
+   setPackageCouponPreviewing(false);
+   return;
+  }
+
+  let cancelled = false;
+  setPackageCouponPreviewing(true);
+  const timer = window.setTimeout(() => {
+   void Promise.all(
+    packages.map(async (item) => {
+     const result = await validateCoupon(
+      code,
+      item.calculated_price_cents / 100,
+      "token_package",
+      item.id,
+      item.tokens_amount,
+     );
+     return [item.id, result] as const;
+    }),
+   )
+    .then((entries) => {
+     if (cancelled) return;
+     setPackageCouponPreviews(Object.fromEntries(entries));
+     const validCount = entries.filter(([, result]) => result.valid).length;
+     setCouponMessage(
+      validCount > 0
+       ? `Cupón calculado automáticamente en ${validCount} paquete${validCount === 1 ? "" : "s"}.`
+       : entries[0]?.[1].message || "El cupón no aplica a estos paquetes.",
+     );
+    })
+    .catch((value) => {
+     if (cancelled) return;
+     setPackageCouponPreviews({});
+     setCouponMessage(
+      value instanceof Error ? value.message : "No fue posible calcular el cupón.",
+     );
+    })
+    .finally(() => {
+     if (!cancelled) setPackageCouponPreviewing(false);
+    });
+  }, 450);
+
+  return () => {
+   cancelled = true;
+   window.clearTimeout(timer);
+  };
+ }, [couponCode, packages]);
+
+ const subscriptionPayments = useMemo(
+  () =>
+   payments.filter(
+    (item) =>
+     item.payment_type === "subscription" ||
+     item.payment_type === "subscription_renewal",
+   ),
+  [payments],
+ );
+
+ const purchasesByPayment = useMemo(
+  () =>
+   new Map(
+    purchases
+     .filter((item) => item.billing_payment_id != null)
+     .map((item) => [item.billing_payment_id as number, item]),
+   ),
+  [purchases],
+ );
+
+ const visibleInvoices = useMemo(
+  () => invoices.filter((invoice) => invoice.invoice_documents_enabled),
+  [invoices],
+ );
+
+ const paymentsById = useMemo(
+  () => new Map(payments.map((payment) => [payment.id, payment])),
+  [payments],
+ );
+
+ const largestTokenPurchase = useMemo(
+  () =>
+   purchases.reduce(
+    (largest, purchase) =>
+     Math.max(largest, Number(purchase.total_tokens) || 0),
+    0,
+   ),
+  [purchases],
+ );
+
+ async function redirect(
+  action: () => Promise<{
+   checkout_url?: string;
+   portal_url?: string;
+  }>,
+  key: string,
+ ) {
+  setBusy(key);
+  setError(null);
+
+  try {
+   const result = await action();
+   const target = result.checkout_url || result.portal_url;
+   if (!target) {
+    throw new Error(
+     "El backend no devolvió una URL de Stripe.",
+    );
+   }
+   window.location.assign(target);
+  } catch (value) {
+   setError(
+    value instanceof Error
+     ? value.message
+     : "No fue posible abrir Stripe.",
+   );
+   setBusy(null);
+  }
+ }
+
+ async function subscriptionAction(
+  action: () => Promise<{ message: string }>,
+  key: string,
+ ) {
+  setBusy(key);
+  setError(null);
+
+  try {
+   const result = await action();
+   setNotice(result.message);
+   await load();
+  } catch (value) {
+   setError(
+    value instanceof Error
+     ? value.message
+     : "No fue posible actualizar la suscripción.",
+   );
+  } finally {
+   setBusy(null);
+  }
+ }
+
+ function normalizeCustomTokens(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.floor(value));
+ }
+
+ function legalBundle(): LegalAcceptanceBundle {
+  if(savedLegalBundle)return savedLegalBundle;
+  setLegalModalOpen(true);
+  throw new Error("Debes aceptar las políticas vigentes para continuar.");
+ }
+ async function buyCustomTokens() {
+  const amount = normalizeCustomTokens(customTokens);
+  setCustomTokens(amount);
+  const code = customCouponCode.trim();
+  if (code) {
+   setBusy("custom-coupon");
+   try {
+    const validation = await validateCoupon(code, amount * commercialTokenValue, "free_token_purchase", undefined, amount);
+    setCustomCouponMessage(validation.message);
+    if (!validation.valid) return;
+   } catch (value) {
+    setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+    return;
+   } finally {
+    setBusy(null);
+   }
+  }
+  await redirect(() => checkoutCustomTokens(amount, code || undefined, legalBundle()), "custom-tokens");
+ }
+
+ async function checkCustomCoupon() {
+  if (!customCouponCode.trim()) return;
+  setBusy("custom-coupon");
+  setCustomCouponMessage(null);
+  try {
+   const result = await validateCoupon(
+    customCouponCode.trim(),
+    customTotal,
+    "free_token_purchase",
+    undefined,
+    normalizeCustomTokens(customTokens),
+   );
+   setCustomCouponMessage(result.message);
+  } catch (value) {
+   setCustomCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+  } finally {
+   setBusy(null);
+  }
+ }
+
+ async function checkCoupon() {
+  if (!selectedPackage || !couponCode.trim()) return;
+
+  setBusy("coupon");
+  setCouponMessage(null);
+
+  try {
+   const result = await validateCoupon(
+    couponCode.trim(),
+    selectedPackage.calculated_price_cents / 100,
+    "token_package",
+    selectedPackage.id,
+    selectedPackage.tokens_amount,
+   );
+   setCouponMessage(result.message);
+  } catch (value) {
+   setCouponMessage(
+    value instanceof Error
+     ? value.message
+     : "No fue posible validar el cupón.",
+   );
+  } finally {
+   setBusy(null);
+  }
+ }
+
+ async function buyPackage(item: TokenPackage) {
+  const code = couponCode.trim();
+  if (code) {
+   setBusy("coupon");
+   try {
+    const validation = await validateCoupon(code, item.calculated_price_cents / 100, "token_package", item.id, item.tokens_amount);
+    setCouponMessage(validation.message);
+    if (!validation.valid) return;
+   } catch (value) {
+    setCouponMessage(value instanceof Error ? value.message : "No fue posible validar el cupón.");
+    return;
+   } finally {
+    setBusy(null);
+   }
+  }
+  await redirect(() => checkoutTokenPackage(item.id, code || undefined, legalBundle()), `package-${item.id}`);
+ }
+
+ if (loading) {
+  return (
+   <div className="historyState">
+    <span className="spinner" />
+    <p>Cargando economía de tu cuenta…</p>
+   </div>
+  );
+ }
+
+ return (
+  <div className="billingCenter">
+   {(notice || error) && (
+    <div
+     className={
+      error ? "billingAlert billingAlertError" : "billingAlert"
+     }
+    >
+     {error || notice}
+    </div>
+   )}
+
+   <section className="billingHero">
+    <div>
+     <span className="eyebrow">SALDO ACTUAL</span>
+     <strong>{user.token_balance ?? 0}</strong>
+     <p>tokens disponibles para generar nuevos Try-On.</p>
+    </div>
+
+    <div className="subscriptionSummary">
+     <small>PLAN ACTUAL</small>
+     <h2>
+      {currentPlan?.name ||
+       (subscription
+        ? "Suscripción activa"
+        : "Sin plan activo")}
+     </h2>
+     <p>
+      {subscription
+       ? `Estado: ${statusLabel(subscription.status)}`
+       : "Puedes comprar tokens sin suscripción o elegir un plan."}
+     </p>
+     {subscription?.current_period_end && (
+      <span>
+       Renovación: {date(subscription.current_period_end)}
+      </span>
+     )}
+
+     <div className="billingActions">
+      {subscription && (
+       <button
+        onClick={() =>
+         redirect(openCustomerPortal, "portal")
+        }
+        disabled={!!busy}
+       >
+        {busy === "portal"
+         ? "Abriendo…"
+         : "Administrar en Stripe"}
+       </button>
+      )}
+      {subscription?.cancel_at_period_end ? (
+       <button
+        onClick={() =>
+         subscriptionAction(
+          reactivateSubscription,
+          "reactivate",
+         )
+        }
+        disabled={!!busy}
+       >
+        Reactivar
+       </button>
+      ) : (
+       subscription && (
+        <button
+         onClick={() =>
+          subscriptionAction(
+           cancelSubscription,
+           "cancel",
+          )
+         }
+         disabled={!!busy}
+        >
+         Cancelar al final
+        </button>
+       )
+      )}
+      {subscription && (
+       <button
+        onClick={() =>
+         subscriptionAction(
+          synchronizeSubscription,
+          "sync",
+         )
+        }
+        disabled={!!busy}
+       >
+        Sincronizar
+       </button>
+      )}
+     </div>
+    </div>
+   </section>
+
+   <section className="commercialSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">SUSCRIPCIONES</span>
+      <h2>Planes disponibles</h2>
+     </div>
+     <p>
+      Precios y beneficios cargados directamente desde el
+      backend.
+     </p>
+    </div>
+
+    <div className="planGrid">
+     {plans.map((plan) => (
+      <article className="commercialCard" key={plan.id}>
+       <div>
+        <span>
+         {plan.billing_interval === "year"
+          ? "ANUAL"
+          : "MENSUAL"}
+        </span>
+        {currentPlan?.id === plan.id && <b>ACTUAL</b>}
+       </div>
+       <h3>{plan.name}</h3>
+       <p>{plan.description}</p>
+       <div className="protectedPrice">
+        {Number(plan.effective_discount_percent) > 0 && (
+         <span className="originalPrice">{money(plan.nominal_price_amount, plan.currency)}</span>
+        )}
+        <strong>
+         {money(plan.calculated_price_amount, plan.currency)}
+         <small>/{plan.billing_interval === "year" ? "año" : "mes"}</small>
+        </strong>
+        {Number(plan.effective_discount_percent) > 0 && (
+         <em>Ahorro real {Number(plan.effective_discount_percent).toFixed(0)}% · {money(plan.discount_amount, plan.currency)}</em>
+        )}
+       </div>
+       <ul>
+        {plan.features.map((feature) => (
+         <li key={feature}>✓ {feature}</li>
+        ))}
+       </ul>
+       <div className="commercialMeta">
+        <span>
+         {plan.tokens_per_period.toLocaleString(
+          "es-MX",
+         )}{" "}
+         tokens
+        </span>
+        {plan.max_generations_per_period && (
+         <span>
+          {plan.max_generations_per_period} generaciones
+         </span>
+        )}
+       </div>
+       <button
+        className="primaryButton"
+        disabled={
+         !!busy ||
+         currentPlan?.id === plan.id ||
+         !plan.stripe_configured
+        }
+        onClick={() =>
+         redirect(
+          () => checkoutSubscription(plan.key, legalBundle()),
+          `plan-${plan.id}`,
+         )
+        }
+       >
+        {currentPlan?.id === plan.id
+         ? "Plan actual"
+         : busy === `plan-${plan.id}`
+           ? "Abriendo Stripe…"
+           : plan.stripe_configured
+             ? "Elegir plan"
+             : "Stripe no configurado"}
+       </button>
+      </article>
+     ))}
+    </div>
+   </section>
+
+   <section className="commercialSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">
+       TOKENS A TU MANERA
+      </span>
+      <h2>Compra exactamente los que necesites</h2>
+     </div>
+     <p>
+      Desde 1 token, sin cambiar tu plan actual. El backend
+      confirmará siempre el precio final.
+     </p>
+    </div>
+
+    <article className="customTokenCard">
+     <div>
+      <small>CANTIDAD PERSONALIZADA</small>
+      <h3>Elige cualquier cantidad</h3>
+      <p>
+       Compra 1, 37, 250 o los tokens que necesites.
+      </p>
+     </div>
+
+     <div className="customTokenControls">
+      <label htmlFor="customTokens">Tokens</label>
+      <input
+       id="customTokens"
+       type="number"
+       min="1"
+       step="1"
+       value={customTokens}
+       onChange={(event) =>
+        setCustomTokens(
+         normalizeCustomTokens(
+          Number(event.target.value),
+         ),
+        )
+       }
+      />
+      <div className="customTokenQuick">
+       {[1, 10, 25, 50, 100, 250, 500].map(
+        (amount) => (
+         <button
+          type="button"
+          key={amount}
+          onClick={() => setCustomTokens(amount)}
+         >
+          {amount}
+         </button>
+        ),
+       )}
+      </div>
+     </div>
+
+     <div className="customTokenSummary">
+      <small>PRECIO ACTUALIZADO</small>
+      <div className="protectedPrice">
+       {customCouponPreview?.valid &&
+        Number(customCouponPreview.discount_amount || 0) > 0 && (
+         <span className="originalPrice">
+          {money(customTotal, customCurrency)}
+         </span>
+        )}
+       <strong>
+        {commercialTokenValue > 0
+         ? money(
+            customCouponPreview?.valid &&
+             customCouponPreview.final_amount != null
+             ? customCouponPreview.final_amount
+             : customTotal,
+            customCurrency,
+           )
+         : "Calculado en Stripe"}
+       </strong>
+       {customCouponPreview?.valid &&
+        Number(customCouponPreview.discount_amount || 0) > 0 && (
+         <em>
+          Ahorras {money(customCouponPreview.discount_amount || 0, customCurrency)}
+         </em>
+        )}
+      </div>
+      <span>
+       {customCouponPreviewing
+        ? "Calculando cupón…"
+        : commercialTokenValue > 0
+          ? `${money(commercialTokenValue, customCurrency)} por token antes del cupón`
+          : "El backend aplicará el valor comercial vigente."}
+      </span>
+      <button
+       className="primaryButton"
+       disabled={!!busy || customTokens < 1 || customCouponPreviewing}
+       onClick={() => void buyCustomTokens()}
+      >
+       {busy === "custom-tokens"
+        ? "Abriendo Stripe…"
+        : `Comprar ${customTokens.toLocaleString(
+           "es-MX",
+          )} token${customTokens === 1 ? "" : "s"}`}
+      </button>
+     </div>
+
+    </article>
+
+    <div className="couponBox">
+     <div>
+      <strong>Cupón para compra libre de tokens</strong>
+      <p>El backend aplicará únicamente el descuento seguro permitido.</p>
+     </div>
+     <div>
+      <input
+       value={customCouponCode}
+       onChange={(event) => {
+        setCustomCouponCode(event.target.value.toUpperCase());
+        setCustomCouponPreview(null);
+        setCustomCouponMessage(null);
+       }}
+       placeholder="ESCRIBE TU CÓDIGO"
+      />
+      {customCouponPreviewing && <span>Calculando automáticamente…</span>}
+     </div>
+     {customCouponMessage && <span>{customCouponMessage}</span>}
+    </div>
+
+    <div className="commercialHeading packageHeading">
+     <div>
+      <span className="eyebrow">PAQUETES</span>
+      <h2>Opciones preparadas</h2>
+     </div>
+     <p>
+      También puedes elegir uno de los paquetes configurados
+      desde el BackOffice.
+     </p>
+    </div>
+
+    <div className="couponBox">
+     <div>
+      <strong>Cupón para paquetes</strong>
+      <p>
+       Escribe el código y verás automáticamente el precio actualizado en cada paquete.
+      </p>
+     </div>
+     <div>
+      <input
+       value={couponCode}
+       onChange={(event) => {
+        setCouponCode(event.target.value.toUpperCase());
+        setPackageCouponPreviews({});
+        setCouponMessage(null);
+       }}
+       placeholder="ESCRIBE TU CÓDIGO"
+      />
+      {packageCouponPreviewing && <span>Calculando automáticamente…</span>}
+     </div>
+     {couponMessage && <span>{couponMessage}</span>}
+    </div>
+
+    <div className="packageGrid">
+     {packages.map((item) => (
+      <article
+       className={`packageCard ${
+        selectedPackage?.id === item.id
+         ? "selected"
+         : ""
+       }`}
+       key={item.id}
+       onClick={() => { setSelectedPackage(item); setCouponMessage(null); }}
+      >
+       <small>{item.name}</small>
+       <strong>
+        {item.tokens_amount.toLocaleString("es-MX")}
+       </strong>
+       <span>tokens</span>
+       <div className="protectedPrice compact">
+        {(() => {
+         const couponPreview = packageCouponPreviews[item.id];
+         const basePrice = item.calculated_price_cents / 100;
+         const finalPrice =
+          couponPreview?.valid && couponPreview.final_amount != null
+           ? Number(couponPreview.final_amount)
+           : basePrice;
+         const couponSaving =
+          couponPreview?.valid
+           ? Number(couponPreview.discount_amount || 0)
+           : 0;
+         const hasSaving =
+          item.effective_discount_percent > 0 || couponSaving > 0;
+
+         return (
+          <>
+           {hasSaving && (
+            <span className="originalPrice">
+             {money(
+              couponSaving > 0
+               ? basePrice
+               : item.nominal_price_cents / 100,
+              item.currency,
+             )}
+            </span>
+           )}
+           <b>{money(finalPrice, item.currency)}</b>
+           {couponSaving > 0 ? (
+            <em>Con cupón ahorras {money(couponSaving, item.currency)}</em>
+           ) : item.effective_discount_percent > 0 ? (
+            <em>Ahorro real {item.effective_discount_percent.toFixed(0)}%</em>
+           ) : null}
+          </>
+         );
+        })()}
+       </div>
+       <p>{item.description}</p>
+       <button
+        className="primaryButton"
+        disabled={!!busy || !item.stripe_price_id}
+        onClick={(event) => {
+         event.stopPropagation();
+         void buyPackage(item);
+        }}
+       >
+        {busy === `package-${item.id}`
+         ? "Abriendo Stripe…"
+         : item.stripe_price_id
+           ? "Comprar"
+           : "Stripe no configurado"}
+       </button>
+      </article>
+     ))}
+    </div>
+
+   </section>
+
+   <section className="commercialSection billingCommerceSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">PAGOS Y COMPRAS</span>
+      <h2>Actividad comercial</h2>
+     </div>
+     <button
+      className="ghostButton"
+      onClick={() => void load()}
+      disabled={!!busy}
+     >
+      Actualizar
+     </button>
+    </div>
+
+    <div className="billingCommerceGrid">
+     <div className="billingTable billingCommerceCard">
+      <div className="billingBlockHeading">
+       <span className="billingBlockIcon" aria-hidden="true">S</span>
+       <div>
+        <h3>Pagos de suscripción</h3>
+        <p>Altas, renovaciones y cambios de plan.</p>
+       </div>
+      </div>
+      {subscriptionPayments.length ? (
+       subscriptionPayments.map((item) => (
+        <div key={item.id}>
+         <span>
+          <b>{currentPlan?.name || "Plan de suscripción"}</b>
+          <small>
+           {subscriptionMovementLabel(item.payment_type)} · {statusLabel(item.status)}
+          </small>
+          {paymentMethodLabel(item) && <small>{paymentMethodLabel(item)}</small>}
+          <small>{date(item.paid_at || item.created_at)}</small>
+         </span>
+         <strong>{money(item.amount, item.currency)}</strong>
+        </div>
+       ))
+      ) : (
+       <p className="billingEmptyState">Sin pagos de suscripción.</p>
+      )}
+     </div>
+
+     <div className="billingTable billingCommerceCard">
+      <div className="billingBlockHeading">
+       <span className="billingBlockIcon" aria-hidden="true">T</span>
+       <div>
+        <h3>Compras de tokens</h3>
+        <p>Paquetes y compras personalizadas.</p>
+       </div>
+      </div>
+      {purchases.length ? (
+       purchases.map((item) => {
+        const tokenPackage = packages.find(
+         (packageItem) => packageItem.id === item.token_package_id,
+        );
+        const purchaseTitle =
+         tokenPackage?.name ||
+         (item.token_package_id === null
+          ? "Compra personalizada"
+          : "Paquete de tokens");
+        const purchaseTokens = Number(item.total_tokens) || 0;
+        const purchaseProgress =
+         largestTokenPurchase > 0
+          ? Math.min(
+             100,
+             Math.max(
+              0,
+              (purchaseTokens / largestTokenPurchase) * 100,
+             ),
+            )
+          : 0;
+
+        return (
+         <div key={item.id}>
+          <span>
+           <b>{purchaseTitle}</b>
+           <small>
+            {item.total_tokens.toLocaleString("es-MX")} tokens · {statusLabel(item.status)}
+           </small>
+           {paymentMethodLabel(
+            item.billing_payment_id
+             ? paymentsById.get(item.billing_payment_id)
+             : undefined,
+           ) && (
+            <small>
+             {paymentMethodLabel(
+              item.billing_payment_id
+               ? paymentsById.get(item.billing_payment_id)
+               : undefined,
+             )}
+            </small>
+           )}
+           <small>{date(item.paid_at || item.created_at)}</small>
+          </span>
+          <span className="tokenPurchaseResult">
+           <strong>{money(item.amount, item.currency)}</strong>
+           <span
+            className="tokenPurchaseProgress"
+            aria-label={`${Math.round(purchaseProgress)}% respecto a la mayor compra de tokens`}
+           >
+            <i
+             aria-hidden="true"
+             style={{
+              width: `${purchaseProgress}%`,
+             }}
+            />
+           </span>
+           <small>
+            {largestTokenPurchase > 0
+             ? `${Math.round(purchaseProgress)}% de tu mayor compra`
+             : "Sin referencia histórica"}
+           </small>
+          </span>
+         </div>
+        );
+       })
+      ) : (
+       <p className="billingEmptyState">Sin compras de tokens.</p>
+      )}
+     </div>
+    </div>
+   </section>
+
+   <section className="commercialSection billingLedgerSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">CONTABILIDAD DE TOKENS</span>
+      <h2>Movimientos de tokens</h2>
+     </div>
+     <p>Entradas, consumos, bonificaciones y ajustes de saldo.</p>
+    </div>
+
+    <div className="billingTable billingFullWidthTable">
+     <div className="billingTableHeader" aria-hidden="true">
+      <span>Movimiento</span>
+      <span>Fecha</span>
+      <span>Tokens</span>
+     </div>
+     {transactions.length ? (
+      transactions.map((item) => (
+       <div className="billingLedgerRow" key={item.id}>
+        <span>
+         <b>{friendlyTransactionDescription(item, currentPlan?.name)}</b>
+         <small>{item.source || item.transaction_type}</small>
+        </span>
+        <small className="billingRowDate">{date(item.created_at)}</small>
+        <strong className={item.amount >= 0 ? "positive" : "negative"}>
+         {item.amount >= 0 ? "+" : ""}
+         {item.amount.toLocaleString("es-MX")}
+        </strong>
+       </div>
+      ))
+     ) : (
+      <p className="billingEmptyState">Sin movimientos de tokens.</p>
+     )}
+    </div>
+   </section>
+
+   <section className="commercialSection billingInvoicesSection">
+    <div className="commercialHeading">
+     <div>
+      <span className="eyebrow">DOCUMENTOS DE PAGO</span>
+      <h2>Facturas</h2>
+     </div>
+     <p>Facturas de suscripciones y compras reunidas en un solo lugar.</p>
+    </div>
+
+    <div className="billingTable billingFullWidthTable billingInvoiceTable">
+     <div className="billingTableHeader billingInvoiceHeader" aria-hidden="true">
+      <span>Factura</span>
+      <span>Tipo</span>
+      <span>Fecha</span>
+      <span>Total y acciones</span>
+     </div>
+     {visibleInvoices.length ? (
+      visibleInvoices.map((item) => {
+       const relatedPurchase = item.billing_payment_id
+        ? purchasesByPayment.get(item.billing_payment_id)
+        : undefined;
+       const relatedPackage = relatedPurchase?.token_package_id
+        ? packages.find(
+           (packageItem) => packageItem.id === relatedPurchase.token_package_id,
+          )
+        : undefined;
+       const invoiceType = relatedPurchase ? "Compra de tokens" : "Suscripción";
+       const invoiceTitle = relatedPurchase
+        ? relatedPackage?.name
+         ? `Factura de ${relatedPackage.name}`
+         : "Factura de compra personalizada"
+        : currentPlan?.name
+         ? `Factura de ${currentPlan.name}`
+         : "Factura de suscripción";
+
+       return (
+        <div className="billingInvoiceRow" key={item.id}>
+         <span>
+          <b>{invoiceTitle}</b>
+          <small>
+           {item.invoice_number ? `N.º ${item.invoice_number} · ` : ""}
+           {statusLabel(item.status)}
+          </small>
+         </span>
+         <span className="billingInvoiceType">{invoiceType}</span>
+         <small className="billingRowDate">{date(item.created_at)}</small>
+         <span className="invoiceActions">
+          <strong>{money(item.total, item.currency)}</strong>
+          {item.hosted_invoice_url && (
+           <a href={item.hosted_invoice_url} target="_blank" rel="noreferrer">
+            Ver factura
+           </a>
+          )}
+          {item.invoice_pdf_url && (
+           <a href={item.invoice_pdf_url} target="_blank" rel="noreferrer">
+            Descargar PDF
+           </a>
+          )}
+         </span>
+        </div>
+       );
+      })
+     ) : (
+      <p className="billingEmptyState">
+       {invoices.length
+        ? "Las facturas existentes no están habilitadas para publicación."
+        : "Sin facturas disponibles."}
+      </p>
+     )}
+    </div>
+   </section>
+
+   <section className="commercialSection legalStatusSection"><div><span className="eyebrow">POLÍTICAS</span><h2>{savedLegalBundle?"Políticas vigentes aceptadas":"Aceptación pendiente"}</h2><p>{savedLegalBundle?"No volveremos a preguntarte hasta que se publique una versión nueva.":"Al comprar, abriremos una ventana breve para que las revises y aceptes."}</p></div><button type="button" onClick={()=>setLegalModalOpen(true)}>{savedLegalBundle?"Revisar políticas":"Aceptar políticas"}</button></section>
+   <LegalConsentModal open={legalModalOpen} onClose={()=>setLegalModalOpen(false)} onAccepted={b=>{setSavedLegalBundle(b);setAcceptedLegalIds(b.acceptances.map(x=>x.document_id));setImmediateStart(true);setFirstUseAck(true);setLegalModalOpen(false)}}/>
+   <section className="commercialSection"><div className="commercialHeading"><div><span className="eyebrow">MIS BOLSAS</span><h2>Vigencia y reembolso</h2><p>Cada bolsa conserva la política y versión que aceptaste.</p></div></div><div className="billingTable">{tokenBags.length===0?<p>No hay bolsas todavía.</p>:tokenBags.map(b=><div key={b.id}><span><b>Bolsa #{b.id} · {b.source}</b><small>{b.remaining_tokens}/{b.original_tokens} tokens · {b.status} · {b.expires_at?`vence ${new Date(b.expires_at).toLocaleDateString()}`:'sin vencimiento'} · {b.refundable?'reembolsable':'no reembolsable'}</small></span><small>{b.accepted_documents.map(d=>`${d.type} v${d.version}`).join(' · ')}</small></div>)}</div></section>
+  </div>
+ );
+}

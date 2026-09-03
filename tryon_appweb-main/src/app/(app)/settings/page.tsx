@@ -1,0 +1,3 @@
+"use client";
+import { useAppSession } from "@/components/app/app-session";
+export default function SettingsPage(){const {user}=useAppSession();return <div className="sectionPage pageEnter"><header className="sectionHeader"><span className="eyebrow">MI CUENTA</span><h1>Configuración</h1><p>Información real recuperada de tu sesión.</p></header><section className="profilePanel"><div className="profileAvatar">{(user.full_name || user.email).slice(0,1).toUpperCase()}</div><div><small>NOMBRE</small><strong>{user.full_name || "Sin nombre configurado"}</strong><small>CORREO</small><strong>{user.email}</strong></div></section></div>}

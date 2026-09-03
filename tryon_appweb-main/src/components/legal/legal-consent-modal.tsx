@@ -1,0 +1,18 @@
+"use client";
+import Link from "next/link";
+import {useEffect,useMemo,useState} from "react";
+import {listLegalPolicies,acceptLegalPolicies} from "@/lib/legal-api";
+import type {LegalPolicy,LegalAcceptanceBundle} from "@/types/legal";
+export function LegalConsentModal({open,onClose,onAccepted,persist=true}:{open:boolean;onClose:()=>void;onAccepted:(bundle:LegalAcceptanceBundle)=>void;persist?:boolean}){
+ const [policies,setPolicies]=useState<LegalPolicy[]>([]),[accepted,setAccepted]=useState<number[]>([]);const [immediate,setImmediate]=useState(false),[first,setFirst]=useState(false),[details,setDetails]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ useEffect(()=>{if(open){setAccepted([]);setImmediate(false);setFirst(false);setDetails(false);setError("");void listLegalPolicies().then(setPolicies).catch(()=>setError("No fue posible cargar las políticas."))}},[open]);
+ const required=useMemo(()=>policies.filter(p=>p.is_required),[policies]); const allAccepted=required.length>0&&required.every(p=>accepted.includes(p.id))&&immediate&&first;
+ function setAll(value:boolean){setAccepted(value?required.map(p=>p.id):[]);setImmediate(value);setFirst(value)}
+ if(!open)return null; const bundle=():LegalAcceptanceBundle=>({acceptances:required.map(p=>({document_id:p.id,version:p.version})),immediate_service_start:immediate,first_token_activation_acknowledged:first});
+ async function confirm(){if(!allAccepted)return;setBusy(true);setError("");try{const b=bundle();if(persist)await acceptLegalPolicies(b);onAccepted(b)}catch(e){setError(e instanceof Error?e.message:"No fue posible guardar la aceptación.")}finally{setBusy(false)}}
+ return <div className="legalModalBackdrop" role="dialog" aria-modal="true"><div className="legalModalCard"><button className="legalModalClose" onClick={onClose} aria-label="Cerrar">×</button><span className="eyebrow">ANTES DE CONTINUAR</span><h2>Una sola aceptación, todo claro</h2><p>Acepta el paquete obligatorio para continuar. Puedes desplegar los detalles y abrir cada documento completo antes de aceptar.</p>
+ <label className="legalMasterCheck"><input type="checkbox" checked={allAccepted} onChange={e=>setAll(e.target.checked)}/><span><b>Acepto todas las condiciones obligatorias</b><small>Términos, privacidad, políticas aplicables, inicio inmediato del servicio y condiciones del primer consumo.</small></span></label>
+ <button type="button" className="legalDetailsToggle" aria-expanded={details} onClick={()=>setDetails(v=>!v)}>{details?"Ocultar detalles":"Ver detalles de lo que aceptas"}<span aria-hidden="true">{details?"−":"+"}</span></button>
+ {details&&<div className="legalDetailsPanel"><div className="legalModalList">{required.map(p=><label key={p.id}><input type="checkbox" checked={accepted.includes(p.id)} onChange={e=>setAccepted(x=>e.target.checked?[...new Set([...x,p.id])]:x.filter(id=>id!==p.id))}/><span><b>{p.title}</b><small>Versión {p.version} · <Link target="_blank" href={`/legal/${p.document_type}`}>Ver documento completo</Link></small></span></label>)}</div><label className="legalModalCheck"><input type="checkbox" checked={immediate} onChange={e=>setImmediate(e.target.checked)}/><span>Solicito que el servicio digital comience inmediatamente.</span></label><label className="legalModalCheck"><input type="checkbox" checked={first} onChange={e=>setFirst(e.target.checked)}/><span>Entiendo que el primer consumo activa la bolsa y puede afectar el reembolso.</span></label></div>}
+ {error&&<p className="legalModalError">{error}</p>}<button className="exactSubmit" disabled={!allAccepted||busy} onClick={()=>void confirm()}>{busy?"Guardando…":"Aceptar y continuar"}</button></div></div>
+}
