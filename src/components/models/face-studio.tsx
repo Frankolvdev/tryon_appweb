@@ -16,6 +16,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
+import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
@@ -612,14 +613,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
 
   useEffect(() => {
-    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status)) return;
+    if (!isGenerationActiveForUi(generatedExecution)) return;
     setProgressClock(Date.now());
     const timer = window.setInterval(() => setProgressClock(Date.now()), 500);
     return () => window.clearInterval(timer);
   }, [generatedExecution?.id, generatedExecution?.status]);
 
   useEffect(() => {
-    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status)) return;
+    if (!shouldPollGenerationExecution(generatedExecution)) return;
 
     let cancelled = false;
     const executionId = generatedExecution.id;
@@ -919,15 +920,28 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }
 
   async function cancelCurrentGeneration() {
-    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status) || cancellingGeneration) return;
+    if (!generatedExecution || !canRequestGenerationCancellation(generatedExecution) || cancellingGeneration) return;
+    const executionId = generatedExecution.id;
     setCancellingGeneration(true);
+    // Visual state changes immediately, while Backend remains authoritative and
+    // polling continues until the provider reaches a terminal state.
+    setGeneratedExecution((current) => current?.id === executionId
+      ? { ...current, cancel_requested: true, provider_status: "CANCEL_REQUESTED" }
+      : current);
     try {
-      const updated = await cancelGenerationExecution(generatedExecution.id);
+      const updated = await cancelGenerationExecution(executionId);
       setGeneratedExecution(updated);
       track(updated, { clickable: true, href: `/models/${modelId}/face`, label: "Create Model IA" });
       notify.success(updated.status === "cancelled" ? "Generación cancelada." : "Cancelación solicitada.");
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "No se pudo cancelar la generación.");
+      try {
+        const latest = await getGenerationExecution(executionId);
+        setGeneratedExecution(latest);
+        track(latest, { clickable: true, href: `/models/${modelId}/face`, label: "Create Model IA" });
+      } catch {
+        // Backend status remains authoritative; keep the last safe local snapshot.
+      }
     } finally {
       setCancellingGeneration(false);
     }
@@ -956,9 +970,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     [generatedExecution?.outputs, generationModuleInfo],
   );
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
-  const generationIsActive = Boolean(
-    generatedExecution && ["queued", "running"].includes(generatedExecution.status),
-  );
+  const generationIsActive = isGenerationActiveForUi(generatedExecution);
+  const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
 
   const estimatedGenerationSeconds =
     generatedExecution?.estimated_duration_seconds ??
@@ -1418,7 +1431,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
               style={generatedAspectRatio ? { aspectRatio: `${generatedAspectRatio}` } : undefined}
             >
-              {generationRecoveryPending || generatingModel || (generatedExecution && generatedExecution.status !== "failed") ? (
+              {generationRecoveryPending || generatingModel || generationIsActive || generatedExecution?.status === "completed" ? (
                 <ParticleMorphLoader
                   sourceImages={[
                     "/generation-loaders/model-woman/silhouette-1.webp",
@@ -1501,17 +1514,17 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 </div>
               )}
             </div>
-            {(generatingModel || generationIsActive || cancellingGeneration) && (
-              <button
-                type="button"
-                className="faceCancelGenerationButton"
-                onClick={() => void cancelCurrentGeneration()}
-                disabled={cancellingGeneration || !generatedExecution || !["queued", "running"].includes(generatedExecution.status)}
-              >
-                {cancellingGeneration ? "Cancelando…" : !generatedExecution || !["queued", "running"].includes(generatedExecution.status) ? "Preparando…" : "Cancelar generación"}
-              </button>
-            )}
           </section>
+          {(generatingModel || generationIsActive || generationIsCancelling || cancellingGeneration) && (
+            <button
+              type="button"
+              className="faceCancelGenerationButton"
+              onClick={() => void cancelCurrentGeneration()}
+              disabled={cancellingGeneration || generationIsCancelling || !canRequestGenerationCancellation(generatedExecution)}
+            >
+              {generationIsCancelling || cancellingGeneration ? "Cancelando…" : !generatedExecution ? "Preparando…" : "Cancelar generación"}
+            </button>
+          )}
         </div>
 
         <section className="faceControls faceWizard">

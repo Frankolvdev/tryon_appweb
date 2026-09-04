@@ -26,8 +26,8 @@ import { useGenerationJobs } from "@/components/generation/generation-jobs-provi
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
 import { automaticGenerationModules, generationTabTitle } from "@/lib/generation-ui";
+import { canRequestGenerationCancellation, generationExecutionStatusLabel, isGenerationProviderPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
-const ACTIVE = ["queued", "running"];
 const EXECUTION_HISTORY_LIMIT = 20;
 
 const STATUS_LABELS: Record<string, string> = {
@@ -123,12 +123,6 @@ function executionEngineLabel(engine: GenerationExecution["engine"]) {
   return "Simulado";
 }
 
-function executionStatusLabel(execution: GenerationExecution) {
-  if (execution.cancel_requested && ACTIVE.includes(execution.status)) {
-    return "Cancelando…";
-  }
-  return STATUS_LABELS[execution.status] ?? execution.status;
-}
 
 function formatDuration(seconds?: number | null) {
   if (seconds == null || !Number.isFinite(seconds)) return "—";
@@ -188,7 +182,7 @@ function ExecutionCard({
       <header className="generationExecutionCardHeader">
         <div>
           <small>{new Date(execution.created_at).toLocaleString()}</small>
-          <strong>{executionStatusLabel(execution)}</strong>
+          <strong>{generationExecutionStatusLabel(execution)}</strong>
         </div>
         <span>{execution.progress}%</span>
       </header>
@@ -225,9 +219,9 @@ function ExecutionCard({
         ))}
       </div>
 
-      {ACTIVE.includes(execution.status) && (
+      {isGenerationProviderPending(execution) && (
         <button
-          disabled={cancelling || execution.cancel_requested}
+          disabled={cancelling || !canRequestGenerationCancellation(execution)}
           onClick={() => void onCancel(execution)}
         >
           {cancelling || execution.cancel_requested ? "Cancelando…" : "Cancelar"}
@@ -252,7 +246,7 @@ function ExecutionCard({
         />
       )}
 
-      {!ACTIVE.includes(execution.status) && (
+      {!isGenerationProviderPending(execution) && (
         <section className="generationFinalCost" aria-label="Resultado de tiempo y tokens">
           <small>RESULTADO DE LA EJECUCIÓN</small>
           <div>
@@ -379,7 +373,7 @@ export function GenerationStudio({ moduleId = null }: { moduleId?: number | null
   }, [selectedId]);
 
   const activeExecutionIds = useMemo(
-    () => executions.filter((item) => ACTIVE.includes(item.status)).map((item) => item.id),
+    () => executions.filter((item) => shouldPollGenerationExecution(item)).map((item) => item.id),
     [executions],
   );
   const activeExecutionKey = activeExecutionIds.join("|");

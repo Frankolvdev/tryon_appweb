@@ -8,9 +8,8 @@ import {
 } from "@/lib/generation-api";
 import type { GenerationExecution } from "@/types/generation";
 import { GenerationResults } from "@/components/generation/generation-results";
+import { canRequestGenerationCancellation, generationExecutionStatusLabel, isGenerationProviderPending, isGenerationTerminal, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
-const terminal = new Set(["completed", "failed", "cancelled"]);
-const active = new Set(["queued", "running"]);
 
 function providerLabel(engine: GenerationExecution["engine"]) {
   if (engine === "modal") return "Modal";
@@ -50,7 +49,7 @@ export default function GenerationHistoryPage() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (!items.some((item) => active.has(item.status))) return;
+    if (!items.some((item) => shouldPollGenerationExecution(item))) return;
     const timer = window.setInterval(() => void load(), 2500);
     return () => window.clearInterval(timer);
   }, [items, load]);
@@ -112,7 +111,7 @@ export default function GenerationHistoryPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-semibold text-white">{item.module_key}</h2>
                   <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] uppercase text-zinc-400">
-                    {item.cancel_requested && active.has(item.status) ? "cancelando" : item.status}
+                    {generationExecutionStatusLabel(item)}
                   </span>
                   <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] text-zinc-500">{providerLabel(item.engine)}</span>
                 </div>
@@ -122,16 +121,16 @@ export default function GenerationHistoryPage() {
                 {item.provider_job_id && <p className="mt-1 font-mono text-xs text-zinc-600">Remoto: {item.provider_job_id}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
-                {active.has(item.status) && (
+                {isGenerationProviderPending(item) && (
                   <button
-                    disabled={cancellingIds.has(item.id) || item.cancel_requested}
+                    disabled={cancellingIds.has(item.id) || !canRequestGenerationCancellation(item)}
                     onClick={() => void cancel(item.id)}
                     className="rounded-xl border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {cancellingIds.has(item.id) || item.cancel_requested ? "Cancelando…" : "Cancelar"}
                   </button>
                 )}
-                {terminal.has(item.status) && <button onClick={() => void retry(item.id)} className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white">Reintentar</button>}
+                {isGenerationTerminal(item) && <button onClick={() => void retry(item.id)} className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white">Reintentar</button>}
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full bg-red-600" style={{ width: `${item.progress}%` }} /></div>
