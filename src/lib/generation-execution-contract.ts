@@ -43,3 +43,18 @@ export function generationExecutionStatusLabel(execution: GenerationExecution): 
   };
   return labels[execution.status] ?? execution.status;
 }
+
+export function isGenerationExecutionPollable(
+  execution:
+    | {
+        status?: string | null;
+        cancel_requested?: boolean | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  return Boolean(
+    execution &&
+      (execution.status === "queued" || execution.status === "running"),
+  );
+}

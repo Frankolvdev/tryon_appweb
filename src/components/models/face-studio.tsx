@@ -16,7 +16,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
-import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
+import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, shouldPollGenerationExecution, isGenerationExecutionPollable  } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
@@ -619,11 +619,12 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     return () => window.clearInterval(timer);
   }, [generatedExecution?.id, generatedExecution?.status]);
 
-  useEffect(() => {
-    if (!shouldPollGenerationExecution(generatedExecution)) return;
+useEffect(() => {
+  const execution = generatedExecution;
+  if (!execution || !isGenerationExecutionPollable(execution)) return;
 
-    let cancelled = false;
-    const executionId = generatedExecution.id;
+  let cancelled = false;
+  const executionId = execution.id;
 
     const refreshExecution = async () => {
       try {
