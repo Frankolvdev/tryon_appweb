@@ -268,6 +268,19 @@ function generatedImageUrl(file: GeneratedImageResult | null): string | null {
   return file.preview_url ?? file.public_url ?? file.download_url ?? null;
 }
 
+const CREATE_MODEL_WOMAN_BODY_OUTPUT_ID = 137;
+const CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID = 138;
+
+function generatedImageForOutputId(
+  module: GenerationModule | null,
+  outputs: Record<string, unknown> | undefined,
+  outputId: number,
+): GeneratedImageResult | null {
+  if (!module || !outputs || module.key !== "create_model_woman") return null;
+  const definition = module.outputs.find((item) => item.id === outputId);
+  if (!definition) return null;
+  return collectGeneratedImages(outputs[definition.key] ?? {})[0] ?? null;
+}
 
 
 function identityDraftSnapshot({
@@ -755,9 +768,27 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
+  const generatedBodyImage = useMemo(
+    () =>
+      generatedImageForOutputId(
+        generationModuleInfo,
+        generatedExecution?.outputs,
+        CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
+      ),
+    [generatedExecution?.outputs, generationModuleInfo],
+  );
   const generatedImage = useMemo(
-    () => collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
-    [generatedExecution?.outputs],
+    () => generatedBodyImage ?? collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
+    [generatedBodyImage, generatedExecution?.outputs],
+  );
+  const generatedIdentityFace = useMemo(
+    () =>
+      generatedImageForOutputId(
+        generationModuleInfo,
+        generatedExecution?.outputs,
+        CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
+      ),
+    [generatedExecution?.outputs, generationModuleInfo],
   );
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
   const generationIsActive = Boolean(
@@ -847,6 +878,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       notify.error("El resultado aún no tiene un archivo persistido que pueda asignarse a la modelo.");
       return;
     }
+    if (!generatedBodyImage?.storage_file_id) {
+      notify.error("La generación no contiene el output ID 137 (all body). Revisa el binding del workflow.");
+      return;
+    }
+    if (!generatedIdentityFace?.storage_file_id) {
+      notify.error("La generación no contiene el output ID 138 (head). Revisa el binding del workflow.");
+      return;
+    }
     setUsingGeneratedModel(true);
     try {
       if (!generatedExecution || generatedExecution.result_locked || generatedExecution.billing_access_status === "payment_pending") {
@@ -856,7 +895,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       const updated = await finalizeAiModel(
         modelId,
         generatedExecution.id,
-        generatedImage.storage_file_id,
+        generatedBodyImage.storage_file_id,
+        CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
+        generatedIdentityFace.storage_file_id,
+        CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
       );
       setModel(updated);
       notify.success("Modelo guardado. Entrando a su estudio.");
