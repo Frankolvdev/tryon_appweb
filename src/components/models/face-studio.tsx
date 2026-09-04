@@ -268,45 +268,7 @@ function generatedImageUrl(file: GeneratedImageResult | null): string | null {
   return file.preview_url ?? file.public_url ?? file.download_url ?? null;
 }
 
-type CreateModelOutputRoleIds = {
-  primary_image_output_id?: number;
-  identity_face_output_id?: number;
-};
 
-function createModelOutputRoleIds(module: GenerationModule | null): CreateModelOutputRoleIds {
-  const raw = module?.metadata?.create_model_output_roles;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const value = raw as Record<string, unknown>;
-  const primary = Number(value.primary_image_output_id);
-  const face = Number(value.identity_face_output_id);
-  return {
-    primary_image_output_id: Number.isInteger(primary) && primary > 0 ? primary : undefined,
-    identity_face_output_id: Number.isInteger(face) && face > 0 ? face : undefined,
-  };
-}
-
-function generatedImageForOutputId(
-  module: GenerationModule | null,
-  outputs: Record<string, unknown> | undefined,
-  outputId: number | undefined,
-): GeneratedImageResult | null {
-  if (!module || !outputs || !outputId) return null;
-  const definition = module.outputs.find((item) => item.id === outputId);
-  if (!definition) return null;
-  return collectGeneratedImages(outputs[definition.key] ?? {})[0] ?? null;
-}
-
-function semanticOutputId(module: GenerationModule | null, role: "primary" | "face"): number | undefined {
-  if (!module) return undefined;
-  const words = role === "face"
-    ? ["face", "rostro", "identity", "identidad", "head", "cara"]
-    : ["model", "modelo", "body", "cuerpo", "final", "primary", "principal"];
-  const found = module.outputs.find((item) => {
-    const label = `${item.key} ${item.name}`.toLowerCase();
-    return words.some((word) => label.includes(word));
-  });
-  return found?.id;
-}
 
 function identityDraftSnapshot({
   selections,
@@ -793,32 +755,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
-  const outputRoleIds = useMemo(() => {
-    const configured = createModelOutputRoleIds(generationModuleInfo);
-    return {
-      primary_image_output_id:
-        configured.primary_image_output_id ?? semanticOutputId(generationModuleInfo, "primary"),
-      identity_face_output_id:
-        configured.identity_face_output_id ?? semanticOutputId(generationModuleInfo, "face"),
-    };
-  }, [generationModuleInfo]);
-
   const generatedImage = useMemo(
-    () =>
-      generatedImageForOutputId(
-        generationModuleInfo,
-        generatedExecution?.outputs,
-        outputRoleIds.primary_image_output_id,
-      ) ?? collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
-    [generatedExecution?.outputs, generationModuleInfo, outputRoleIds.primary_image_output_id],
-  );
-  const generatedIdentityFace = useMemo(
-    () => generatedImageForOutputId(
-      generationModuleInfo,
-      generatedExecution?.outputs,
-      outputRoleIds.identity_face_output_id,
-    ),
-    [generatedExecution?.outputs, generationModuleInfo, outputRoleIds.identity_face_output_id],
+    () => collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
+    [generatedExecution?.outputs],
   );
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
   const generationIsActive = Boolean(
@@ -918,9 +857,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         modelId,
         generatedExecution.id,
         generatedImage.storage_file_id,
-        outputRoleIds.primary_image_output_id,
-        generatedIdentityFace?.storage_file_id,
-        generatedIdentityFace ? outputRoleIds.identity_face_output_id : undefined,
       );
       setModel(updated);
       notify.success("Modelo guardado. Entrando a su estudio.");
