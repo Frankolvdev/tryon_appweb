@@ -25,6 +25,7 @@ type ParticleMorphLoaderProps = {
   className?: string;
   progress?: number;
   estimatedSeconds?: number | null;
+  secondsLabel?: string;
   onResultAspectRatio?: (ratio: number) => void;
   config?: ParticleMorphLoaderConfig;
 };
@@ -149,6 +150,7 @@ export function ParticleMorphLoader({
   className = "",
   progress = 0,
   estimatedSeconds = null,
+  secondsLabel = "Tiempo estimado",
   onResultAspectRatio,
   config,
 }: ParticleMorphLoaderProps) {
@@ -458,7 +460,7 @@ export function ParticleMorphLoader({
         </div>
         {estimatedSeconds != null && estimatedSeconds > 0 && (
           <small>
-            Tiempo estimado: {estimatedSeconds >= 60
+            {secondsLabel}: {estimatedSeconds >= 60
               ? `${Math.floor(estimatedSeconds / 60)} min ${Math.round(estimatedSeconds % 60)} s`
               : `${Math.round(estimatedSeconds)} s`}
           </small>

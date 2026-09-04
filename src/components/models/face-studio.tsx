@@ -15,7 +15,7 @@ import {
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
-import { executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
+import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
@@ -42,6 +42,7 @@ import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 import { downloadLibraryFile } from "@/lib/user-library-api";
+import { apiFetch } from "@/lib/api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
 
@@ -269,6 +270,7 @@ const CREATE_MODEL_WOMAN_FROM_HEAD_INPUT_CONTRACT = [
 ] as const;
 
 function assertCreateModelWomanContract(module: {
+  id: number;
   key: string;
   inputs: Array<{ key: string; name: string; input_type: string; is_required: boolean }>;
 }) {
@@ -460,6 +462,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [identityMode, setIdentityMode] = useState<IdentitySourceMode>("create");
   const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
+  const [cancellingGeneration, setCancellingGeneration] = useState(false);
+  const [generationLoadingMode, setGenerationLoadingMode] = useState<"backend" | "elapsed_estimate">("backend");
 
   useEffect(() => {
     let alive = true;
@@ -471,6 +475,20 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         );
       })
       .catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    apiFetch<{ public_settings?: Record<string, unknown> }>("/api/v1/system/config")
+      .then((config) => {
+        if (!alive) return;
+        const raw = config.public_settings?.generation_loading_progress_mode;
+        setGenerationLoadingMode(raw === "elapsed_estimate" ? "elapsed_estimate" : "backend");
+      })
+      .catch(() => {
+        if (alive) setGenerationLoadingMode("backend");
+      });
     return () => { alive = false; };
   }, []);
 
@@ -900,6 +918,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
+  async function cancelCurrentGeneration() {
+    if (!generatedExecution || !["queued", "running"].includes(generatedExecution.status) || cancellingGeneration) return;
+    setCancellingGeneration(true);
+    try {
+      const updated = await cancelGenerationExecution(generatedExecution.id);
+      setGeneratedExecution(updated);
+      track(updated, { clickable: true, href: `/models/${modelId}/face`, label: "Create Model IA" });
+      notify.success(updated.status === "cancelled" ? "Generación cancelada." : "Cancelación solicitada.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "No se pudo cancelar la generación.");
+    } finally {
+      setCancellingGeneration(false);
+    }
+  }
+
   const generatedBodyImage = useMemo(
     () =>
       generatedImageForCreateModelOutput(
@@ -932,6 +965,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     generationModuleInfo?.pricing?.estimated_duration_seconds ??
     null;
 
+  const elapsedGenerationSeconds = useMemo(() => {
+    if (!generatedExecution) return 0;
+    const startedAt = generatedExecution.started_at || generatedExecution.created_at;
+    const startedMs = backendTimestampMs(startedAt);
+    if (!Number.isFinite(startedMs)) return 0;
+    const endMs = generatedExecution.finished_at ? backendTimestampMs(generatedExecution.finished_at) : progressClock;
+    return Math.max(0, (endMs - startedMs) / 1000);
+  }, [generatedExecution, progressClock]);
+
+  const loadingDisplaySeconds = generationLoadingMode === "backend"
+    ? estimatedGenerationSeconds
+    : elapsedGenerationSeconds;
+
   const estimatedGenerationProgress = useMemo(() => {
     if (!generatedExecution) return 0;
     if (generatedExecution.status === "completed") return 100;
@@ -943,14 +989,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     // nor the visual ETA is allowed to claim completion. 100% is reserved
     // exclusively for the completed status handled above.
     const backendProgress = Math.max(0, Math.min(99, generatedExecution.progress || 0));
+    if (generationLoadingMode === "backend") {
+      return Math.min(99, Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress));
+    }
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
       return Math.min(99, Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress));
     }
 
-    // This is an ETA visualization, not proof that the provider has finished.
-    // It advances linearly using the historical/default estimate, reaches at
-    // most 99%, and stays there if the ETA expires before Backend confirms
-    // completion.
+    // Optional elapsed/ETA visualization. This mode is intentionally limited
+    // to generation loaders; uploads and other independent progress bars keep
+    // their own real byte/task progress.
     const startedAt = generatedExecution.started_at || generatedExecution.created_at;
     const startedMs = backendTimestampMs(startedAt);
     if (!Number.isFinite(startedMs)) return Math.min(99, Math.max(2, backendProgress));
@@ -958,7 +1006,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     const elapsedSeconds = Math.max(0, (progressClock - startedMs) / 1000);
     const timeProgress = Math.min(99, (elapsedSeconds / estimatedGenerationSeconds) * 100);
     return Math.min(99, Math.max(backendProgress, timeProgress));
-  }, [estimatedGenerationSeconds, generatedExecution, progressClock]);
+  }, [estimatedGenerationSeconds, generatedExecution, generationLoadingMode, progressClock]);
 
   const estimatedTokens =
     generationModuleInfo?.pricing?.required_tokens ??
@@ -1360,7 +1408,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       </div>
 
       <div className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}`}>
-        <AncestryExperience modelId={modelId} onChange={handleAncestryChange} />
+        <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
       </div>
 
       <div className={`faceBuilder${generatingModel || generationIsActive ? " faceGenerationFocus" : ""}`}>
@@ -1382,7 +1430,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   label="CREATE MODEL IA"
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
-                  estimatedSeconds={estimatedGenerationSeconds}
+                  estimatedSeconds={loadingDisplaySeconds}
+                  secondsLabel={generationLoadingMode === "backend" ? "Tiempo Backend" : "Tiempo transcurrido"}
                   onResultAspectRatio={setGeneratedAspectRatio}
                   config={{
                     particleCount: 4500,
@@ -1452,6 +1501,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 </div>
               )}
             </div>
+            {(generationIsActive || cancellingGeneration) && (
+              <button
+                type="button"
+                className="faceCancelGenerationButton"
+                onClick={() => void cancelCurrentGeneration()}
+                disabled={cancellingGeneration}
+              >
+                {cancellingGeneration ? "Cancelando…" : "Cancelar generación"}
+              </button>
+            )}
           </section>
         </div>
 
@@ -1500,7 +1559,24 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               ) : null}
 
               {currentStep.kind === "ancestry" && (
-                <div className="faceAncestryStepSpacer" aria-hidden="true" />
+                <div className="faceAncestrySelectedPreview">
+                  {ancestry ? (
+                    <>
+                      <div className="faceAncestrySelectedMedia">
+                        {ancestry.video_url ? (
+                          <video key={`${ancestry.id}-${ancestry.video_url}`} src={ancestry.video_url} poster={ancestry.poster_url || undefined} muted loop playsInline autoPlay controls={false} />
+                        ) : ancestry.poster_url ? (
+                          <img src={ancestry.poster_url} alt="" draggable={false} />
+                        ) : (
+                          <div className="faceAncestrySelectedFallback">{ancestry.flag_emoji || "🌐"}</div>
+                        )}
+                      </div>
+                      <div><span>ASCENDENCIA SELECCIONADA</span><strong>{ancestry.display_name}</strong><small>La selección de arriba, del mapa o del buscador usa este mismo valor.</small></div>
+                    </>
+                  ) : (
+                    <div className="faceAncestrySelectedEmpty"><span>Selecciona arriba una ascendencia para ver aquí su preview.</span></div>
+                  )}
+                </div>
               )}
 
               {currentStep.kind === "media" && (() => {

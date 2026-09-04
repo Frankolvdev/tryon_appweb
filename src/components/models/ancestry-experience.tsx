@@ -59,9 +59,11 @@ function selectionKey(asset: AncestryMediaAsset) {
 
 export function AncestryExperience({
   modelId,
+  value,
   onChange,
 }: {
   modelId: number;
+  value?: AncestryMediaAsset | null;
   onChange?: (asset: AncestryMediaAsset | null) => void;
 }) {
   const [items, setItems] = useState<AncestryMediaAsset[]>([]);
@@ -80,6 +82,14 @@ export function AncestryExperience({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    if (!value) return;
+    const currentKey = selected ? selectionKey(selected) : null;
+    const nextKey = selectionKey(value);
+    if (currentKey !== nextKey) setSelected(value);
+    setHasUserSelection(true);
+  }, [value, selected]);
 
   useEffect(() => {
     let alive = true;
@@ -109,10 +119,12 @@ export function AncestryExperience({
           }
         } catch {}
 
-        if (restored) {
-          setSelected(restored);
+        const initial = value || restored;
+        if (initial) {
+          const publishedInitial = next.find((item) => selectionKey(item) === selectionKey(initial)) ?? initial;
+          setSelected(publishedInitial);
           setHasUserSelection(true);
-          onChangeRef.current?.(restored);
+          onChangeRef.current?.(publishedInitial);
         } else {
           setSelected(null);
           setHasUserSelection(false);
@@ -202,9 +214,7 @@ export function AncestryExperience({
         (item) => item.country_code?.toUpperCase() === country.code,
       ) ?? null;
     const next = published ?? syntheticCountryAsset(country);
-    setSelected(next);
-    setHasUserSelection(true);
-    onChangeRef.current?.(next);
+    choose(next);
     setCountryModal(false);
     setCountryQuery("");
   }
@@ -365,9 +375,6 @@ export function AncestryExperience({
                     className={`${styles.card} ${
                       active ? styles.cardSelected : ""
                     }`}
-                    onPointerUp={() => {
-                      if (!dragRef.current.moved) choose(asset);
-                    }}
                     onClick={() => safeCardClick(asset)}
                     aria-pressed={active}
                   >
