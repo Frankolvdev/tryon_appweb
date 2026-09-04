@@ -10,6 +10,7 @@ import {
   WandSparkles,
   Pencil,
   Save,
+  TriangleAlert,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
@@ -55,6 +56,7 @@ const MEDIA_TOOLS: {
 ];
 
 type StepId =
+  | "ancestry"
   | "eyeColor"
   | "eyebrows"
   | "lips"
@@ -71,11 +73,18 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
+  kind: "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
 const CREATE_IDENTITY_STEPS: StepDefinition[] = [
+  {
+    id: "ancestry",
+    label: "Ascendencia",
+    shortLabel: "Ascendencia",
+    hint: "Elige arriba la ascendencia de tu modelo",
+    kind: "ancestry",
+  },
   {
     id: "eyeColor",
     label: "Color de ojos",
@@ -144,6 +153,13 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
 
 const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
   {
+    id: "ancestry",
+    label: "Ascendencia",
+    shortLabel: "Ascendencia",
+    hint: "Elige arriba la ascendencia de tu modelo",
+    kind: "ancestry",
+  },
+  {
     id: "skinTone",
     label: "Tono de piel",
     shortLabel: "Piel",
@@ -158,19 +174,19 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
     kind: "occupation",
   },
   {
+    id: "identityFace",
+    label: "Rostro de identidad",
+    shortLabel: "Rostro",
+    hint: "Confirma el rostro que usará la generación",
+    kind: "identityFace",
+  },
+  {
     id: "extraDetails",
     label: "Extra details",
     shortLabel: "Extra",
     hint: "Detalle opcional de hasta 150 caracteres",
     kind: "extra",
     optional: true,
-  },
-  {
-    id: "identityFace",
-    label: "Rostro de identidad",
-    shortLabel: "Rostro",
-    hint: "Confirma el rostro autorizado que usará la generación",
-    kind: "identityFace",
   },
   {
     id: "summary",
@@ -1056,6 +1072,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
+  function handleAncestryChange(asset: AncestryMediaAsset | null) {
+    const previousKey = ancestry ? ancestry.ancestry_key || String(ancestry.id) : null;
+    const nextKey = asset ? asset.ancestry_key || String(asset.id) : null;
+    setAncestry(asset);
+    if (previousKey !== null && previousKey !== nextKey && completedSteps.includes("ancestry")) {
+      setCompletedSteps((current) => current.filter((id) => id !== "ancestry"));
+    }
+  }
+
   const identitySteps = identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
   const identityDoneStepIndex = identitySteps.findIndex((step) => step.kind === "summary");
   const currentStep = identitySteps[activeStep] ?? identitySteps[0];
@@ -1127,6 +1152,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   function pendingFor(step: StepDefinition) {
     if (pendingValues[step.id] !== undefined) return pendingValues[step.id];
+    if (step.kind === "ancestry") return ancestry ? ancestry.ancestry_key || String(ancestry.id) : "";
     if (step.kind === "media") return mediaSelected[step.id] || "";
     if (step.kind === "color") return selections[step.id] || "";
     if (step.kind === "occupation") return selections.occupation || "";
@@ -1158,6 +1184,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   function commitCurrentStep(advance = true) {
     const step = currentStep;
     if (step.kind === "summary") return true;
+
+    if (step.kind === "ancestry") {
+      if (!ancestry) {
+        showValidation("Elige una ascendencia en el selector superior antes de continuar.");
+        return false;
+      }
+      clearValidation();
+      const completedAfter = completedSteps.includes(step.id) ? completedSteps : [...completedSteps, step.id];
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
+      return true;
+    }
 
     if (step.kind === "identityFace") {
       if (!existingIdentityFile) {
@@ -1313,7 +1351,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </header>
       </div>
 
-      <AncestryExperience modelId={modelId} onChange={setAncestry} />
+      <div className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}`}>
+        <AncestryExperience modelId={modelId} onChange={handleAncestryChange} />
+      </div>
 
       <div className="faceBuilder">
         <div className="facePreviewRail">
@@ -1451,6 +1491,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <span>{currentStep.hint}</span>
                 </div>
               ) : null}
+
+              {currentStep.kind === "ancestry" && (
+                <div className="faceAncestryStepPrompt">
+                  <span className="faceAncestryPromptIcon">01</span>
+                  <div>
+                    <strong>{ancestry ? ancestry.display_name : "Selecciona una ascendencia arriba"}</strong>
+                    <p>{ancestry ? "Ascendencia seleccionada. Pulsa Elegir para confirmarla y continuar." : "El selector de ascendencias está resaltado arriba. Elige una opción y vuelve aquí para confirmarla."}</p>
+                  </div>
+                </div>
+              )}
 
               {currentStep.kind === "media" && (() => {
                 const stepId = currentStep.id as ModelGenerationToolKey;
@@ -1738,13 +1788,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   <div className="existingIdentityHero">
                     {existingIdentityFile ? <img src={existingIdentityFile.url} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
                     <div>
-                      <span>ROSTRO AUTORIZADO</span>
+                      <div className="existingIdentityWarning">
+                        <TriangleAlert size={18} aria-hidden="true" />
+                        <p>Usa únicamente un rostro propio o una imagen para la que tengas consentimiento y derechos suficientes. No subas la identidad de otra persona sin autorización.</p>
+                      </div>
                       <h3>{existingIdentityFile?.filename || "Carga tu rostro de identidad"}</h3>
-                      <p>Este archivo se enviará como <b>input_15 · head</b> al módulo de generación.</p>
                       <button type="button" onClick={() => setIdentitySourceOpen(true)}>{existingIdentityFile ? "Elegir otro rostro" : "Cargar rostro"}</button>
                     </div>
                   </div>
-                  <p className="identityRightsNotice existingIdentityRights">Usa únicamente un rostro propio o una imagen para la que tengas consentimiento y derechos suficientes. No subas la identidad de otra persona sin autorización.</p>
                 </div>
               )}
 
