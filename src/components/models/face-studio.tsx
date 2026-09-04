@@ -40,6 +40,7 @@ import { ModelGlobalTimeline } from "./model-global-timeline";
 import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
+import { downloadLibraryFile } from "@/lib/user-library-api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
 
@@ -62,6 +63,7 @@ type StepId =
   | "hairColor"
   | "occupation"
   | "extraDetails"
+  | "identityFace"
   | "summary";
 
 type StepDefinition = {
@@ -69,11 +71,11 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "color" | "media" | "occupation" | "extra" | "summary";
+  kind: "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
-const STEPS: StepDefinition[] = [
+const CREATE_IDENTITY_STEPS: StepDefinition[] = [
   {
     id: "eyeColor",
     label: "Color de ojos",
@@ -140,13 +142,49 @@ const STEPS: StepDefinition[] = [
   },
 ];
 
-const IDENTITY_COMPLETABLE_STEP_IDS = STEPS.filter((step) => step.kind !== "summary").map((step) => step.id);
-const IDENTITY_DONE_STEP_INDEX = STEPS.findIndex((step) => step.kind === "summary");
+const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
+  {
+    id: "skinTone",
+    label: "Tono de piel",
+    shortLabel: "Piel",
+    hint: "Elige el tono base de piel",
+    kind: "color",
+  },
+  {
+    id: "occupation",
+    label: "Ocupación",
+    shortLabel: "Ocupación",
+    hint: "Elige la ocupación para la preview del modelo",
+    kind: "occupation",
+  },
+  {
+    id: "extraDetails",
+    label: "Extra details",
+    shortLabel: "Extra",
+    hint: "Detalle opcional de hasta 150 caracteres",
+    kind: "extra",
+    optional: true,
+  },
+  {
+    id: "identityFace",
+    label: "Rostro de identidad",
+    shortLabel: "Rostro",
+    hint: "Confirma el rostro autorizado que usará la generación",
+    kind: "identityFace",
+  },
+  {
+    id: "summary",
+    label: "Resumen",
+    shortLabel: "Done",
+    hint: "",
+    kind: "summary",
+  },
+];
 
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
-      src={`/identity-icons/${id}.svg`}
+      src={id === "identityFace" ? "/identity-source/existing-face.svg" : `/identity-icons/${id}.svg`}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -189,6 +227,8 @@ function normalizeBodyDelta(value: unknown) {
 }
 
 const CREATE_MODEL_WOMAN_MODULE_KEY = "create_model_woman";
+const CREATE_MODEL_WOMAN_MODULE_ID = 4;
+const CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID = 5;
 const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
   { key: "input_1", name: "Hips SIze", type: "float", required: true },
   { key: "input_2", name: "Fat - Thin", type: "float", required: true },
@@ -207,11 +247,16 @@ const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
   { key: "input_15", name: "prompt_head", type: "text", required: true },
 ] as const;
 
+const CREATE_MODEL_WOMAN_FROM_HEAD_INPUT_CONTRACT = [
+  ...CREATE_MODEL_WOMAN_INPUT_CONTRACT.slice(0, 14),
+  { key: "input_15", name: "head", type: "image", required: true },
+] as const;
+
 function assertCreateModelWomanContract(module: {
   key: string;
   inputs: Array<{ key: string; name: string; input_type: string; is_required: boolean }>;
 }) {
-  if (module.key !== CREATE_MODEL_WOMAN_MODULE_KEY) {
+  if (module.id !== CREATE_MODEL_WOMAN_MODULE_ID || module.key !== CREATE_MODEL_WOMAN_MODULE_KEY) {
     throw new Error(`Se esperaba el módulo ${CREATE_MODEL_WOMAN_MODULE_KEY}.`);
   }
   for (const expected of CREATE_MODEL_WOMAN_INPUT_CONTRACT) {
@@ -224,6 +269,19 @@ function assertCreateModelWomanContract(module: {
       throw new Error(
         `${expected.key} cambió su obligatoriedad: se esperaba ${expected.required ? "obligatorio" : "opcional"}. Revisa el contrato antes de generar.`,
       );
+    }
+  }
+}
+
+function assertCreateModelWomanFromHeadContract(module: GenerationModule) {
+  if (module.id !== CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID || module.version !== 2) {
+    throw new Error("El módulo de rostro existente debe ser el módulo 5, versión 2.");
+  }
+  for (const expected of CREATE_MODEL_WOMAN_FROM_HEAD_INPUT_CONTRACT) {
+    const actual = module.inputs.find((input) => input.key === expected.key);
+    if (!actual) throw new Error(`El módulo 5 ya no contiene ${expected.key} (${expected.name}).`);
+    if (actual.input_type !== expected.type || actual.is_required !== expected.required) {
+      throw new Error(`El contrato del módulo 5 cambió en ${expected.key}. Revisa el contrato antes de generar.`);
     }
   }
 }
@@ -271,6 +329,14 @@ function generatedImageUrl(file: GeneratedImageResult | null): string | null {
 
 const CREATE_MODEL_WOMAN_BODY_OUTPUT_ID = 137;
 const CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID = 138;
+const CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID = 149;
+const CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID = 150;
+
+function outputIdsForModule(module: GenerationModule | null) {
+  return module?.id === CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID
+    ? { body: CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID, head: CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID }
+    : { body: CREATE_MODEL_WOMAN_BODY_OUTPUT_ID, head: CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID };
+}
 
 function generatedImageForOutputId(
   module: GenerationModule | null,
@@ -293,9 +359,9 @@ function generatedImageForCreateModelOutput(
   // Recovery-safe fallback for persisted executions. Output 137/138 are the
   // frozen Create Model Woman bindings; a temporary module-catalog fetch
   // failure must not make a completed persisted execution impossible to pick.
-  const fallbackKey = outputId === CREATE_MODEL_WOMAN_BODY_OUTPUT_ID
+  const fallbackKey = (outputId === CREATE_MODEL_WOMAN_BODY_OUTPUT_ID || outputId === CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID)
     ? "output_1"
-    : outputId === CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID
+    : (outputId === CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID || outputId === CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID)
       ? "output_2"
       : null;
   return fallbackKey && outputs ? collectGeneratedImages(outputs[fallbackKey] ?? {})[0] ?? null : null;
@@ -385,7 +451,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       .then((response) => {
         if (!alive) return;
         setGenerationModuleInfo(
-          response.items.find((item) => item.key === CREATE_MODEL_WOMAN_MODULE_KEY) ?? null,
+          response.items.find((item) => item.id === CREATE_MODEL_WOMAN_MODULE_ID) ?? null,
         );
       })
       .catch(() => undefined);
@@ -426,13 +492,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               setBodyAdjustments(safeBody);
               setBodyDraft(safeBody);
             }
-            const restoredIsComplete = IDENTITY_COMPLETABLE_STEP_IDS.every((stepId) =>
-              restoredCompletedSteps.includes(stepId),
-            );
+            const restoredMode: IdentitySourceMode = data.identityMode === "existing" ? "existing" : "create";
+            const restoredSteps = restoredMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
+            const restoredCompletable = restoredSteps.filter((step) => step.kind !== "summary").map((step) => step.id);
+            const restoredDoneIndex = restoredSteps.findIndex((step) => step.kind === "summary");
+            const restoredIsComplete = restoredCompletable.every((stepId) => restoredCompletedSteps.includes(stepId));
             const restoredStep = restoredIsComplete
-              ? IDENTITY_DONE_STEP_INDEX
+              ? restoredDoneIndex
               : Number.isInteger(data.activeStep)
-                ? Math.min(Math.max(data.activeStep, 0), STEPS.length - 1)
+                ? Math.min(Math.max(data.activeStep, 0), restoredSteps.length - 1)
                 : 0;
             setActiveStep(restoredStep);
 
@@ -447,7 +515,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               void getGenerationExecution(lastExecutionId)
                 .then((execution) => {
                   setGeneratedExecution(execution);
-                  setActiveStep(IDENTITY_DONE_STEP_INDEX);
+                  setActiveStep((data.identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
                   track(execution, {
                     clickable: true,
                     href: `/models/${modelId}/face`,
@@ -612,10 +680,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   async function generateModel() {
     if (!model) return;
-    if (identityMode === "existing") {
-      notify.warning("El modo con rostro existente ya está preparado. Falta conectar el nuevo módulo/contrato de generación.");
-      return;
-    }
     if (!summaryReady) {
       showValidation("Completa los pasos obligatorios antes de generar el modelo.");
       return;
@@ -639,7 +703,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             mediaSelected,
             customValues,
             completedSteps,
-            activeStep: IDENTITY_DONE_STEP_INDEX,
+            activeStep: identityDoneStepIndex,
             bodyAdjustments,
             bodyBase,
             lastGenerationExecutionId: generatedExecution?.id,
@@ -658,17 +722,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       setModel(savedBeforeGeneration);
 
       const moduleResponse = await listGenerationModules();
-      const generationModule = moduleResponse.items.find(
-        (item) => item.key === CREATE_MODEL_WOMAN_MODULE_KEY && item.is_active,
-      );
+      const generationModule = identityMode === "existing"
+        ? moduleResponse.items.find((item) => item.id === CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID && item.is_active)
+        : moduleResponse.items.find((item) => item.id === CREATE_MODEL_WOMAN_MODULE_ID && item.is_active);
       if (!generationModule) {
         throw new Error(
-          'No se encontró activo el módulo de generación "create_model_woman".',
+          identityMode === "existing" ? 'No se encontró activo el módulo 5 "Create Model Woman From Head".' : 'No se encontró activo el módulo anterior "create_model_woman".',
         );
       }
       setGenerationModuleInfo(generationModule);
 
-      assertCreateModelWomanContract(generationModule);
+      if (identityMode === "existing") assertCreateModelWomanFromHeadContract(generationModule);
+      else assertCreateModelWomanContract(generationModule);
 
       const mediaValues: Record<string, string> = {};
       for (const key of ["eyebrows", "lips", "hairstyle"] as const) {
@@ -709,7 +774,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         "clean white photography studio background",
       ].join(", "));
 
-      const payload = {
+      const basePayload = {
         input_1: round1(bodyBase.ass + bodyAdjustments.ass),
         input_2: round1(bodyBase.fat + bodyAdjustments.fat),
         input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
@@ -724,8 +789,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_12: "soft flattering professional daylight, balanced neutral lighting",
         input_13: occupationContext.clothes,
         input_14: customValues.extraDetails?.trim() || null,
-        input_15: promptHead,
       };
+
+      let payload: Record<string, unknown>;
+      if (identityMode === "existing") {
+        if (!existingIdentityFile) throw new Error("Confirma un rostro de identidad antes de generar.");
+        const headBlob = await downloadLibraryFile(existingIdentityFile.id);
+        const headFile = new File(
+          [headBlob],
+          existingIdentityFile.filename || "identity-head.jpg",
+          { type: existingIdentityFile.content_type || headBlob.type || "image/jpeg" },
+        );
+        payload = { ...basePayload, input_15: headFile };
+      } else {
+        payload = { ...basePayload, input_15: promptHead };
+      }
 
       // Browser diagnostics: exact contract payload immediately before the
       // existing Generation Module API sends it to the Backend.
@@ -757,14 +835,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_12: { name: "time_day_weather_or_lighting", value: payload.input_12 },
         input_13: { name: "Clothes", value: payload.input_13 },
         input_14: { name: "extra_details", value: payload.input_14 },
-        input_15: { name: "prompt_head", value: payload.input_15 },
+        input_15: { name: identityMode === "existing" ? "head" : "prompt_head", value: identityMode === "existing" ? existingIdentityFile?.filename : payload.input_15 },
       });
       console.log("Payload:", { inputs: payload });
       console.groupEnd();
 
       const execution = await executeGenerationModule(generationModule.id, payload);
       setGeneratedExecution(execution);
-      setActiveStep(IDENTITY_DONE_STEP_INDEX);
+      setActiveStep(identityDoneStepIndex);
       track(execution, {
         clickable: true,
         href: `/models/${modelId}/face`,
@@ -782,7 +860,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             mediaSelected,
             customValues,
             completedSteps,
-            activeStep: IDENTITY_DONE_STEP_INDEX,
+            activeStep: identityDoneStepIndex,
             bodyAdjustments,
             bodyBase,
             lastGenerationExecutionId: execution.id,
@@ -811,7 +889,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       generatedImageForCreateModelOutput(
         generationModuleInfo,
         generatedExecution?.outputs,
-        CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
+        outputIdsForModule(generationModuleInfo).body,
       ),
     [generatedExecution?.outputs, generationModuleInfo],
   );
@@ -824,7 +902,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       generatedImageForCreateModelOutput(
         generationModuleInfo,
         generatedExecution?.outputs,
-        CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
+        outputIdsForModule(generationModuleInfo).head,
       ),
     [generatedExecution?.outputs, generationModuleInfo],
   );
@@ -927,19 +1005,24 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         notify.error("El resultado todavía no está disponible para usarlo.");
         return;
       }
-      const body = generatedImageForCreateModelOutput(generationModuleInfo, latest.outputs, CREATE_MODEL_WOMAN_BODY_OUTPUT_ID);
-      const head = generatedImageForCreateModelOutput(generationModuleInfo, latest.outputs, CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID);
+      const latestModule = generationModuleInfo?.id === latest.module_id
+        ? generationModuleInfo
+        : (await listGenerationModules()).items.find((item) => item.id === latest.module_id) ?? generationModuleInfo;
+      if (latestModule && latestModule !== generationModuleInfo) setGenerationModuleInfo(latestModule);
+      const outputIds = outputIdsForModule(latestModule);
+      const body = generatedImageForCreateModelOutput(latestModule, latest.outputs, outputIds.body);
+      const head = generatedImageForCreateModelOutput(latestModule, latest.outputs, outputIds.head);
       if (!body?.storage_file_id) {
-        notify.error("La generación no contiene el cuerpo persistido (output 137 / output_1).");
+        notify.error(`La generación no contiene el cuerpo persistido (output ${outputIds.body} / output_1).`);
         return;
       }
       if (!head?.storage_file_id) {
-        notify.error("La generación no contiene el rostro persistido (output 138 / output_2).");
+        notify.error(`La generación no contiene el rostro persistido (output ${outputIds.head} / output_2).`);
         return;
       }
       const updated = await finalizeAiModel(
-        modelId, latest.id, body.storage_file_id, CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
-        head.storage_file_id, CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
+        modelId, latest.id, body.storage_file_id, outputIds.body,
+        head.storage_file_id, outputIds.head,
       );
       setModel(updated);
       notify.success("Modelo guardado. Entrando a su estudio.");
@@ -952,10 +1035,20 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }
 
   async function applyIdentitySource(mode: IdentitySourceMode, file: ExistingIdentityFile | null) {
+    const previousMode = identityMode;
+    const previousFileId = existingIdentityFile?.id ?? null;
     const nextFile = mode === "existing" ? file : existingIdentityFile;
+    const modeChanged = mode !== previousMode;
+    const fileChanged = mode === "existing" && (nextFile?.id ?? null) !== previousFileId;
     setIdentityMode(mode);
     if (mode === "existing") setExistingIdentityFile(nextFile);
+    if (fileChanged) setCompletedSteps((current) => current.filter((id) => id !== "identityFace"));
     setIdentitySourceOpen(false);
+    if (modeChanged) {
+      setActiveStep(0);
+    } else if (mode === "existing" && fileChanged) {
+      setActiveStep(EXISTING_IDENTITY_STEPS.findIndex((step) => step.id === "identityFace"));
+    }
     if (model) {
       const baseDraft = model.draft_json && typeof model.draft_json === "object" ? model.draft_json : {};
       const updated = await saveAiModelDraft(modelId, { ...baseDraft, identityMode: mode, existingIdentityFile: nextFile }, displayName.trim() || model.name);
@@ -963,7 +1056,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
-  const currentStep = STEPS[activeStep];
+  const identitySteps = identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
+  const identityDoneStepIndex = identitySteps.findIndex((step) => step.kind === "summary");
+  const currentStep = identitySteps[activeStep] ?? identitySteps[0];
   const occupationFeatured = useMemo(() => {
     const activeOccupation = pendingValues.occupation || selections.occupation;
     const promoted = activeOccupation && activeOccupation !== "custom"
@@ -981,13 +1076,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       item.id.toLowerCase().includes(query),
     );
   }, [occupationSearch]);
-  const summaryReady = STEPS.filter(
+  const summaryReady = identitySteps.filter(
     (step) => step.kind !== "summary" && !step.optional,
   ).every((step) => completedSteps.includes(step.id));
-  const existingIdentityReady = Boolean(
-    existingIdentityFile && ancestry && selections.skinTone && selections.occupation &&
-    (selections.occupation !== "custom" || customValues.occupation?.trim()),
-  );
 
   function showValidation(message: string) {
     setValidationMessage(message);
@@ -1000,7 +1091,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   function goToStep(index: number) {
     if (index === activeStep) return;
-    const target = STEPS[index];
+    const target = identitySteps[index];
     if (currentStep.kind !== "summary" && !completedSteps.includes(currentStep.id)) {
       const pending = pendingFor(currentStep);
       if (pending === "custom" && !(customValues[currentStep.id] || "").trim()) {
@@ -1040,18 +1131,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     if (step.kind === "color") return selections[step.id] || "";
     if (step.kind === "occupation") return selections.occupation || "";
     if (step.kind === "extra") return customValues.extraDetails || "";
+    if (step.kind === "identityFace") return existingIdentityFile ? String(existingIdentityFile.id) : "";
     return "";
   }
 
 
   function stepAfterCommit(stepId: StepId, completedAfter: string[]) {
-    const currentIndex = STEPS.findIndex((item) => item.id === stepId);
-    const pendingIndexes = STEPS
+    const currentIndex = identitySteps.findIndex((item) => item.id === stepId);
+    const pendingIndexes = identitySteps
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => item.kind !== "summary" && !completedAfter.includes(item.id))
       .map(({ index }) => index);
 
-    if (pendingIndexes.length === 0) return IDENTITY_DONE_STEP_INDEX;
+    if (pendingIndexes.length === 0) return identityDoneStepIndex;
 
     const nextPending = pendingIndexes.find((index) => index > currentIndex);
     if (nextPending !== undefined) return nextPending;
@@ -1060,12 +1152,24 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       .reverse()
       .find((index) => index < currentIndex);
 
-    return previousPending ?? pendingIndexes[0] ?? IDENTITY_DONE_STEP_INDEX;
+    return previousPending ?? pendingIndexes[0] ?? identityDoneStepIndex;
   }
 
   function commitCurrentStep(advance = true) {
     const step = currentStep;
     if (step.kind === "summary") return true;
+
+    if (step.kind === "identityFace") {
+      if (!existingIdentityFile) {
+        showValidation("Sube y confirma un rostro de identidad antes de continuar.");
+        return false;
+      }
+      clearValidation();
+      const completedAfter = completedSteps.includes(step.id) ? completedSteps : [...completedSteps, step.id];
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
+      return true;
+    }
 
     if (step.kind === "extra") {
       clearValidation();
@@ -1308,62 +1412,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             <div><span>MODO DE IDENTIDAD</span><strong>{identityMode === "existing" ? "Ya tengo un rostro" : "Crear identidad"}</strong></div>
             <button type="button" onClick={() => setIdentitySourceOpen(true)}>Cambiar modo</button>
           </div>
-          {identityMode === "existing" ? (
-            <div className="existingIdentityWorkspace">
-              <div className="existingIdentityHero">
-                {existingIdentityFile ? <img src={existingIdentityFile.url} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
-                <div>
-                  <span>IDENTIDAD DE REFERENCIA</span>
-                  <h3>{existingIdentityFile?.filename || "Selecciona un rostro"}</h3>
-                  <p>Este rostro será la referencia de identidad. Puedes cambiarlo antes de generar.</p>
-                  <button type="button" onClick={() => setIdentitySourceOpen(true)}>{existingIdentityFile ? "Elegir otro rostro" : "Elegir rostro"}</button>
-                </div>
-              </div>
-              <p className="identityRightsNotice existingIdentityRights">Usa únicamente rostros propios o imágenes con consentimiento y derechos suficientes. No uses la identidad de otra persona sin autorización.</p>
-
-              <div className="existingIdentityFields">
-                <div className="existingIdentityField">
-                  <label>Tono de piel <b>*</b></label>
-                  <div className="existingSkinGrid">
-                    {(colorCategories.find((category) => category.id === "skinTone")?.options ?? []).map((option) => (
-                      <button type="button" key={option.id} className={selections.skinTone === option.id ? "selected" : ""} onClick={() => setSelections((current) => ({ ...current, skinTone: option.id }))}>
-                        <i style={{ background: option.tone }} />
-                        <span>{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="existingIdentityField">
-                  <label>Ocupación <b>*</b></label>
-                  <select value={selections.occupation || ""} onChange={(event) => setSelections((current) => ({ ...current, occupation: event.target.value }))}>
-                    <option value="">Selecciona una ocupación</option>
-                    {OCCUPATIONS.map((occupation) => <option key={occupation.id} value={occupation.id}>{occupation.es}</option>)}
-                    <option value="custom">Otra / Custom</option>
-                  </select>
-                  {selections.occupation === "custom" && <input value={customValues.occupation || ""} maxLength={25} placeholder="Escribe la ocupación" onChange={(event) => setCustomValues((current) => ({ ...current, occupation: event.target.value.slice(0,25) }))}/>}
-                </div>
-                <div className="existingIdentityField">
-                  <label>Extra <small>opcional</small></label>
-                  <textarea rows={4} maxLength={150} value={customValues.extraDetails || ""} onChange={(event) => setCustomValues((current) => ({ ...current, extraDetails: event.target.value.slice(0,150) }))} placeholder="Ej. pecas suaves, hoyuelo, marca de belleza..."/>
-                  <small>{(customValues.extraDetails || "").length}/150</small>
-                </div>
-              </div>
-              <div className={`existingIdentityStatus${existingIdentityReady ? " ready" : ""}`}>
-                <Check size={17}/><span>{existingIdentityReady ? "Identidad lista para el nuevo contrato de generación." : "Falta rostro, ascendencia, tono de piel u ocupación."}</span>
-              </div>
-              <button type="button" className="faceGenerateModelButton faceGenerateModelButtonDone" disabled={!existingIdentityReady} onClick={() => void generateModel()}>
-                <WandSparkles size={19}/><span><strong>Generar modelo</strong><small>Se conectará al nuevo contrato que vas a proporcionar.</small></span>
-              </button>
-            </div>
-          ) : (<>
           <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
-              {Math.min(activeStep + 1, STEPS.length)}/{STEPS.length}
+              {Math.min(activeStep + 1, identitySteps.length)}/{identitySteps.length}
             </span>
           </div>
 
           <div className="faceStepTimeline" role="navigation" aria-label="Pasos de identidad">
-            {STEPS.map((step, index) => {
+            {identitySteps.map((step, index) => {
               const complete =
                 step.id === "summary"
                   ? summaryReady
@@ -1676,6 +1732,22 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 </div>
               )}
 
+
+              {currentStep.kind === "identityFace" && (
+                <div className="faceIdentityUploadStep">
+                  <div className="existingIdentityHero">
+                    {existingIdentityFile ? <img src={existingIdentityFile.url} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
+                    <div>
+                      <span>ROSTRO AUTORIZADO</span>
+                      <h3>{existingIdentityFile?.filename || "Carga tu rostro de identidad"}</h3>
+                      <p>Este archivo se enviará como <b>input_15 · head</b> al módulo de generación.</p>
+                      <button type="button" onClick={() => setIdentitySourceOpen(true)}>{existingIdentityFile ? "Elegir otro rostro" : "Cargar rostro"}</button>
+                    </div>
+                  </div>
+                  <p className="identityRightsNotice existingIdentityRights">Usa únicamente un rostro propio o una imagen para la que tengas consentimiento y derechos suficientes. No subas la identidad de otra persona sin autorización.</p>
+                </div>
+              )}
+
               {currentStep.kind === "summary" && (
                 <div className="faceSummary faceSummaryMinimal">
                   <div className="faceSummaryHero">
@@ -1684,7 +1756,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     </span>
                     <div>
                       <span>STEP DONE</span>
-                      <h3>Tu identidad está lista</h3>
+                      <h3>{identityMode === "existing" ? "Tu rostro de identidad está listo" : "Tu identidad está lista"}</h3>
                       <p>
                         Todos los pasos fueron confirmados. Ya puedes generar tu modelo.
                       </p>
@@ -1788,7 +1860,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             </div>
 
           </div>
-          </>)}
         </section>
       </div>
       <IdentitySourceModal
@@ -1878,4 +1949,3 @@ function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { lab
     </div>
   );
 }
-

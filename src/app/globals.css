@@ -2929,7 +2929,7 @@ output.modelSliderValue{
 .faceTimelineStep.active small{color:#fff;font-weight:800}
 .faceTimelineStep.complete .faceTimelineIcon{color:#fff;border-color:rgba(225,29,53,.55);background:#1a1013}
 
-.faceStepShell{display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:stretch;min-height:420px}
+.faceStepShell{display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:stretch;min-height:375px}
 .faceStepContent{min-width:0;border:1px solid rgba(255,255,255,.055);border-radius:20px;background:radial-gradient(circle at 50% 0,rgba(225,29,53,.035),transparent 38%),rgba(255,255,255,.008);padding:18px}
 .faceStepArrow{align-self:stretch;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:#0b0b0d;color:#b5b5bd;display:grid;place-items:center;cursor:pointer;transition:.18s ease}
 .faceStepArrow:hover:not(:disabled){border-color:rgba(225,29,53,.42);color:#fff;background:#141015;box-shadow:0 0 18px rgba(225,29,53,.08)}
