@@ -2,7 +2,7 @@ export type GenerationInputType = "image" | "file" | "text" | "textarea" | "sele
 export type GenerationExecutionStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 export type GenerationExecutionEngine = "simulated" | "local_docker" | "owner_local" | "runpod_serverless" | "modal" | "beam";
 export interface GenerationInput { id: number; key: string; name: string; description?: string | null; input_type: GenerationInputType; position: number; is_required: boolean; default_value?: unknown; validation?: Record<string, unknown>; }
-export interface GenerationOutput { id: number; key: string; name: string; output_type: string; position: number; is_required: boolean; }
+export interface GenerationOutput { id: number; key: string; name: string; output_type: string; position: number; is_required: boolean; metadata?: Record<string, unknown>; }
 export interface GenerationPricing {
   id: number;
   required_tokens: number;
