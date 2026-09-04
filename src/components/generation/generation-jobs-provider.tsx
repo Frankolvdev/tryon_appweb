@@ -12,6 +12,7 @@ import {
 } from "react";
 import { getGenerationExecution, listActiveGenerationExecutions } from "@/lib/generation-api";
 import type { GenerationExecution } from "@/types/generation";
+import { isGenerationProviderPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
 export type GenerationJobNavigation = {
   clickable?: boolean;
@@ -34,9 +35,9 @@ type JobsContextValue = {
 };
 
 const JobsContext = createContext<JobsContextValue | null>(null);
-const ACTIVE = new Set(["queued", "running"]);
 const POLL_INTERVAL_MS = 2000;
 const NAV_STORAGE_KEY = "tryon-generation-job-navigation-v1";
+const JOBS_STORAGE_KEY = "tryon-generation-jobs-v1";
 
 function readStoredNavigation(): Record<string, GenerationJobNavigation> {
   if (typeof window === "undefined") return {};
@@ -55,6 +56,44 @@ function writeStoredNavigation(value: Record<string, GenerationJobNavigation>) {
   } catch {}
 }
 
+
+function readStoredJobs(): GenerationExecution[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(JOBS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is GenerationExecution =>
+      Boolean(item && typeof item === "object" && typeof item.id === "string" && isGenerationProviderPending(item)),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredJobs(value: GenerationExecution[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const pending = value.filter((item) => isGenerationProviderPending(item));
+    if (pending.length) {
+      window.localStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify(pending));
+    } else {
+      window.localStorage.removeItem(JOBS_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+function mergePendingJobs(...lists: GenerationExecution[][]): GenerationExecution[] {
+  const byId = new Map<string, GenerationExecution>();
+  for (const list of lists) {
+    for (const item of list) {
+      if (isGenerationProviderPending(item)) byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()];
+}
+
 function defaultNavigation(job: GenerationExecution): ResolvedNavigation {
   return {
     clickable: true,
@@ -70,19 +109,30 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setNavigation(readStoredNavigation());
+    setJobs((current) => mergePendingJobs(current, readStoredJobs()));
   }, []);
 
   const refresh = useCallback(async () => {
     try {
       const result = await listActiveGenerationExecutions();
-      if (mounted.current) setJobs(result.items);
+      if (mounted.current) {
+        setJobs((current) => {
+          const next = mergePendingJobs(current, result.items);
+          writeStoredJobs(next);
+          return next;
+        });
+      }
     } catch {}
   }, []);
 
   const track = useCallback((job: GenerationExecution, options?: GenerationJobNavigation) => {
-    setJobs((previous) =>
-      [job, ...previous.filter((item) => item.id !== job.id)].filter((item) => ACTIVE.has(item.status)),
-    );
+    setJobs((previous) => {
+      const next = [job, ...previous.filter((item) => item.id !== job.id)].filter((item) =>
+        isGenerationProviderPending(item),
+      );
+      writeStoredJobs(next);
+      return next;
+    });
 
     if (options) {
       setNavigation((previous) => {
@@ -116,7 +166,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = window.setInterval(async () => {
-      const snapshot = jobs.filter((item) => ACTIVE.has(item.status));
+      const snapshot = jobs.filter((item) => shouldPollGenerationExecution(item));
       if (!snapshot.length) {
         void refresh();
         return;
@@ -133,7 +183,9 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
       );
 
       if (mounted.current) {
-        setJobs(next.filter((item) => ACTIVE.has(item.status)));
+        const pending = next.filter((item) => isGenerationProviderPending(item));
+        writeStoredJobs(pending);
+        setJobs(pending);
       }
     }, POLL_INTERVAL_MS);
 

@@ -431,6 +431,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const { track } = useGenerationJobs();
   const { user } = useAppSession();
   const owner = isOwnerAccount(user);
+  const generationRecoveryRetryRef = useRef<number | null>(null);
+  const generationRecoveryMountedRef = useRef(true);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
   const [generationRecoveryPending, setGenerationRecoveryPending] = useState(true);
@@ -465,6 +467,17 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
   const [cancellingGeneration, setCancellingGeneration] = useState(false);
   const [generationLoadingMode, setGenerationLoadingMode] = useState<"backend" | "elapsed_estimate">("backend");
+
+  useEffect(() => {
+    generationRecoveryMountedRef.current = true;
+    return () => {
+      generationRecoveryMountedRef.current = false;
+      if (generationRecoveryRetryRef.current !== null) {
+        window.clearTimeout(generationRecoveryRetryRef.current);
+        generationRecoveryRetryRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -544,13 +557,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 ? data.last_generation_execution_id
                 : null;
             if (lastExecutionId) {
-              // Do not release the previous studio UI until Backend gives us
-              // an authoritative execution snapshot. If Backend is restarting
-              // or temporarily unavailable, keep the recovery screen blocked
-              // and retry instead of flashing the old pre-generation view.
+              // A persisted execution is authoritative. Keep the studio blocked
+              // until Backend can reconcile it; if Backend is temporarily down,
+              // retry without flashing the previous body/result UI.
               const recoverPersistedExecution = async () => {
                 try {
                   const execution = await getGenerationExecution(lastExecutionId);
+                  if (!generationRecoveryMountedRef.current) return;
                   setGeneratedExecution(execution);
                   setActiveStep((data.identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
                   track(execution, {
@@ -559,8 +572,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     label: "Create Model IA",
                   });
                   setGenerationRecoveryPending(false);
+                  generationRecoveryRetryRef.current = null;
                 } catch {
-                  window.setTimeout(() => void recoverPersistedExecution(), 2000);
+                  if (!generationRecoveryMountedRef.current) return;
+                  generationRecoveryRetryRef.current = window.setTimeout(
+                    () => void recoverPersistedExecution(),
+                    2000,
+                  );
                 }
               };
 
@@ -1369,11 +1387,11 @@ useEffect(() => {
   }
 
   const [displayName, setDisplayName] = useModelDisplayName(modelId, model?.name);
-  if (!model || generationRecoveryPending)
+  if (!model)
     return (
       <div className="modelLoading pageEnter">
         <span className="spinner" />
-        <p>{model ? "Recuperando generación…" : "Preparando identidad…"}</p>
+        <p>Preparando identidad…</p>
       </div>
     );
 

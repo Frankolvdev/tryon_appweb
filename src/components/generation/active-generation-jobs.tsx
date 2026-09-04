@@ -13,8 +13,8 @@ type ModuleGroup = {
   href: string | null;
   label: string;
   clickable: boolean;
-  cancellingCount: number;
   statusLabel: string;
+  cancellingCount: number;
 };
 
 export function ActiveGenerationJobs() {
@@ -41,7 +41,6 @@ export function ActiveGenerationJobs() {
         continue;
       }
 
-      const cancelling = isGenerationCancellationPending(job);
       map.set(job.module_id, {
         moduleId: job.module_id,
         moduleKey: job.module_key,
@@ -49,8 +48,8 @@ export function ActiveGenerationJobs() {
         href: navigation.href,
         label: navigation.label || job.module_key.replaceAll("_", " "),
         clickable: navigation.clickable,
-        cancellingCount: cancelling ? 1 : 0,
-        statusLabel: cancelling ? "Cancelando…" : generationExecutionStatusLabel(job),
+        statusLabel: generationExecutionStatusLabel(job),
+        cancellingCount: isGenerationCancellationPending(job) ? 1 : 0,
       });
     }
 
@@ -62,6 +61,8 @@ export function ActiveGenerationJobs() {
   function openModule(group: ModuleGroup) {
     if (!group.clickable || !group.href) return;
 
+    // If the user is already inside the target view, clicking the module
+    // intentionally does nothing except close the disc.
     const targetPath = group.href.split("?")[0];
     if (pathname === targetPath || pathname.startsWith(`${targetPath}/`)) {
       setOpen(false);
@@ -90,7 +91,9 @@ export function ActiveGenerationJobs() {
 
             {groups.map((group, index) => {
               const count = groups.length;
-              const angle = count === 1 ? -90 : -90 + (360 / count) * index;
+              const angle = count === 1
+                ? -90
+                : -90 + (360 / count) * index;
               const radius = count <= 4 ? 118 : 132;
               const x = Math.cos((angle * Math.PI) / 180) * radius;
               const y = Math.sin((angle * Math.PI) / 180) * radius;
