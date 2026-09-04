@@ -1493,13 +1493,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               ) : null}
 
               {currentStep.kind === "ancestry" && (
-                <div className="faceAncestryStepPrompt">
-                  <span className="faceAncestryPromptIcon">01</span>
-                  <div>
-                    <strong>{ancestry ? ancestry.display_name : "Selecciona una ascendencia arriba"}</strong>
-                    <p>{ancestry ? "Ascendencia seleccionada. Pulsa Elegir para confirmarla y continuar." : "El selector de ascendencias está resaltado arriba. Elige una opción y vuelve aquí para confirmarla."}</p>
-                  </div>
-                </div>
+                <div className="faceAncestryStepSpacer" aria-hidden="true" />
               )}
 
               {currentStep.kind === "media" && (() => {
@@ -1792,7 +1786,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                         <TriangleAlert size={18} aria-hidden="true" />
                         <p>Usa únicamente un rostro propio o una imagen para la que tengas consentimiento y derechos suficientes. No subas la identidad de otra persona sin autorización.</p>
                       </div>
-                      <h3>{existingIdentityFile?.filename || "Carga tu rostro de identidad"}</h3>
                       <button type="button" onClick={() => setIdentitySourceOpen(true)}>{existingIdentityFile ? "Elegir otro rostro" : "Cargar rostro"}</button>
                     </div>
                   </div>

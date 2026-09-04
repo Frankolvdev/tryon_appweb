@@ -4485,3 +4485,60 @@ output.modelSliderValue{
 .faceAncestryPromptIcon{width:46px;height:46px;flex:0 0 46px;border-radius:14px;display:grid;place-items:center;border:1px solid rgba(225,29,53,.3);background:rgba(165,9,29,.11);color:#ff6076;font-size:12px;font-weight:900;letter-spacing:.08em}
 .faceAncestryStepPrompt strong{display:block;font-size:17px;color:#f5f5f7;margin-bottom:5px}.faceAncestryStepPrompt p{margin:0;color:#8e8f97;font-size:12px;line-height:1.55;max-width:520px}
 .existingIdentityWarning{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-bottom:12px;border:1px solid rgba(245,158,11,.24);border-radius:12px;background:rgba(120,53,15,.09);color:#fbbf24}.existingIdentityWarning svg{flex:0 0 auto;margin-top:1px}.existingIdentityWarning p{margin:0!important;color:#c9a96c!important;font-size:11px;line-height:1.5!important}
+
+/* AppWeb14 refinement — ancestry step uses the same passing-light language as "Diseña su identidad". */
+.faceAncestryStepTarget{
+  position:relative;
+  border-radius:24px;
+  overflow:hidden;
+  isolation:isolate;
+  transition:filter .22s ease;
+}
+.faceAncestryStepTarget.active{
+  box-shadow:none!important;
+  filter:none!important;
+  transform:none!important;
+}
+.faceAncestryStepTarget.active::before{
+  content:"";
+  position:absolute;
+  top:-12%;
+  bottom:-12%;
+  left:-32%;
+  width:18%;
+  z-index:20;
+  pointer-events:none;
+  opacity:0;
+  transform:skewX(-16deg);
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.02) 18%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.05) 82%,transparent 100%);
+  filter:blur(.2px);
+  animation:modelSculptSweep 4s ease-in-out infinite;
+}
+.faceAncestryStepTarget.active::after{content:none!important;display:none!important}
+.faceAncestryStepSpacer{min-height:0;height:0;overflow:hidden}
+
+/* Existing-face step: compact, readable and contained. */
+.faceIdentityUploadStep .existingIdentityHero{min-width:0;align-items:center}
+.faceIdentityUploadStep .existingIdentityHero>div{min-width:0;display:grid;gap:12px}
+.faceIdentityUploadStep .existingIdentityWarning{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:0;
+  align-items:flex-start;
+}
+.faceIdentityUploadStep .existingIdentityWarning p{
+  min-width:0;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  white-space:normal;
+}
+.faceIdentityUploadStep .existingIdentityHero button{justify-self:start;margin:0}
+@media(max-width:700px){
+  .faceIdentityUploadStep .existingIdentityHero{grid-template-columns:1fr}
+  .faceIdentityUploadStep .existingIdentityHero>img,.faceIdentityUploadStep .existingIdentityMissing{width:100%;max-height:260px}
+}
+@media(prefers-reduced-motion:reduce){
+  .faceAncestryStepTarget.active::before{animation:none!important;display:none!important}
+}
