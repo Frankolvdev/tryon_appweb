@@ -8,6 +8,7 @@ import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-mo
 import { ModelImage } from "./model-image";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { ModelGlobalTimeline } from "./model-global-timeline";
+import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 
 type AxisState={hips:number;fat:number;breasts:number;breastBand:string};
 const EPS=1e-6;
@@ -63,6 +64,8 @@ function BodyStepScannerOverlay() {
 }
 
 export function ModelStudio({modelId}:{modelId:number}){
+ const [identityChoiceOpen,setIdentityChoiceOpen]=useState(false);
+
  const router=useRouter();
  const searchParams=useSearchParams();
  const forceBodyStage=searchParams.get("stage")==="body";
@@ -250,8 +253,24 @@ export function ModelStudio({modelId}:{modelId:number}){
    const m=await setAiModelBody(modelId,selected.id,selectedBubble.id);
    setModel(m);
    toast.success("Cuerpo y Butt Elevation guardados en tu modelo");
-   router.push(`/models/${modelId}/face`);
+   // Paso 01 ya quedó persistido. Antes de entrar al Paso 02 el usuario
+   // elige la fuente de identidad; por defecto se mantiene Crear identidad.
+   setIdentityChoiceOpen(true);
   }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}
+ }
+ async function confirmIdentitySource(mode:IdentitySourceMode,file:ExistingIdentityFile|null){
+  try{
+   const currentDraft=(model?.draft_json&&typeof model.draft_json==="object")?model.draft_json:{};
+   const updated=await saveAiModelDraft(modelId,{
+    ...currentDraft,
+    kind:"identity",
+    identityMode:mode,
+    existingIdentityFile:mode==="existing"&&file?file:null,
+   },displayName.trim()||model?.name);
+   setModel(updated);
+   setIdentityChoiceOpen(false);
+   router.push(`/models/${modelId}/face`);
+  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar la fuente de identidad")}
  }
  const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
@@ -328,6 +347,7 @@ export function ModelStudio({modelId}:{modelId:number}){
      <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
    </section></div>}
   {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
+  <IdentitySourceModal open={identityChoiceOpen} initialMode="create" onClose={()=>setIdentityChoiceOpen(false)} allowClose={true} onConfirm={confirmIdentitySource}/>
    </div>
   </div>
  </div>

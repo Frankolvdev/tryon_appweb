@@ -39,6 +39,7 @@ import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
 import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
+import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
 
@@ -282,6 +283,24 @@ function generatedImageForOutputId(
   return collectGeneratedImages(outputs[definition.key] ?? {})[0] ?? null;
 }
 
+function generatedImageForCreateModelOutput(
+  module: GenerationModule | null,
+  outputs: Record<string, unknown> | undefined,
+  outputId: number,
+): GeneratedImageResult | null {
+  const bound = generatedImageForOutputId(module, outputs, outputId);
+  if (bound) return bound;
+  // Recovery-safe fallback for persisted executions. Output 137/138 are the
+  // frozen Create Model Woman bindings; a temporary module-catalog fetch
+  // failure must not make a completed persisted execution impossible to pick.
+  const fallbackKey = outputId === CREATE_MODEL_WOMAN_BODY_OUTPUT_ID
+    ? "output_1"
+    : outputId === CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID
+      ? "output_2"
+      : null;
+  return fallbackKey && outputs ? collectGeneratedImages(outputs[fallbackKey] ?? {})[0] ?? null : null;
+}
+
 
 function identityDraftSnapshot({
   selections,
@@ -356,6 +375,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [draftSaving, setDraftSaving] = useState(false);
+  const [identityMode, setIdentityMode] = useState<IdentitySourceMode>("create");
+  const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
+  const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -388,6 +410,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             });
             setMediaSelected(data.mediaSelected || {});
             setCustomValues(data.customValues || {});
+            setIdentityMode(data.identityMode === "existing" ? "existing" : "create");
+            setExistingIdentityFile(data.existingIdentityFile || null);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
               ? data.completedSteps
               : [];
@@ -533,6 +557,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           completedSteps,
           activeStep,
           bodyAdjustments,
+          identityMode,
+          existingIdentityFile,
           bodyRefinements: {
             ass: round1(bodyBase.ass + bodyAdjustments.ass),
             fat: round1(bodyBase.fat + bodyAdjustments.fat),
@@ -554,12 +580,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     activeStep,
     bodyAdjustments,
     bodyBase,
+    identityMode,
+    existingIdentityFile,
     generatedExecution?.id,
   ]);
 
   async function saveDraft() {
     setDraftSaving(true);
-    const draft = identityDraftSnapshot({
+    const draft = {
+      ...identityDraftSnapshot({
       selections,
       mediaSelected,
       customValues,
@@ -568,7 +597,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       bodyAdjustments,
       bodyBase,
       lastGenerationExecutionId: generatedExecution?.id,
-    });
+      }),
+      identityMode,
+      existingIdentityFile,
+    };
     try {
       const updated = await saveAiModelDraft(modelId, draft, displayName.trim() || model?.name);
       setModel(updated);
@@ -580,6 +612,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   async function generateModel() {
     if (!model) return;
+    if (identityMode === "existing") {
+      notify.warning("El modo con rostro existente ya está preparado. Falta conectar el nuevo módulo/contrato de generación.");
+      return;
+    }
     if (!summaryReady) {
       showValidation("Completa los pasos obligatorios antes de generar el modelo.");
       return;
@@ -608,6 +644,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             bodyBase,
             lastGenerationExecutionId: generatedExecution?.id,
           }),
+          identityMode,
+          existingIdentityFile,
           ancestry: {
             id: ancestry.id,
             ancestry_key: ancestry.ancestry_key,
@@ -685,7 +723,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         input_11: occupationContext.place,
         input_12: "soft flattering professional daylight, balanced neutral lighting",
         input_13: occupationContext.clothes,
-        input_14: "",
+        input_14: customValues.extraDetails?.trim() || null,
         input_15: promptHead,
       };
 
@@ -770,7 +808,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   const generatedBodyImage = useMemo(
     () =>
-      generatedImageForOutputId(
+      generatedImageForCreateModelOutput(
         generationModuleInfo,
         generatedExecution?.outputs,
         CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
@@ -783,7 +821,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   );
   const generatedIdentityFace = useMemo(
     () =>
-      generatedImageForOutputId(
+      generatedImageForCreateModelOutput(
         generationModuleInfo,
         generatedExecution?.outputs,
         CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
@@ -874,31 +912,34 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       : "Calculando tokens…";
 
   async function useGeneratedModel() {
-    if (!generatedImage?.storage_file_id) {
-      notify.error("El resultado aún no tiene un archivo persistido que pueda asignarse a la modelo.");
-      return;
-    }
-    if (!generatedBodyImage?.storage_file_id) {
-      notify.error("La generación no contiene el output ID 137 (all body). Revisa el binding del workflow.");
-      return;
-    }
-    if (!generatedIdentityFace?.storage_file_id) {
-      notify.error("La generación no contiene el output ID 138 (head). Revisa el binding del workflow.");
+    if (!generatedExecution) {
+      notify.error("No encontramos la generación seleccionada.");
       return;
     }
     setUsingGeneratedModel(true);
     try {
-      if (!generatedExecution || generatedExecution.result_locked || generatedExecution.billing_access_status === "payment_pending") {
+      // Relee la ejecución durable justo al confirmar. Así una variante
+      // recuperada tras salir/entrar usa el mismo estado persistido que una
+      // generación recién terminada y no depende del timing del catálogo UI.
+      const latest = await getGenerationExecution(generatedExecution.id);
+      setGeneratedExecution(latest);
+      if (latest.status !== "completed" || latest.result_locked || latest.billing_access_status === "payment_pending") {
         notify.error("El resultado todavía no está disponible para usarlo.");
         return;
       }
+      const body = generatedImageForCreateModelOutput(generationModuleInfo, latest.outputs, CREATE_MODEL_WOMAN_BODY_OUTPUT_ID);
+      const head = generatedImageForCreateModelOutput(generationModuleInfo, latest.outputs, CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID);
+      if (!body?.storage_file_id) {
+        notify.error("La generación no contiene el cuerpo persistido (output 137 / output_1).");
+        return;
+      }
+      if (!head?.storage_file_id) {
+        notify.error("La generación no contiene el rostro persistido (output 138 / output_2).");
+        return;
+      }
       const updated = await finalizeAiModel(
-        modelId,
-        generatedExecution.id,
-        generatedBodyImage.storage_file_id,
-        CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
-        generatedIdentityFace.storage_file_id,
-        CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
+        modelId, latest.id, body.storage_file_id, CREATE_MODEL_WOMAN_BODY_OUTPUT_ID,
+        head.storage_file_id, CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID,
       );
       setModel(updated);
       notify.success("Modelo guardado. Entrando a su estudio.");
@@ -907,6 +948,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       notify.error(error instanceof Error ? error.message : "No se pudo guardar esta variante.");
     } finally {
       setUsingGeneratedModel(false);
+    }
+  }
+
+  async function applyIdentitySource(mode: IdentitySourceMode, file: ExistingIdentityFile | null) {
+    const nextFile = mode === "existing" ? file : existingIdentityFile;
+    setIdentityMode(mode);
+    if (mode === "existing") setExistingIdentityFile(nextFile);
+    setIdentitySourceOpen(false);
+    if (model) {
+      const baseDraft = model.draft_json && typeof model.draft_json === "object" ? model.draft_json : {};
+      const updated = await saveAiModelDraft(modelId, { ...baseDraft, identityMode: mode, existingIdentityFile: nextFile }, displayName.trim() || model.name);
+      setModel(updated);
     }
   }
 
@@ -931,6 +984,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const summaryReady = STEPS.filter(
     (step) => step.kind !== "summary" && !step.optional,
   ).every((step) => completedSteps.includes(step.id));
+  const existingIdentityReady = Boolean(
+    existingIdentityFile && ancestry && selections.skinTone && selections.occupation &&
+    (selections.occupation !== "custom" || customValues.occupation?.trim()),
+  );
 
   function showValidation(message: string) {
     setValidationMessage(message);
@@ -1247,6 +1304,58 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         </div>
 
         <section className="faceControls faceWizard">
+          <div className="identityModeBar">
+            <div><span>MODO DE IDENTIDAD</span><strong>{identityMode === "existing" ? "Ya tengo un rostro" : "Crear identidad"}</strong></div>
+            <button type="button" onClick={() => setIdentitySourceOpen(true)}>Cambiar modo</button>
+          </div>
+          {identityMode === "existing" ? (
+            <div className="existingIdentityWorkspace">
+              <div className="existingIdentityHero">
+                {existingIdentityFile ? <img src={existingIdentityFile.url} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
+                <div>
+                  <span>IDENTIDAD DE REFERENCIA</span>
+                  <h3>{existingIdentityFile?.filename || "Selecciona un rostro"}</h3>
+                  <p>Este rostro será la referencia de identidad. Puedes cambiarlo antes de generar.</p>
+                  <button type="button" onClick={() => setIdentitySourceOpen(true)}>{existingIdentityFile ? "Elegir otro rostro" : "Elegir rostro"}</button>
+                </div>
+              </div>
+              <p className="identityRightsNotice existingIdentityRights">Usa únicamente rostros propios o imágenes con consentimiento y derechos suficientes. No uses la identidad de otra persona sin autorización.</p>
+
+              <div className="existingIdentityFields">
+                <div className="existingIdentityField">
+                  <label>Tono de piel <b>*</b></label>
+                  <div className="existingSkinGrid">
+                    {(colorCategories.find((category) => category.id === "skinTone")?.options ?? []).map((option) => (
+                      <button type="button" key={option.id} className={selections.skinTone === option.id ? "selected" : ""} onClick={() => setSelections((current) => ({ ...current, skinTone: option.id }))}>
+                        <i style={{ background: option.tone }} />
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="existingIdentityField">
+                  <label>Ocupación <b>*</b></label>
+                  <select value={selections.occupation || ""} onChange={(event) => setSelections((current) => ({ ...current, occupation: event.target.value }))}>
+                    <option value="">Selecciona una ocupación</option>
+                    {OCCUPATIONS.map((occupation) => <option key={occupation.id} value={occupation.id}>{occupation.es}</option>)}
+                    <option value="custom">Otra / Custom</option>
+                  </select>
+                  {selections.occupation === "custom" && <input value={customValues.occupation || ""} maxLength={25} placeholder="Escribe la ocupación" onChange={(event) => setCustomValues((current) => ({ ...current, occupation: event.target.value.slice(0,25) }))}/>}
+                </div>
+                <div className="existingIdentityField">
+                  <label>Extra <small>opcional</small></label>
+                  <textarea rows={4} maxLength={150} value={customValues.extraDetails || ""} onChange={(event) => setCustomValues((current) => ({ ...current, extraDetails: event.target.value.slice(0,150) }))} placeholder="Ej. pecas suaves, hoyuelo, marca de belleza..."/>
+                  <small>{(customValues.extraDetails || "").length}/150</small>
+                </div>
+              </div>
+              <div className={`existingIdentityStatus${existingIdentityReady ? " ready" : ""}`}>
+                <Check size={17}/><span>{existingIdentityReady ? "Identidad lista para el nuevo contrato de generación." : "Falta rostro, ascendencia, tono de piel u ocupación."}</span>
+              </div>
+              <button type="button" className="faceGenerateModelButton faceGenerateModelButtonDone" disabled={!existingIdentityReady} onClick={() => void generateModel()}>
+                <WandSparkles size={19}/><span><strong>Generar modelo</strong><small>Se conectará al nuevo contrato que vas a proporcionar.</small></span>
+              </button>
+            </div>
+          ) : (<>
           <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
               {Math.min(activeStep + 1, STEPS.length)}/{STEPS.length}
@@ -1679,8 +1788,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             </div>
 
           </div>
+          </>)}
         </section>
       </div>
+      <IdentitySourceModal
+        open={identitySourceOpen}
+        initialMode={identityMode}
+        existingFile={existingIdentityFile}
+        onClose={() => setIdentitySourceOpen(false)}
+        onConfirm={applyIdentitySource}
+      />
       </div>
     </div>
   </div>
