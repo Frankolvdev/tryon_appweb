@@ -12,7 +12,7 @@ import {
 } from "react";
 import { getGenerationExecution, listActiveGenerationExecutions } from "@/lib/generation-api";
 import type { GenerationExecution } from "@/types/generation";
-import { isGenerationActiveForUi, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
+import { isGenerationProviderPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
 export type GenerationJobNavigation = {
   clickable?: boolean;
@@ -81,7 +81,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
   const track = useCallback((job: GenerationExecution, options?: GenerationJobNavigation) => {
     setJobs((previous) =>
-      [job, ...previous.filter((item) => item.id !== job.id)].filter((item) => isGenerationActiveForUi(item)),
+      [job, ...previous.filter((item) => item.id !== job.id)].filter((item) => isGenerationProviderPending(item)),
     );
 
     if (options) {
@@ -133,7 +133,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
       );
 
       if (mounted.current) {
-        setJobs(next.filter((item) => isGenerationActiveForUi(item)));
+        setJobs(next.filter((item) => isGenerationProviderPending(item)));
       }
     }, POLL_INTERVAL_MS);
 

@@ -16,7 +16,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
-import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, shouldPollGenerationExecution, isGenerationExecutionPollable  } from "@/lib/generation-execution-contract";
+import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable  } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
@@ -613,7 +613,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
 
   useEffect(() => {
-    if (!isGenerationActiveForUi(generatedExecution)) return;
+    if (!isGenerationProviderPending(generatedExecution)) return;
     setProgressClock(Date.now());
     const timer = window.setInterval(() => setProgressClock(Date.now()), 500);
     return () => window.clearInterval(timer);
@@ -715,7 +715,9 @@ useEffect(() => {
   }
 
   async function generateModel() {
-    if (!model) return;
+    // queued/running remains exclusive even while cancellation is pending.
+    // Do not allow a second execution until Backend reaches a terminal state.
+    if (!model || generatingModel || isGenerationProviderPending(generatedExecution)) return;
     if (!summaryReady) {
       showValidation("Completa los pasos obligatorios antes de generar el modelo.");
       return;
@@ -973,6 +975,7 @@ useEffect(() => {
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
   const generationIsActive = isGenerationActiveForUi(generatedExecution);
   const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
+  const generationIsBusy = isGenerationProviderPending(generatedExecution);
 
   const estimatedGenerationSeconds =
     generatedExecution?.estimated_duration_seconds ??
@@ -1425,14 +1428,14 @@ useEffect(() => {
         <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
       </div>
 
-      <div className={`faceBuilder${generatingModel || generationIsActive ? " faceGenerationFocus" : ""}`}>
+      <div className={`faceBuilder${generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}>
         <div className="facePreviewRail">
           <section className="facePreviewCard">
             <div
               className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
               style={generatedAspectRatio ? { aspectRatio: `${generatedAspectRatio}` } : undefined}
             >
-              {generationRecoveryPending || generatingModel || generationIsActive || generatedExecution?.status === "completed" ? (
+              {generationRecoveryPending || generatingModel || generationIsBusy || generatedExecution?.status === "completed" ? (
                 <ParticleMorphLoader
                   sourceImages={[
                     "/generation-loaders/model-woman/silhouette-1.webp",
@@ -1440,7 +1443,7 @@ useEffect(() => {
                     "/generation-loaders/model-woman/silhouette-3.webp",
                   ]}
                   resultUrl={generatedExecution?.status === "completed" ? generatedPreviewUrl : null}
-                  active={generationIsActive || generatingModel}
+                  active={generationIsBusy || generatingModel}
                   label="CREATE MODEL IA"
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
@@ -1473,7 +1476,7 @@ useEffect(() => {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              {!generationRecoveryPending && !generatingModel && !generationIsActive && (
+              {!generationRecoveryPending && !generatingModel && !generationIsBusy && (
                 <button
                   type="button"
                   className="facePreviewHud faceBodyRefineTrigger"
@@ -1487,7 +1490,7 @@ useEffect(() => {
                   <ChevronRight size={16} />
                 </button>
               )}
-              {!generationRecoveryPending && !generatingModel && !generationIsActive && bodyRefineOpen && (
+              {!generationRecoveryPending && !generatingModel && !generationIsBusy && bodyRefineOpen && (
                 <div className="faceBodyRefineCard">
                   <div className="faceBodyRefineHead">
                     <div>
@@ -1904,10 +1907,10 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {generationIsActive ? (
+                  {generationIsBusy ? (
                     <button className="faceGenerateModelButton faceGenerateModelButtonDone" type="button" disabled>
                       <WandSparkles size={19} />
-                      Generando modelo…
+                      {generationIsCancelling ? "Cancelando generación…" : "Generando modelo…"}
                     </button>
                   ) : generatedExecution?.status === "completed" && generatedImage ? (
                     <div className="faceGeneratedActions">

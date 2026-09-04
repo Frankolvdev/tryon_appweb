@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { GenerationExecution } from "@/types/generation";
 import { useGenerationJobs } from "./generation-jobs-provider";
+import { generationExecutionStatusLabel, isGenerationCancellationPending } from "@/lib/generation-execution-contract";
 
 type ModuleGroup = {
   moduleId: number;
@@ -14,6 +15,8 @@ type ModuleGroup = {
   href: string | null;
   label: string;
   clickable: boolean;
+  statusLabel: string;
+  cancellingCount: number;
 };
 
 export function ActiveGenerationJobs() {
@@ -48,7 +51,16 @@ export function ActiveGenerationJobs() {
     for (const job of displayJobs) {
       const navigation = navigationFor(job);
       const current = map.get(job.module_id);
-      if (current) { current.count += 1; continue; }
+      if (current) {
+        current.count += 1;
+        if (isGenerationCancellationPending(job)) current.cancellingCount += 1;
+        current.statusLabel = current.cancellingCount === current.count
+          ? "Cancelando…"
+          : current.cancellingCount > 0
+            ? `${current.cancellingCount} cancelando`
+            : generationExecutionStatusLabel(job);
+        continue;
+      }
       map.set(job.module_id, {
         moduleId: job.module_id,
         moduleKey: job.module_key,
@@ -56,6 +68,8 @@ export function ActiveGenerationJobs() {
         href: navigation.href,
         label: navigation.label || job.module_key.replaceAll("_", " "),
         clickable: navigation.clickable,
+        statusLabel: generationExecutionStatusLabel(job),
+        cancellingCount: isGenerationCancellationPending(job) ? 1 : 0,
       });
     }
     return [...map.values()];
@@ -101,7 +115,7 @@ export function ActiveGenerationJobs() {
                   disabled={!group.clickable||!group.href}
                   title={alreadyHere?"Ya estás en esta vista":group.label}
                 >
-                  <span className="generationOrbSlice"><b>{group.count}</b><small>{group.label}</small></span>
+                  <span className="generationOrbSlice"><b>{group.count}</b><small>{group.label} · {group.statusLabel}</small></span>
                 </button>
               );
             })}
