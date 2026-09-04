@@ -4603,3 +4603,12 @@ output.modelSliderValue{
 .faceCancelGenerationButton:hover:not(:disabled){background:rgba(153,27,27,.2);border-color:rgba(248,113,113,.48);transform:translateY(-1px)}
 .faceCancelGenerationButton:disabled{opacity:.55;cursor:wait}
 @media(max-width:700px){.faceAncestrySelectedPreview{grid-template-columns:1fr}.faceAncestrySelectedMedia{max-height:250px}}
+
+
+/* AppWeb18 hotfix — narrower generation focus and portrait ancestry preview. */
+.faceBuilder.faceGenerationFocus{grid-template-columns:minmax(360px,580px) 0fr}
+.faceBuilder.faceGenerationFocus .facePreviewRail{max-width:580px}
+@media(max-width:1050px){.faceBuilder.faceGenerationFocus{grid-template-columns:minmax(0,580px)}}
+.faceAncestrySelectedPreview{grid-template-columns:118px minmax(0,1fr);min-height:210px;gap:16px}
+.faceAncestrySelectedMedia{width:118px;height:178px;aspect-ratio:auto;justify-self:start}
+@media(max-width:700px){.faceAncestrySelectedPreview{grid-template-columns:96px minmax(0,1fr)}.faceAncestrySelectedMedia{width:96px;height:148px;max-height:none}}

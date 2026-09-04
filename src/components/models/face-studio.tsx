@@ -1501,14 +1501,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 </div>
               )}
             </div>
-            {(generationIsActive || cancellingGeneration) && (
+            {(generatingModel || generationIsActive || cancellingGeneration) && (
               <button
                 type="button"
                 className="faceCancelGenerationButton"
                 onClick={() => void cancelCurrentGeneration()}
-                disabled={cancellingGeneration}
+                disabled={cancellingGeneration || !generatedExecution || !["queued", "running"].includes(generatedExecution.status)}
               >
-                {cancellingGeneration ? "Cancelando…" : "Cancelar generación"}
+                {cancellingGeneration ? "Cancelando…" : !generatedExecution || !["queued", "running"].includes(generatedExecution.status) ? "Preparando…" : "Cancelar generación"}
               </button>
             )}
           </section>

@@ -78,6 +78,9 @@ export function AncestryExperience({
   const cardRefs = useRef(new Map<string, HTMLButtonElement>());
   const otherCardRef = useRef<HTMLButtonElement | null>(null);
   const onChangeRef = useRef(onChange);
+  // The parent FaceStudio value is authoritative whenever present. Local state
+  // keeps the interaction instant while the parent update is committed.
+  const effectiveSelected = value ?? selected;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -149,14 +152,14 @@ export function AncestryExperience({
   }, [modelId]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!effectiveSelected) return;
     try {
       localStorage.setItem(
         `${STORAGE_PREFIX}${modelId}`,
-        selectionKey(selected),
+        selectionKey(effectiveSelected),
       );
     } catch {}
-  }, [modelId, selected]);
+  }, [modelId, effectiveSelected]);
 
   useEffect(() => {
     if (!countryModal) return;
@@ -171,7 +174,7 @@ export function AncestryExperience({
   // Integer-pixel steps are intentionally used: fractional RAF increments can
   // appear frozen in some browser/scroll-snap combinations.
   useEffect(() => {
-    if (selected || dragging || countryModal) return;
+    if (effectiveSelected || dragging || countryModal) return;
 
     const timer = window.setInterval(() => {
       const track = trackRef.current;
@@ -185,7 +188,7 @@ export function AncestryExperience({
     }, 34);
 
     return () => window.clearInterval(timer);
-  }, [countryModal, dragging, selected]);
+  }, [countryModal, dragging, effectiveSelected]);
 
   const countryResults = useMemo(() => {
     const needle = countryQuery.trim().toLowerCase();
@@ -198,14 +201,14 @@ export function AncestryExperience({
   }, [countryQuery]);
 
   const selectedIsOther = Boolean(
-    selected &&
-      !items.some((item) => selectionKey(item) === selectionKey(selected)),
+    effectiveSelected &&
+      !items.some((item) => selectionKey(item) === selectionKey(effectiveSelected)),
   );
 
   function choose(asset: AncestryMediaAsset) {
-    setSelected(asset);
     setHasUserSelection(true);
     onChangeRef.current?.(asset);
+    setSelected(asset);
   }
 
   function chooseCountry(country: FaceCountry) {
@@ -291,9 +294,9 @@ export function AncestryExperience({
   }
 
   useEffect(() => {
-    if (!hasUserSelection || !selected) return;
+    if (!hasUserSelection || !effectiveSelected) return;
     const published = items.find(
-      (item) => selectionKey(item) === selectionKey(selected),
+      (item) => selectionKey(item) === selectionKey(effectiveSelected),
     );
     const node = published
       ? cardRefs.current.get(selectionKey(published))
@@ -303,7 +306,7 @@ export function AncestryExperience({
       node.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     }, 40);
     return () => window.clearTimeout(timer);
-  }, [hasUserSelection, items, selected]);
+  }, [hasUserSelection, items, effectiveSelected]);
 
   if (loading) {
     return (
@@ -350,7 +353,7 @@ export function AncestryExperience({
 
           <div className={styles.trackViewport}>
             <div
-              className={`${styles.track} ${dragging ? styles.trackDragging : ""} ${!selected && !dragging && !countryModal ? styles.trackAutoLoop : ""}`}
+              className={`${styles.track} ${dragging ? styles.trackDragging : ""} ${!effectiveSelected && !dragging && !countryModal ? styles.trackAutoLoop : ""}`}
               ref={trackRef}
               onPointerDown={pointerDown}
               onPointerMove={pointerMove}
@@ -358,7 +361,7 @@ export function AncestryExperience({
               onPointerCancel={pointerUp}
             >
               {items.map((asset) => {
-                const active = selectionKey(asset) === (selected ? selectionKey(selected) : "");
+                const active = selectionKey(asset) === (effectiveSelected ? selectionKey(effectiveSelected) : "");
                 const region = Boolean(
                   asset.country_code && asset.country_code.length > 2,
                 );
@@ -445,10 +448,10 @@ export function AncestryExperience({
                   <span className={styles.shine} />
                 </div>
                 <div className={styles.cardFooter}>
-                  {selectedIsOther && selected ? (
+                  {selectedIsOther && effectiveSelected ? (
                     <>
-                      <span className={styles.flag}>{selected.flag_emoji || "🌐"}</span>
-                      <span className={styles.name}>{selected.display_name}</span>
+                      <span className={styles.flag}>{effectiveSelected.flag_emoji || "🌐"}</span>
+                      <span className={styles.name}>{effectiveSelected.display_name}</span>
                     </>
                   ) : (
                     <>
@@ -463,7 +466,7 @@ export function AncestryExperience({
         </div>
 
         <AncestryGlobe
-          asset={selected}
+          asset={effectiveSelected}
           onCountrySelect={chooseCountryCode}
         />
       </div>
