@@ -4542,3 +4542,49 @@ output.modelSliderValue{
 @media(prefers-reduced-motion:reduce){
   .faceAncestryStepTarget.active::before{animation:none!important;display:none!important}
 }
+
+/* AppWeb15 — stable ancestry selection, hidden internal Done node, generation focus transition. */
+.faceStepTimeline{grid-template-columns:repeat(auto-fit,minmax(52px,1fr))}
+.faceTimelineIcon img{width:22px;height:22px;object-fit:contain;filter:none}
+
+.faceBuilder{
+  transition:grid-template-columns .55s cubic-bezier(.2,.78,.2,1),gap .55s cubic-bezier(.2,.78,.2,1);
+}
+.facePreviewRail{
+  transition:transform .55s cubic-bezier(.2,.78,.2,1),max-width .55s cubic-bezier(.2,.78,.2,1);
+  will-change:transform;
+}
+.faceControls.faceWizard{
+  transition:opacity .32s ease,transform .48s cubic-bezier(.2,.78,.2,1),max-width .52s cubic-bezier(.2,.78,.2,1),padding .38s ease,border-color .32s ease;
+  will-change:opacity,transform;
+}
+.faceBuilder.faceGenerationFocus{
+  grid-template-columns:minmax(390px,720px) 0fr;
+  gap:0;
+  justify-content:center;
+}
+.faceBuilder.faceGenerationFocus .facePreviewRail{
+  transform:translateX(0);
+  max-width:720px;
+  width:100%;
+  justify-self:center;
+}
+.faceBuilder.faceGenerationFocus .faceControls.faceWizard{
+  opacity:0;
+  transform:translateX(56px) scale(.97);
+  pointer-events:none;
+  max-width:0;
+  width:0;
+  min-width:0;
+  padding-left:0;
+  padding-right:0;
+  border-color:transparent;
+  overflow:hidden;
+}
+@media(max-width:1050px){
+  .faceBuilder.faceGenerationFocus{grid-template-columns:minmax(0,720px)}
+  .faceBuilder.faceGenerationFocus .faceControls.faceWizard{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .faceBuilder,.facePreviewRail,.faceControls.faceWizard{transition:none!important}
+}

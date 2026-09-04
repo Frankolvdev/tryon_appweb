@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   ArrowLeft,
   Check,
@@ -200,7 +200,7 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
-      src={id === "identityFace" ? "/identity-source/existing-face.svg" : `/identity-icons/${id}.svg`}
+      src={`/identity-icons/${id}.svg`}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -1072,18 +1072,26 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     }
   }
 
-  function handleAncestryChange(asset: AncestryMediaAsset | null) {
-    const previousKey = ancestry ? ancestry.ancestry_key || String(ancestry.id) : null;
-    const nextKey = asset ? asset.ancestry_key || String(asset.id) : null;
-    setAncestry(asset);
-    if (previousKey !== null && previousKey !== nextKey && completedSteps.includes("ancestry")) {
-      setCompletedSteps((current) => current.filter((id) => id !== "ancestry"));
-    }
-  }
+  const handleAncestryChange = useCallback((asset: AncestryMediaAsset | null) => {
+    setAncestry((previous) => {
+      const previousKey = previous ? previous.ancestry_key || String(previous.id) : null;
+      const nextKey = asset ? asset.ancestry_key || String(asset.id) : null;
+      if (previousKey !== null && previousKey !== nextKey) {
+        setCompletedSteps((current) =>
+          current.includes("ancestry") ? current.filter((id) => id !== "ancestry") : current,
+        );
+      }
+      return asset;
+    });
+  }, []);
 
   const identitySteps = identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
   const identityDoneStepIndex = identitySteps.findIndex((step) => step.kind === "summary");
   const currentStep = identitySteps[activeStep] ?? identitySteps[0];
+  const visibleIdentitySteps = identitySteps.filter((step) => step.kind !== "summary");
+  const visibleStepNumber = currentStep.kind === "summary"
+    ? visibleIdentitySteps.length
+    : identitySteps.slice(0, activeStep + 1).filter((step) => step.kind !== "summary").length;
   const occupationFeatured = useMemo(() => {
     const activeOccupation = pendingValues.occupation || selections.occupation;
     const promoted = activeOccupation && activeOccupation !== "custom"
@@ -1355,7 +1363,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         <AncestryExperience modelId={modelId} onChange={handleAncestryChange} />
       </div>
 
-      <div className="faceBuilder">
+      <div className={`faceBuilder${generatingModel || generationIsActive ? " faceGenerationFocus" : ""}`}>
         <div className="facePreviewRail">
           <section className="facePreviewCard">
             <div
@@ -1454,34 +1462,33 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           </div>
           <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
-              {Math.min(activeStep + 1, identitySteps.length)}/{identitySteps.length}
+              {visibleStepNumber}/{visibleIdentitySteps.length}
             </span>
           </div>
 
           <div className="faceStepTimeline" role="navigation" aria-label="Pasos de identidad">
-            {identitySteps.map((step, index) => {
-              const complete =
-                step.id === "summary"
-                  ? summaryReady
-                  : completedSteps.includes(step.id);
-              return (
-                <button
-                  type="button"
-                  key={step.id}
-                  className={`faceTimelineStep${index === activeStep ? " active" : ""}${complete ? " complete" : ""}`}
-                  onClick={() => goToStep(index)}
-                  title={step.label}
-                >
-                  <span className="faceTimelineIcon">
-                    <StepIcon id={step.id} />
-                    {complete && step.id !== "summary" && (
-                      <b className="faceTimelineDone"><Check size={9} /></b>
-                    )}
-                  </span>
-                  <small>{step.shortLabel}</small>
-                </button>
-              );
-            })}
+            {identitySteps.map((step, index) => ({ step, index }))
+              .filter(({ step }) => step.kind !== "summary")
+              .map(({ step, index }) => {
+                const complete = completedSteps.includes(step.id);
+                return (
+                  <button
+                    type="button"
+                    key={step.id}
+                    className={`faceTimelineStep${index === activeStep ? " active" : ""}${complete ? " complete" : ""}`}
+                    onClick={() => goToStep(index)}
+                    title={step.label}
+                  >
+                    <span className="faceTimelineIcon">
+                      <StepIcon id={step.id} />
+                      {complete && (
+                        <b className="faceTimelineDone"><Check size={9} /></b>
+                      )}
+                    </span>
+                    <small>{step.shortLabel}</small>
+                  </button>
+                );
+              })}
           </div>
 
           <div className="faceStepShell">

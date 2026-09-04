@@ -75,6 +75,11 @@ export function AncestryExperience({
   const dragRef = useRef({ pointerId: -1, startX: 0, startScroll: 0, moved: false });
   const cardRefs = useRef(new Map<string, HTMLButtonElement>());
   const otherCardRef = useRef<HTMLButtonElement | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     let alive = true;
@@ -107,9 +112,11 @@ export function AncestryExperience({
         if (restored) {
           setSelected(restored);
           setHasUserSelection(true);
+          onChangeRef.current?.(restored);
         } else {
           setSelected(null);
           setHasUserSelection(false);
+          onChangeRef.current?.(null);
         }
       })
       .catch((error) => {
@@ -120,6 +127,7 @@ export function AncestryExperience({
         );
         setSelected(null);
         setHasUserSelection(false);
+        onChangeRef.current?.(null);
       })
       .finally(() => alive && setLoading(false));
 
@@ -136,8 +144,7 @@ export function AncestryExperience({
         selectionKey(selected),
       );
     } catch {}
-    onChange?.(selected);
-  }, [modelId, onChange, selected]);
+  }, [modelId, selected]);
 
   useEffect(() => {
     if (!countryModal) return;
@@ -186,6 +193,7 @@ export function AncestryExperience({
   function choose(asset: AncestryMediaAsset) {
     setSelected(asset);
     setHasUserSelection(true);
+    onChangeRef.current?.(asset);
   }
 
   function chooseCountry(country: FaceCountry) {
@@ -193,8 +201,10 @@ export function AncestryExperience({
       items.find(
         (item) => item.country_code?.toUpperCase() === country.code,
       ) ?? null;
-    setSelected(published ?? syntheticCountryAsset(country));
+    const next = published ?? syntheticCountryAsset(country);
+    setSelected(next);
     setHasUserSelection(true);
+    onChangeRef.current?.(next);
     setCountryModal(false);
     setCountryQuery("");
   }
@@ -355,6 +365,9 @@ export function AncestryExperience({
                     className={`${styles.card} ${
                       active ? styles.cardSelected : ""
                     }`}
+                    onPointerUp={() => {
+                      if (!dragRef.current.moved) choose(asset);
+                    }}
                     onClick={() => safeCardClick(asset)}
                     aria-pressed={active}
                   >

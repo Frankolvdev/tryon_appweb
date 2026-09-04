@@ -1,1 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420"><defs><radialGradient id="g" cx="50%" cy="42%" r="65%"><stop stop-color="#ef233c" stop-opacity=".35"/><stop offset="1" stop-color="#08090c" stop-opacity="0"/></radialGradient><linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff5268"/><stop offset="1" stop-color="#780817"/></linearGradient></defs><rect width="640" height="420" rx="32" fill="#090a0d"/><rect width="640" height="420" rx="32" fill="url(#g)"/><g opacity=".22" stroke="#ff4b63"><path d="M40 80h560M40 140h560M40 200h560M40 260h560M40 320h560"/><path d="M100 35v350M180 35v350M260 35v350M340 35v350M420 35v350M500 35v350"/></g><g transform="translate(188 42)"><path d="M132 24c77 0 118 63 118 142 0 64-29 110-65 136-18 13-26 31-27 55h-52c-1-24-9-42-27-55-36-26-65-72-65-136C14 87 55 24 132 24Z" fill="#11141a" stroke="url(#r)" stroke-width="4"/><path d="M73 151c20-15 38-18 57-4M134 147c20-11 39-8 58 5M102 213c20 13 40 13 60 0" fill="none" stroke="#ff6b7e" stroke-width="4" stroke-linecap="round"/><circle cx="105" cy="154" r="5" fill="#fff"/><circle cx="165" cy="154" r="5" fill="#fff"/><path d="M132 161v34" stroke="#9d1326" stroke-width="3"/><g fill="#ff2d4b"><circle cx="42" cy="105" r="5"/><circle cx="218" cy="105" r="5"/><circle cx="54" cy="260" r="5"/><circle cx="208" cy="260" r="5"/></g><g stroke="#ff2d4b" stroke-width="2" opacity=".8"><path d="M42 105H8M218 105h38M54 260H17M208 260h38"/></g></g><text x="38" y="386" fill="#ff6b7e" font-family="Arial" font-size="15" letter-spacing="4">SYNTHETIC IDENTITY BUILD</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 525" fill="none">
+<defs>
+ <radialGradient id="bg" cx="0" cy="0" r="1" gradientTransform="translate(600 250) rotate(90) scale(360 650)" gradientUnits="userSpaceOnUse"><stop stop-color="#301018"/><stop offset=".5" stop-color="#100B0F"/><stop offset="1" stop-color="#070709"/></radialGradient>
+ <linearGradient id="skin" x1="490" y1="120" x2="710" y2="410" gradientUnits="userSpaceOnUse"><stop stop-color="#F2D0C2"/><stop offset=".45" stop-color="#C99080"/><stop offset="1" stop-color="#5F3136"/></linearGradient>
+ <linearGradient id="hair" x1="470" y1="80" x2="730" y2="380" gradientUnits="userSpaceOnUse"><stop stop-color="#2A2024"/><stop offset="1" stop-color="#08080A"/></linearGradient>
+ <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#E11D35" stop-opacity="0"/><stop offset=".5" stop-color="#FF6578"/><stop offset="1" stop-color="#E11D35" stop-opacity="0"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="1200" height="525" rx="28" fill="url(#bg)"/>
+<g opacity=".25" stroke="#E11D35"><path d="M90 95H360M840 95h270M90 430h270M840 430h270"/><path d="M160 60v405M1040 60v405" stroke-dasharray="3 16"/></g>
+<ellipse cx="600" cy="473" rx="210" ry="24" fill="#000" opacity=".45"/>
+<g>
+ <path d="M447 436c18-76 62-118 122-130h62c60 12 104 54 122 130" fill="#121216" stroke="#4B2931" stroke-width="2"/>
+ <path d="M481 212c0-94 47-151 119-151s119 57 119 151v53c0 98-53 166-119 166s-119-68-119-166v-53Z" fill="url(#skin)"/>
+ <path d="M472 229c-8-104 35-180 128-180 91 0 137 72 128 183-14-18-26-63-22-91-37 15-89 17-136-8-19 35-46 65-98 96Z" fill="url(#hair)"/>
+ <path d="M493 221c18-23 47-30 70-15M637 206c26-13 55-8 72 15" stroke="#3E2529" stroke-width="9" stroke-linecap="round" opacity=".9"/>
+ <ellipse cx="548" cy="236" rx="18" ry="9" fill="#F5E6E2"/><ellipse cx="652" cy="236" rx="18" ry="9" fill="#F5E6E2"/><circle cx="550" cy="236" r="7" fill="#526A64"/><circle cx="650" cy="236" r="7" fill="#526A64"/><circle cx="550" cy="236" r="2.5" fill="#0C0C0E"/><circle cx="650" cy="236" r="2.5" fill="#0C0C0E"/>
+ <path d="M602 245c-4 26-10 45-18 59 12 6 24 7 36 1" stroke="#8E5A54" stroke-width="3" stroke-linecap="round"/>
+ <path d="M555 337c29 19 61 19 90 0-27-5-61-5-90 0Z" fill="#A74C59"/><path d="M568 340c20 7 44 7 64 0" stroke="#F0B2B6" stroke-width="2" opacity=".7"/>
+</g>
+<g filter="url(#glow)" stroke="#FF4F67" opacity=".8"><path d="M446 197h-54v68M754 197h54v68M446 356h-54v-68M754 356h54v-68" stroke-width="3"/><path d="M381 281h438" stroke="url(#scan)" stroke-width="3"/></g>
+<g fill="#FF5B70" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="3"><text x="93" y="78">SYNTHETIC IDENTITY</text><text x="892" y="458">NEURAL BUILD</text></g>
+<g opacity=".55" fill="#D9D9DD"><circle cx="928" cy="170" r="3"/><circle cx="952" cy="170" r="3"/><circle cx="976" cy="170" r="3"/><path d="M920 200h112v2H920zM920 218h78v2h-78zM920 236h96v2h-96z"/></g>
+</svg>

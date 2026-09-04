@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420"><defs><radialGradient id="g" cx="50%" cy="45%" r="58%"><stop stop-color="#d51b34" stop-opacity=".32"/><stop offset="1" stop-color="#08090c" stop-opacity="0"/></radialGradient><linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ff5268"/><stop offset="1" stop-color="#6b0714"/></linearGradient></defs><rect width="640" height="420" rx="32" fill="#090a0d"/><rect width="640" height="420" rx="32" fill="url(#g)"/><g transform="translate(190 45)"><ellipse cx="130" cy="155" rx="100" ry="128" fill="#0d1117" stroke="url(#r)" stroke-width="3"/><path d="M56 119c8-72 40-102 75-102 49 0 82 38 75 103-18-22-39-34-64-38-33-6-58 7-86 37Z" fill="#1b1115" stroke="#a70f24" stroke-width="2"/><path d="M72 148c20-14 38-15 55-2M136 146c20-12 38-10 55 4" fill="none" stroke="#ff667a" stroke-width="4" stroke-linecap="round"/><circle cx="103" cy="153" r="5" fill="#f9fbff"/><circle cx="162" cy="153" r="5" fill="#f9fbff"/><path d="M132 162l-5 38 13 3M101 224c20 15 41 15 61 0" fill="none" stroke="#bb2439" stroke-width="3" stroke-linecap="round"/><path d="M25 73V31h43M235 73V31h-43M25 248v42h43M235 248v42h-43" fill="none" stroke="#ff2f4e" stroke-width="3"/><path d="M5 160h250" stroke="#ff3654" stroke-width="2" stroke-dasharray="6 9" opacity=".8"/></g><g fill="#ff5067"><circle cx="96" cy="78" r="4"/><circle cx="544" cy="103" r="4"/><circle cx="88" cy="310" r="4"/><circle cx="554" cy="298" r="4"/></g><text x="38" y="386" fill="#ff6b7e" font-family="Arial" font-size="15" letter-spacing="4">IDENTITY REFERENCE SCAN</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 525" fill="none">
+<defs>
+ <radialGradient id="bg" cx="0" cy="0" r="1" gradientTransform="translate(600 255) rotate(90) scale(350 650)" gradientUnits="userSpaceOnUse"><stop stop-color="#271019"/><stop offset=".55" stop-color="#0D0B0E"/><stop offset="1" stop-color="#060608"/></radialGradient>
+ <linearGradient id="face" x1="488" y1="99" x2="710" y2="420" gradientUnits="userSpaceOnUse"><stop stop-color="#E8C4B7"/><stop offset=".48" stop-color="#B7786E"/><stop offset="1" stop-color="#57333A"/></linearGradient>
+ <linearGradient id="hair" x1="472" y1="63" x2="726" y2="371" gradientUnits="userSpaceOnUse"><stop stop-color="#251D22"/><stop offset="1" stop-color="#070709"/></linearGradient>
+ <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="1200" height="525" rx="28" fill="url(#bg)"/>
+<g opacity=".18" stroke="#FF4961"><path d="M72 100h330M798 100h330M72 425h330M798 425h330"/><path d="M110 145h190M900 145h190M110 380h190M900 380h190" stroke-dasharray="4 12"/></g>
+<g>
+ <path d="M445 438c16-73 61-114 124-128h62c63 14 108 55 124 128" fill="#101014" stroke="#452932" stroke-width="2"/>
+ <path d="M482 208c0-96 47-151 118-151s118 55 118 151v60c0 96-52 162-118 162s-118-66-118-162v-60Z" fill="url(#face)"/>
+ <path d="M470 225c-3-115 43-181 132-181 90 0 136 69 128 187-18-21-30-69-25-99-43 22-99 14-145-10-15 42-44 77-90 103Z" fill="url(#hair)"/>
+ <path d="M503 216c17-15 43-19 63-8M634 208c21-11 46-7 64 8" stroke="#392329" stroke-width="8" stroke-linecap="round"/>
+ <ellipse cx="550" cy="239" rx="18" ry="9" fill="#EFE4E1"/><ellipse cx="650" cy="239" rx="18" ry="9" fill="#EFE4E1"/><circle cx="551" cy="239" r="7" fill="#657477"/><circle cx="649" cy="239" r="7" fill="#657477"/><circle cx="551" cy="239" r="2.5" fill="#08080A"/><circle cx="649" cy="239" r="2.5" fill="#08080A"/>
+ <path d="M602 248c-4 25-10 43-18 56 12 6 25 7 37 1" stroke="#82514E" stroke-width="3" stroke-linecap="round"/>
+ <path d="M557 336c28 18 58 18 86 0-25-6-60-6-86 0Z" fill="#984852"/>
+</g>
+<g filter="url(#glow)" stroke="#FF536A" stroke-width="3"><path d="M452 118h-62v76M748 118h62v76M452 400h-62v-76M748 400h62v-76"/><path d="M431 259h338" opacity=".7"/><path d="M600 74v370" opacity=".25" stroke-dasharray="5 12"/></g>
+<g fill="#F0F0F2" opacity=".75"><circle cx="475" cy="176" r="2.5"/><circle cx="724" cy="176" r="2.5"/><circle cx="493" cy="300" r="2.5"/><circle cx="707" cy="300" r="2.5"/><circle cx="600" cy="112" r="2.5"/><circle cx="600" cy="390" r="2.5"/></g>
+<g fill="#FF5A70" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="3"><text x="88" y="78">IDENTITY REFERENCE</text><text x="875" y="458">FACE SCAN VERIFIED</text></g>
+<g opacity=".5" fill="#D8D8DD"><path d="M900 178h144v2H900zM900 198h104v2H900zM900 218h128v2H900z"/><circle cx="914" cy="257" r="4"/><circle cx="936" cy="257" r="4"/><circle cx="958" cy="257" r="4"/></g>
+</svg>
