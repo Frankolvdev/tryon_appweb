@@ -544,11 +544,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 ? data.last_generation_execution_id
                 : null;
             if (lastExecutionId) {
-              // Keep the scanner visible while the persisted execution is
-              // recovered. This prevents the old body preview from flashing
-              // before the generated result is known.
-              void getGenerationExecution(lastExecutionId)
-                .then((execution) => {
+              // Do not release the previous studio UI until Backend gives us
+              // an authoritative execution snapshot. If Backend is restarting
+              // or temporarily unavailable, keep the recovery screen blocked
+              // and retry instead of flashing the old pre-generation view.
+              const recoverPersistedExecution = async () => {
+                try {
+                  const execution = await getGenerationExecution(lastExecutionId);
                   setGeneratedExecution(execution);
                   setActiveStep((data.identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
                   track(execution, {
@@ -556,9 +558,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                     href: `/models/${modelId}/face`,
                     label: "Create Model IA",
                   });
-                })
-                .catch(() => undefined)
-                .finally(() => setGenerationRecoveryPending(false));
+                  setGenerationRecoveryPending(false);
+                } catch {
+                  window.setTimeout(() => void recoverPersistedExecution(), 2000);
+                }
+              };
+
+              void recoverPersistedExecution();
             } else {
               setGenerationRecoveryPending(false);
             }
@@ -1363,11 +1369,11 @@ useEffect(() => {
   }
 
   const [displayName, setDisplayName] = useModelDisplayName(modelId, model?.name);
-  if (!model)
+  if (!model || generationRecoveryPending)
     return (
       <div className="modelLoading pageEnter">
         <span className="spinner" />
-        <p>Preparando identidad…</p>
+        <p>{model ? "Recuperando generación…" : "Preparando identidad…"}</p>
       </div>
     );
 

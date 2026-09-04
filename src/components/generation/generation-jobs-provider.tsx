@@ -12,7 +12,6 @@ import {
 } from "react";
 import { getGenerationExecution, listActiveGenerationExecutions } from "@/lib/generation-api";
 import type { GenerationExecution } from "@/types/generation";
-import { isGenerationProviderPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
 export type GenerationJobNavigation = {
   clickable?: boolean;
@@ -35,6 +34,7 @@ type JobsContextValue = {
 };
 
 const JobsContext = createContext<JobsContextValue | null>(null);
+const ACTIVE = new Set(["queued", "running"]);
 const POLL_INTERVAL_MS = 2000;
 const NAV_STORAGE_KEY = "tryon-generation-job-navigation-v1";
 
@@ -81,7 +81,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
   const track = useCallback((job: GenerationExecution, options?: GenerationJobNavigation) => {
     setJobs((previous) =>
-      [job, ...previous.filter((item) => item.id !== job.id)].filter((item) => isGenerationProviderPending(item)),
+      [job, ...previous.filter((item) => item.id !== job.id)].filter((item) => ACTIVE.has(item.status)),
     );
 
     if (options) {
@@ -116,7 +116,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const timer = window.setInterval(async () => {
-      const snapshot = jobs.filter((item) => shouldPollGenerationExecution(item));
+      const snapshot = jobs.filter((item) => ACTIVE.has(item.status));
       if (!snapshot.length) {
         void refresh();
         return;
@@ -133,7 +133,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
       );
 
       if (mounted.current) {
-        setJobs(next.filter((item) => isGenerationProviderPending(item)));
+        setJobs(next.filter((item) => ACTIVE.has(item.status)));
       }
     }, POLL_INTERVAL_MS);
 
