@@ -345,15 +345,12 @@ function generatedImageUrl(file: GeneratedImageResult | null): string | null {
   return file.preview_url ?? file.public_url ?? file.download_url ?? null;
 }
 
-const CREATE_MODEL_WOMAN_BODY_OUTPUT_ID = 137;
-const CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID = 138;
-const CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID = 149;
-const CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID = 150;
-
 function outputIdsForModule(module: GenerationModule | null) {
-  return module?.id === CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID
-    ? { body: CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID, head: CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID }
-    : { body: CREATE_MODEL_WOMAN_BODY_OUTPUT_ID, head: CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID };
+  if (!module) return null;
+  const body = module.outputs.find((item) => item.key === "output_1");
+  const head = module.outputs.find((item) => item.key === "output_2");
+  if (!body || !head) return null;
+  return { body: body.id, head: head.id };
 }
 
 function generatedImageForOutputId(
@@ -374,14 +371,12 @@ function generatedImageForCreateModelOutput(
 ): GeneratedImageResult | null {
   const bound = generatedImageForOutputId(module, outputs, outputId);
   if (bound) return bound;
-  // Recovery-safe fallback for persisted executions. Output 137/138 are the
-  // frozen Create Model Woman bindings; a temporary module-catalog fetch
-  // failure must not make a completed persisted execution impossible to pick.
-  const fallbackKey = (outputId === CREATE_MODEL_WOMAN_BODY_OUTPUT_ID || outputId === CREATE_MODEL_WOMAN_FROM_HEAD_BODY_OUTPUT_ID)
-    ? "output_1"
-    : (outputId === CREATE_MODEL_WOMAN_HEAD_OUTPUT_ID || outputId === CREATE_MODEL_WOMAN_FROM_HEAD_HEAD_OUTPUT_ID)
-      ? "output_2"
-      : null;
+  // Recovery-safe fallback by the live module binding. The numeric database ID
+  // is intentionally not frozen because output rows can be recreated/versioned.
+  const outputDefinition = module?.outputs.find((item) => item.id === outputId);
+  const fallbackKey = outputDefinition?.key === "output_1" || outputDefinition?.key === "output_2"
+    ? outputDefinition.key
+    : null;
   return fallbackKey && outputs ? collectGeneratedImages(outputs[fallbackKey] ?? {})[0] ?? null : null;
 }
 
@@ -996,28 +991,22 @@ useEffect(() => {
     }
   }
 
-  const generatedBodyImage = useMemo(
-    () =>
-      generatedImageForCreateModelOutput(
-        generationModuleInfo,
-        generatedExecution?.outputs,
-        outputIdsForModule(generationModuleInfo).body,
-      ),
-    [generatedExecution?.outputs, generationModuleInfo],
-  );
+  const generatedBodyImage = useMemo(() => {
+    const outputIds = outputIdsForModule(generationModuleInfo);
+    return outputIds
+      ? generatedImageForCreateModelOutput(generationModuleInfo, generatedExecution?.outputs, outputIds.body)
+      : null;
+  }, [generatedExecution?.outputs, generationModuleInfo]);
   const generatedImage = useMemo(
     () => generatedBodyImage ?? collectGeneratedImages(generatedExecution?.outputs ?? {})[0] ?? null,
     [generatedBodyImage, generatedExecution?.outputs],
   );
-  const generatedIdentityFace = useMemo(
-    () =>
-      generatedImageForCreateModelOutput(
-        generationModuleInfo,
-        generatedExecution?.outputs,
-        outputIdsForModule(generationModuleInfo).head,
-      ),
-    [generatedExecution?.outputs, generationModuleInfo],
-  );
+  const generatedIdentityFace = useMemo(() => {
+    const outputIds = outputIdsForModule(generationModuleInfo);
+    return outputIds
+      ? generatedImageForCreateModelOutput(generationModuleInfo, generatedExecution?.outputs, outputIds.head)
+      : null;
+  }, [generatedExecution?.outputs, generationModuleInfo]);
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
   const generationIsActive = isGenerationActiveForUi(generatedExecution);
   const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
@@ -1133,6 +1122,10 @@ useEffect(() => {
         : (await listGenerationModules()).items.find((item) => item.id === latest.module_id) ?? generationModuleInfo;
       if (latestModule && latestModule !== generationModuleInfo) setGenerationModuleInfo(latestModule);
       const outputIds = outputIdsForModule(latestModule);
+      if (!outputIds) {
+        notify.error("El módulo de esta generación ya no expone output_1 y output_2. Actualiza su contrato antes de usar el resultado.");
+        return;
+      }
       const body = generatedImageForCreateModelOutput(latestModule, latest.outputs, outputIds.body);
       const head = generatedImageForCreateModelOutput(latestModule, latest.outputs, outputIds.head);
       if (!body?.storage_file_id) {
