@@ -16,6 +16,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
+import { resolveCreateModelGenerationModule, tryResolveCreateModelGenerationModule } from "@/lib/create-model-generation-module-router";
 import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
@@ -243,67 +244,6 @@ function normalizeBodyDelta(value: unknown) {
   return round1(Math.min(0.8, Math.max(-0.8, Math.round(number * 10) / 10)));
 }
 
-const CREATE_MODEL_WOMAN_MODULE_KEY = "create_model_woman";
-const CREATE_MODEL_WOMAN_MODULE_ID = 4;
-const CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID = 5;
-const CREATE_MODEL_WOMAN_INPUT_CONTRACT = [
-  { key: "input_1", name: "Hips SIze", type: "float", required: true },
-  { key: "input_2", name: "Fat - Thin", type: "float", required: true },
-  { key: "input_3", name: "Breasts Size", type: "float", required: true },
-  { key: "input_4", name: "Skin Tone", type: "float", required: true },
-  { key: "input_5", name: "Hair Length", type: "float", required: true },
-  { key: "input_6", name: "Butt Elevation", type: "float", required: true },
-  { key: "input_7", name: "Pose", type: "text", required: true },
-  { key: "input_8", name: "On", type: "text", required: true },
-  { key: "input_9", name: "view", type: "text", required: true },
-  { key: "input_10", name: "Action", type: "text", required: true },
-  { key: "input_11", name: "Place", type: "text", required: true },
-  { key: "input_12", name: "time_day_weather_or_lighting", type: "text", required: true },
-  { key: "input_13", name: "Clothes", type: "text", required: true },
-  { key: "input_14", name: "extra_details", type: "text", required: false },
-  { key: "input_15", name: "prompt_head", type: "text", required: true },
-] as const;
-
-const CREATE_MODEL_WOMAN_FROM_HEAD_INPUT_CONTRACT = [
-  ...CREATE_MODEL_WOMAN_INPUT_CONTRACT.slice(0, 14),
-  { key: "input_15", name: "head", type: "image", required: true },
-] as const;
-
-function assertCreateModelWomanContract(module: {
-  id: number;
-  key: string;
-  inputs: Array<{ key: string; name: string; input_type: string; is_required: boolean }>;
-}) {
-  if (module.id !== CREATE_MODEL_WOMAN_MODULE_ID || module.key !== CREATE_MODEL_WOMAN_MODULE_KEY) {
-    throw new Error(`Se esperaba el módulo ${CREATE_MODEL_WOMAN_MODULE_KEY}.`);
-  }
-  for (const expected of CREATE_MODEL_WOMAN_INPUT_CONTRACT) {
-    const actual = module.inputs.find((input) => input.key === expected.key);
-    if (!actual) throw new Error(`El módulo ya no contiene ${expected.key} (${expected.name}).`);
-    if (actual.input_type !== expected.type) {
-      throw new Error(`${expected.key} cambió de tipo: se esperaba ${expected.type} y ahora es ${actual.input_type}.`);
-    }
-    if (actual.is_required !== expected.required) {
-      throw new Error(
-        `${expected.key} cambió su obligatoriedad: se esperaba ${expected.required ? "obligatorio" : "opcional"}. Revisa el contrato antes de generar.`,
-      );
-    }
-  }
-}
-
-function assertCreateModelWomanFromHeadContract(module: GenerationModule) {
-  if (module.id !== CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID || module.version !== 2) {
-    throw new Error("El módulo de rostro existente debe ser el módulo 5, versión 2.");
-  }
-  for (const expected of CREATE_MODEL_WOMAN_FROM_HEAD_INPUT_CONTRACT) {
-    const actual = module.inputs.find((input) => input.key === expected.key);
-    if (!actual) throw new Error(`El módulo 5 ya no contiene ${expected.key} (${expected.name}).`);
-    if (actual.input_type !== expected.type || actual.is_required !== expected.required) {
-      throw new Error(`El contrato del módulo 5 cambió en ${expected.key}. Revisa el contrato antes de generar.`);
-    }
-  }
-}
-
 function commaPrompt(value: string): string {
   return value
     .split(/,|\n/g)
@@ -494,12 +434,15 @@ export function FaceStudio({ modelId }: { modelId: number }) {
       .then((response) => {
         if (!alive) return;
         setGenerationModuleInfo(
-          response.items.find((item) => item.id === CREATE_MODEL_WOMAN_MODULE_ID) ?? null,
+          tryResolveCreateModelGenerationModule(response.items, {
+            isOwner: owner,
+            identityMode,
+          }),
         );
       })
       .catch(() => undefined);
     return () => { alive = false; };
-  }, []);
+  }, [identityMode, owner]);
 
   useEffect(() => {
     getAiModel(modelId)
@@ -795,18 +738,11 @@ useEffect(() => {
       setModel(savedBeforeGeneration);
 
       const moduleResponse = await listGenerationModules();
-      const generationModule = identityMode === "existing"
-        ? moduleResponse.items.find((item) => item.id === CREATE_MODEL_WOMAN_FROM_HEAD_MODULE_ID && item.is_active)
-        : moduleResponse.items.find((item) => item.id === CREATE_MODEL_WOMAN_MODULE_ID && item.is_active);
-      if (!generationModule) {
-        throw new Error(
-          identityMode === "existing" ? 'No se encontró activo el módulo 5 "Create Model Woman From Head".' : 'No se encontró activo el módulo anterior "create_model_woman".',
-        );
-      }
+      const generationModule = resolveCreateModelGenerationModule(moduleResponse.items, {
+        isOwner: owner,
+        identityMode,
+      });
       setGenerationModuleInfo(generationModule);
-
-      if (identityMode === "existing") assertCreateModelWomanFromHeadContract(generationModule);
-      else assertCreateModelWomanContract(generationModule);
 
       const mediaValues: Record<string, string> = {};
       for (const key of ["eyebrows", "lips", "hairstyle"] as const) {
