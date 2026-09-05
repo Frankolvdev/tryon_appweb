@@ -1443,7 +1443,7 @@ useEffect(() => {
         </header>
       </div>
 
-      <div className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}`}>
+      <div className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationAncestryExit" : ""}`}>
         <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
       </div>
 

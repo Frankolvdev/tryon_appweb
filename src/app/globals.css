@@ -4605,6 +4605,29 @@ output.modelSliderValue{
 @media(max-width:700px){.faceAncestrySelectedPreview{grid-template-columns:1fr}.faceAncestrySelectedMedia{max-height:250px}}
 
 
+/* AppWeb30 — generation focus choreography. Ancestry exits upward only after recovery/generation state is authoritative. */
+.faceAncestryStepTarget{
+  max-height:1400px;
+  opacity:1;
+  transform:translateY(0);
+  transform-origin:50% 0;
+  transition:max-height .58s cubic-bezier(.2,.78,.2,1),opacity .28s ease,transform .5s cubic-bezier(.2,.78,.2,1),margin .52s cubic-bezier(.2,.78,.2,1),filter .22s ease;
+  will-change:max-height,opacity,transform;
+}
+.faceAncestryStepTarget.faceGenerationAncestryExit{
+  max-height:0;
+  opacity:0;
+  transform:translateY(-46px) scale(.985);
+  margin-top:0;
+  margin-bottom:0;
+  pointer-events:none;
+}
+.faceAncestryStepTarget.faceGenerationAncestryExit::before{animation:none!important;opacity:0!important}
+@media(prefers-reduced-motion:reduce){
+  .faceAncestryStepTarget{transition:none!important}
+  .faceAncestryStepTarget.faceGenerationAncestryExit{transform:none!important}
+}
+
 /* AppWeb18 hotfix — narrower generation focus and portrait ancestry preview. */
 .faceBuilder.faceGenerationFocus{grid-template-columns:minmax(360px,580px) 0fr}
 .faceBuilder.faceGenerationFocus .facePreviewRail{max-width:580px}
