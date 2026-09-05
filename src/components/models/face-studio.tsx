@@ -15,7 +15,7 @@ import {
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
-import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
+import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
 import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
@@ -433,6 +433,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationRecoveryRetryRef = useRef<number | null>(null);
   const generationRecoveryMountedRef = useRef(true);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
+  const [generationLoadingProgressMode, setGenerationLoadingProgressMode] = useState<GenerationLoadingProgressMode | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
   const [generationRecoveryPending, setGenerationRecoveryPending] = useState(true);
   const [generatedAspectRatio, setGeneratedAspectRatio] = useState<number | null>(null);
@@ -475,6 +476,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         generationRecoveryRetryRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    getGenerationLoadingProgressMode()
+      .then((mode) => { if (alive) setGenerationLoadingProgressMode(mode); })
+      .catch(() => { if (alive) setGenerationLoadingProgressMode("elapsed_estimate"); });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -993,9 +1002,11 @@ useEffect(() => {
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
 
   const estimatedGenerationSeconds =
-    (generatingModel ? null : generatedExecution?.estimated_duration_seconds) ??
-    generationModuleInfo?.pricing?.estimated_duration_seconds ??
-    null;
+    generationLoadingProgressMode === "backend"
+      ? generatedExecution?.loading_backend_estimated_duration_seconds ?? null
+      : (generatingModel ? null : generatedExecution?.estimated_duration_seconds) ??
+        generationModuleInfo?.pricing?.estimated_duration_seconds ??
+        null;
 
   const elapsedGenerationSeconds = useMemo(() => {
     // A new dispatch must start from a clean visual clock even while a slow

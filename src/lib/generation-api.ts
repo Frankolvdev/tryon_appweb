@@ -36,3 +36,16 @@ export const listActiveGenerationExecutions = (moduleId?: number) => {
   const query = moduleId ? `?module_id=${moduleId}` : "";
   return apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/active-executions${query}`);
 };
+
+export type GenerationLoadingProgressMode = "backend" | "elapsed_estimate";
+
+type PublicFrontendConfig = {
+  public_settings?: Record<string, unknown>;
+};
+
+export async function getGenerationLoadingProgressMode(): Promise<GenerationLoadingProgressMode> {
+  const config = await apiFetch<PublicFrontendConfig>("/api/v1/system/config");
+  return config.public_settings?.generation_loading_progress_mode === "backend"
+    ? "backend"
+    : "elapsed_estimate";
+}
