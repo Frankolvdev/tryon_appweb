@@ -95,6 +95,18 @@ function mergePendingJobs(...lists: GenerationExecution[][]): GenerationExecutio
 }
 
 function defaultNavigation(job: GenerationExecution): ResolvedNavigation {
+  // Never guess a generic Try-On route for executions that belong to a
+  // dedicated product surface. Their exact href is persisted by track().
+  // A missing explicit route is safer as non-clickable than sending the user
+  // to a different studio.
+  const dedicatedSurface = job.module_key === "create_model_woman" || job.module_key === "create_model_woman_from_head";
+  if (dedicatedSurface) {
+    return {
+      clickable: false,
+      href: null,
+      label: "Create Model IA",
+    };
+  }
   return {
     clickable: true,
     href: `/try-on/${job.module_id}`,

@@ -43,7 +43,6 @@ import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 import { downloadLibraryFile } from "@/lib/user-library-api";
-import { apiFetch } from "@/lib/api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
 
@@ -466,7 +465,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
   const [cancellingGeneration, setCancellingGeneration] = useState(false);
-  const [generationLoadingMode, setGenerationLoadingMode] = useState<"backend" | "elapsed_estimate">("backend");
 
   useEffect(() => {
     generationRecoveryMountedRef.current = true;
@@ -489,20 +487,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         );
       })
       .catch(() => undefined);
-    return () => { alive = false; };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    apiFetch<{ public_settings?: Record<string, unknown> }>("/api/v1/system/config")
-      .then((config) => {
-        if (!alive) return;
-        const raw = config.public_settings?.generation_loading_progress_mode;
-        setGenerationLoadingMode(raw === "elapsed_estimate" ? "elapsed_estimate" : "backend");
-      })
-      .catch(() => {
-        if (alive) setGenerationLoadingMode("backend");
-      });
     return () => { alive = false; };
   }, []);
 
@@ -1015,39 +999,29 @@ useEffect(() => {
     return Math.max(0, (endMs - startedMs) / 1000);
   }, [generatedExecution, progressClock]);
 
-  const loadingDisplaySeconds = generationLoadingMode === "backend"
-    ? estimatedGenerationSeconds
-    : elapsedGenerationSeconds;
+  // User-facing generation ETA is provider-agnostic. It is a countdown tied
+  // to the same visual progress clock: 0..95% during queued/running, and 100%
+  // only after Backend confirms completed. If ETA expires first, stay at 95%.
+  const loadingDisplaySeconds = useMemo(() => {
+    if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) return null;
+    if (generatedExecution?.status === "completed") return 0;
+    return Math.max(0, estimatedGenerationSeconds - elapsedGenerationSeconds);
+  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution?.status]);
 
   const estimatedGenerationProgress = useMemo(() => {
     if (!generatedExecution) return 0;
     if (generatedExecution.status === "completed") return 100;
     if (generatedExecution.status === "failed" || generatedExecution.status === "cancelled") {
-      return Math.max(0, Math.min(100, generatedExecution.progress || 0));
+      return Math.max(0, Math.min(95, generatedExecution.progress || 0));
     }
 
-    // While Backend still reports queued/running, neither provider progress
-    // nor the visual ETA is allowed to claim completion. 100% is reserved
-    // exclusively for the completed status handled above.
-    const backendProgress = Math.max(0, Math.min(99, generatedExecution.progress || 0));
-    if (generationLoadingMode === "backend") {
-      return Math.min(99, Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress));
-    }
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
-      return Math.min(99, Math.max(generatedExecution.status === "queued" ? 2 : 8, backendProgress));
+      return Math.min(95, Math.max(generatedExecution.status === "queued" ? 2 : 8, generatedExecution.progress || 0));
     }
 
-    // Optional elapsed/ETA visualization. This mode is intentionally limited
-    // to generation loaders; uploads and other independent progress bars keep
-    // their own real byte/task progress.
-    const startedAt = generatedExecution.started_at || generatedExecution.created_at;
-    const startedMs = backendTimestampMs(startedAt);
-    if (!Number.isFinite(startedMs)) return Math.min(99, Math.max(2, backendProgress));
-
-    const elapsedSeconds = Math.max(0, (progressClock - startedMs) / 1000);
-    const timeProgress = Math.min(99, (elapsedSeconds / estimatedGenerationSeconds) * 100);
-    return Math.min(99, Math.max(backendProgress, timeProgress));
-  }, [estimatedGenerationSeconds, generatedExecution, generationLoadingMode, progressClock]);
+    const timeProgress = (elapsedGenerationSeconds / estimatedGenerationSeconds) * 95;
+    return Math.max(0, Math.min(95, timeProgress));
+  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution]);
 
   const estimatedTokens =
     generationModuleInfo?.pricing?.required_tokens ??
@@ -1472,7 +1446,7 @@ useEffect(() => {
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
                   estimatedSeconds={loadingDisplaySeconds}
-                  secondsLabel={generationLoadingMode === "backend" ? "Tiempo Backend" : "Tiempo transcurrido"}
+                  secondsLabel="Tiempo estimado"
                   onResultAspectRatio={setGeneratedAspectRatio}
                   config={{
                     particleCount: 4500,

@@ -6,15 +6,14 @@ import { useMemo, useState } from "react";
 import { useGenerationJobs } from "./generation-jobs-provider";
 import { generationExecutionStatusLabel, isGenerationCancellationPending } from "@/lib/generation-execution-contract";
 
-type ModuleGroup = {
+type ExecutionItem = {
+  executionId: string;
   moduleId: number;
   moduleKey: string;
-  count: number;
   href: string | null;
   label: string;
   clickable: boolean;
   statusLabel: string;
-  cancellingCount: number;
 };
 
 export function ActiveGenerationJobs() {
@@ -23,54 +22,38 @@ export function ActiveGenerationJobs() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const groups = useMemo<ModuleGroup[]>(() => {
-    const map = new Map<number, ModuleGroup>();
-
-    for (const job of jobs) {
+  const items = useMemo<ExecutionItem[]>(() =>
+    jobs.map((job) => {
       const navigation = navigationFor(job);
-      const current = map.get(job.module_id);
-      if (current) {
-        current.count += 1;
-        if (!current.href && navigation.href) current.href = navigation.href;
-        if (isGenerationCancellationPending(job)) current.cancellingCount += 1;
-        current.statusLabel = current.cancellingCount === current.count
-          ? "Cancelando…"
-          : current.cancellingCount > 0
-            ? `${current.cancellingCount} cancelando`
-            : generationExecutionStatusLabel(job);
-        continue;
-      }
-
-      map.set(job.module_id, {
+      return {
+        executionId: job.id,
         moduleId: job.module_id,
         moduleKey: job.module_key,
-        count: 1,
         href: navigation.href,
         label: navigation.label || job.module_key.replaceAll("_", " "),
         clickable: navigation.clickable,
-        statusLabel: generationExecutionStatusLabel(job),
-        cancellingCount: isGenerationCancellationPending(job) ? 1 : 0,
-      });
-    }
-
-    return [...map.values()];
-  }, [jobs, navigationFor]);
+        statusLabel: isGenerationCancellationPending(job)
+          ? "Cancelando…"
+          : generationExecutionStatusLabel(job),
+      };
+    }),
+  [jobs, navigationFor]);
 
   if (!jobs.length) return null;
 
-  function openModule(group: ModuleGroup) {
-    if (!group.clickable || !group.href) return;
+  function openExecution(item: ExecutionItem) {
+    if (!item.clickable || !item.href) return;
 
     // If the user is already inside the target view, clicking the module
     // intentionally does nothing except close the disc.
-    const targetPath = group.href.split("?")[0];
+    const targetPath = item.href.split("?")[0];
     if (pathname === targetPath || pathname.startsWith(`${targetPath}/`)) {
       setOpen(false);
       return;
     }
 
     setOpen(false);
-    router.push(group.href);
+    router.push(item.href);
   }
 
   return (
@@ -89,36 +72,36 @@ export function ActiveGenerationJobs() {
               <span>activas</span>
             </div>
 
-            {groups.map((group, index) => {
-              const count = groups.length;
+            {items.map((item, index) => {
+              const count = items.length;
               const angle = count === 1
                 ? -90
                 : -90 + (360 / count) * index;
               const radius = count <= 4 ? 118 : 132;
               const x = Math.cos((angle * Math.PI) / 180) * radius;
               const y = Math.sin((angle * Math.PI) / 180) * radius;
-              const targetPath = group.href?.split("?")[0] ?? "";
+              const targetPath = item.href?.split("?")[0] ?? "";
               const alreadyHere = Boolean(
                 targetPath && (pathname === targetPath || pathname.startsWith(`${targetPath}/`)),
               );
-              const enabled = group.clickable && Boolean(group.href) && !alreadyHere;
+              const enabled = item.clickable && Boolean(item.href) && !alreadyHere;
 
               return (
                 <button
-                  key={group.moduleId}
+                  key={item.executionId}
                   type="button"
                   className={`generationOrbModule${enabled ? "" : " isCurrent"}`}
                   style={{
                     transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
                     animationDelay: `${index * 45}ms`,
                   }}
-                  onClick={() => openModule(group)}
-                  disabled={!group.clickable || !group.href}
-                  title={alreadyHere ? "Ya estás en esta vista" : group.label}
+                  onClick={() => openExecution(item)}
+                  disabled={!item.clickable || !item.href}
+                  title={alreadyHere ? "Ya estás en esta vista" : item.label}
                 >
                   <span className="generationOrbSlice">
-                    <b>{group.count}</b>
-                    <small>{group.label} · {group.statusLabel}</small>
+                    <b>1</b>
+                    <small>{item.label} · {item.statusLabel}</small>
                   </span>
                 </button>
               );
