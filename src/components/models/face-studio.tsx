@@ -432,6 +432,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const owner = isOwnerAccount(user);
   const generationRecoveryRetryRef = useRef<number | null>(null);
   const generationRecoveryMountedRef = useRef(true);
+  const generationPreviewFocusRef = useRef<HTMLDivElement | null>(null);
+  const generationFocusScrollTimersRef = useRef<number[]>([]);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
   const [generationLoadingProgressMode, setGenerationLoadingProgressMode] = useState<GenerationLoadingProgressMode | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
@@ -452,6 +454,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+
+  useEffect(() => () => {
+    generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    generationFocusScrollTimersRef.current = [];
+  }, []);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
   const [occupationModalOpen, setOccupationModalOpen] = useState(false);
@@ -747,6 +754,22 @@ useEffect(() => {
 
     setGeneratingModel(true);
     setGeneratedAspectRatio(null);
+
+    // Keep the user's viewport anchored to the generation preview while the
+    // ancestry/wizard columns animate away. This is intentionally triggered
+    // only by an explicit Generate action; recovery on page load never forces
+    // the user's scroll position.
+    generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    generationFocusScrollTimersRef.current = [220, 1320].map((delay) =>
+      window.setTimeout(() => {
+        generationPreviewFocusRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }, delay),
+    );
+
     try {
       // Generar siempre guarda primero el mismo progreso que el botón
       // "Guardar borrador", pero sin un toast intermedio.
@@ -1448,7 +1471,7 @@ useEffect(() => {
       </div>
 
       <div className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}>
-        <div className="facePreviewRail">
+        <div className="facePreviewRail" ref={generationPreviewFocusRef}>
           <section className="facePreviewCard">
             <div
               className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
