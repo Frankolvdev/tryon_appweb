@@ -14,6 +14,14 @@ export function isGenerationCancellationPending(execution: GenerationExecution |
   return Boolean(execution && activeStatuses.has(execution.status) && execution.cancel_requested);
 }
 
+export function isGenerationFinalizing(execution: GenerationExecution | null | undefined): boolean {
+  return Boolean(
+    execution &&
+      execution.status === "running" &&
+      String(execution.provider_status || "").toUpperCase() === "FINALIZING",
+  );
+}
+
 export function isGenerationActiveForUi(execution: GenerationExecution | null | undefined): boolean {
   return Boolean(execution && activeStatuses.has(execution.status) && !execution.cancel_requested);
 }
@@ -29,11 +37,14 @@ export function shouldPollGenerationExecution(execution: GenerationExecution | n
 }
 
 export function canRequestGenerationCancellation(execution: GenerationExecution | null | undefined): boolean {
-  return isGenerationActiveForUi(execution);
+  // Once Modal has returned success, Backend owns a durable FINALIZING phase.
+  // Cancelling there cannot stop provider work anymore and could discard a valid result.
+  return isGenerationActiveForUi(execution) && !isGenerationFinalizing(execution);
 }
 
 export function generationExecutionStatusLabel(execution: GenerationExecution): string {
   if (isGenerationCancellationPending(execution)) return "Cancelando…";
+  if (isGenerationFinalizing(execution)) return "Finalizando…";
   const labels: Record<string, string> = {
     queued: "En cola",
     running: "Procesando",

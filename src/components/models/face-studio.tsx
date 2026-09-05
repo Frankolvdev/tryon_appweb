@@ -16,7 +16,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, listGenerationModules } from "@/lib/generation-api";
-import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable  } from "@/lib/generation-execution-contract";
+import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
 import { useAppSession } from "@/components/app/app-session";
 import { isOwnerAccount } from "@/lib/owner-account";
@@ -725,7 +725,7 @@ useEffect(() => {
   async function generateModel() {
     // queued/running remains exclusive even while cancellation is pending.
     // Do not allow a second execution until Backend reaches a terminal state.
-    if (!model || generatingModel || isGenerationProviderPending(generatedExecution)) return;
+    if (!model || generationRecoveryPending || generatingModel || isGenerationProviderPending(generatedExecution)) return;
     if (!summaryReady) {
       showValidation("Completa los pasos obligatorios antes de generar el modelo.");
       return;
@@ -901,16 +901,22 @@ useEffect(() => {
       try {
         const updated = await saveAiModelDraft(
           modelId,
-          identityDraftSnapshot({
-            selections,
-            mediaSelected,
-            customValues,
-            completedSteps,
-            activeStep: identityDoneStepIndex,
-            bodyAdjustments,
-            bodyBase,
-            lastGenerationExecutionId: execution.id,
-          }),
+          {
+            ...identityDraftSnapshot({
+              selections,
+              mediaSelected,
+              customValues,
+              completedSteps,
+              activeStep: identityDoneStepIndex,
+              bodyAdjustments,
+              bodyBase,
+              lastGenerationExecutionId: execution.id,
+            }),
+            // Backend draft persistence replaces draft_json rather than merging it.
+            // Preserve the chosen identity source every time the execution pointer is saved.
+            identityMode,
+            existingIdentityFile,
+          },
           displayName.trim() || model.name,
         );
         setModel(updated);
@@ -983,33 +989,37 @@ useEffect(() => {
   const generatedPreviewUrl = generatedImageUrl(generatedImage);
   const generationIsActive = isGenerationActiveForUi(generatedExecution);
   const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
+  const generationIsFinalizing = isGenerationFinalizing(generatedExecution);
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
 
   const estimatedGenerationSeconds =
-    generatedExecution?.estimated_duration_seconds ??
+    (generatingModel ? null : generatedExecution?.estimated_duration_seconds) ??
     generationModuleInfo?.pricing?.estimated_duration_seconds ??
     null;
 
   const elapsedGenerationSeconds = useMemo(() => {
-    if (!generatedExecution) return 0;
+    // A new dispatch must start from a clean visual clock even while a slow
+    // connection still leaves the previous completed execution in React state.
+    if (generatingModel || !generatedExecution) return 0;
     const startedAt = generatedExecution.started_at || generatedExecution.created_at;
     const startedMs = backendTimestampMs(startedAt);
     if (!Number.isFinite(startedMs)) return 0;
     const endMs = generatedExecution.finished_at ? backendTimestampMs(generatedExecution.finished_at) : progressClock;
     return Math.max(0, (endMs - startedMs) / 1000);
-  }, [generatedExecution, progressClock]);
+  }, [generatedExecution, generatingModel, progressClock]);
 
   // User-facing generation ETA is provider-agnostic. It is a countdown tied
   // to the same visual progress clock: 0..95% during queued/running, and 100%
   // only after Backend confirms completed. If ETA expires first, stay at 95%.
   const loadingDisplaySeconds = useMemo(() => {
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) return null;
+    if (generatingModel) return estimatedGenerationSeconds;
     if (generatedExecution?.status === "completed") return 0;
     return Math.max(0, estimatedGenerationSeconds - elapsedGenerationSeconds);
-  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution?.status]);
+  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution?.status, generatingModel]);
 
   const estimatedGenerationProgress = useMemo(() => {
-    if (!generatedExecution) return 0;
+    if (generatingModel || !generatedExecution) return 0;
     if (generatedExecution.status === "completed") return 100;
     if (generatedExecution.status === "failed" || generatedExecution.status === "cancelled") {
       return Math.max(0, Math.min(95, generatedExecution.progress || 0));
@@ -1021,7 +1031,7 @@ useEffect(() => {
 
     const timeProgress = (elapsedGenerationSeconds / estimatedGenerationSeconds) * 95;
     return Math.max(0, Math.min(95, timeProgress));
-  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution]);
+  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution, generatingModel]);
 
   const estimatedTokens =
     generationModuleInfo?.pricing?.required_tokens ??
@@ -1426,7 +1436,7 @@ useEffect(() => {
         <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
       </div>
 
-      <div className={`faceBuilder${generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}>
+      <div className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}>
         <div className="facePreviewRail">
           <section className="facePreviewCard">
             <div
@@ -1440,8 +1450,8 @@ useEffect(() => {
                     "/generation-loaders/model-woman/silhouette-2.webp",
                     "/generation-loaders/model-woman/silhouette-3.webp",
                   ]}
-                  resultUrl={generatedExecution?.status === "completed" ? generatedPreviewUrl : null}
-                  active={generationIsBusy || generatingModel}
+                  resultUrl={!generatingModel && generatedExecution?.status === "completed" ? generatedPreviewUrl : null}
+                  active={generationRecoveryPending || generationIsBusy || generatingModel}
                   label="CREATE MODEL IA"
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
@@ -1524,7 +1534,7 @@ useEffect(() => {
               onClick={() => void cancelCurrentGeneration()}
               disabled={cancellingGeneration || generationIsCancelling || !canRequestGenerationCancellation(generatedExecution)}
             >
-              {generationIsCancelling || cancellingGeneration ? "Cancelando…" : !generatedExecution ? "Preparando…" : "Cancelar generación"}
+              {generationIsFinalizing ? "Finalizando resultado…" : generationIsCancelling || cancellingGeneration ? "Cancelando…" : !generatedExecution ? "Preparando…" : "Cancelar generación"}
             </button>
           )}
         </div>
@@ -1908,7 +1918,7 @@ useEffect(() => {
                   {generationIsBusy ? (
                     <button className="faceGenerateModelButton faceGenerateModelButtonDone" type="button" disabled>
                       <WandSparkles size={19} />
-                      {generationIsCancelling ? "Cancelando generación…" : "Generando modelo…"}
+                      {generationIsFinalizing ? "Finalizando resultado…" : generationIsCancelling ? "Cancelando generación…" : "Generando modelo…"}
                     </button>
                   ) : generatedExecution?.status === "completed" && generatedImage ? (
                     <div className="faceGeneratedActions">
@@ -1916,7 +1926,7 @@ useEffect(() => {
                         className="faceGenerateModelButton faceGenerateRetryButton"
                         type="button"
                         onClick={() => void generateModel()}
-                        disabled={generatingModel}
+                        disabled={generationRecoveryPending || generatingModel}
                       >
                         <WandSparkles size={19} />
                         <span>
@@ -1939,7 +1949,7 @@ useEffect(() => {
                       className="faceGenerateModelButton faceGenerateModelButtonDone"
                       type="button"
                       onClick={() => void generateModel()}
-                      disabled={generatingModel}
+                      disabled={generationRecoveryPending || generatingModel}
                     >
                       <WandSparkles size={19} />
                       <span>
