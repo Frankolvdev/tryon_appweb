@@ -4548,14 +4548,14 @@ output.modelSliderValue{
 .faceTimelineIcon img{width:22px;height:22px;object-fit:contain;filter:none}
 
 .faceBuilder{
-  transition:grid-template-columns .55s cubic-bezier(.2,.78,.2,1),gap .55s cubic-bezier(.2,.78,.2,1);
+  transition:grid-template-columns .715s cubic-bezier(.2,.78,.2,1),gap .715s cubic-bezier(.2,.78,.2,1);
 }
 .facePreviewRail{
-  transition:transform .55s cubic-bezier(.2,.78,.2,1),max-width .55s cubic-bezier(.2,.78,.2,1);
+  transition:transform .715s cubic-bezier(.2,.78,.2,1),max-width .715s cubic-bezier(.2,.78,.2,1);
   will-change:transform;
 }
 .faceControls.faceWizard{
-  transition:opacity .32s ease,transform .48s cubic-bezier(.2,.78,.2,1),max-width .52s cubic-bezier(.2,.78,.2,1),padding .38s ease,border-color .32s ease;
+  transition:opacity .416s ease,transform .624s cubic-bezier(.2,.78,.2,1),max-width .676s cubic-bezier(.2,.78,.2,1),padding .494s ease,border-color .416s ease;
   will-change:opacity,transform;
 }
 .faceBuilder.faceGenerationFocus{
@@ -4611,7 +4611,7 @@ output.modelSliderValue{
   opacity:1;
   transform:translateY(0);
   transform-origin:50% 0;
-  transition:max-height .58s cubic-bezier(.2,.78,.2,1),opacity .28s ease,transform .5s cubic-bezier(.2,.78,.2,1),margin .52s cubic-bezier(.2,.78,.2,1),filter .22s ease;
+  transition:max-height .754s cubic-bezier(.2,.78,.2,1),opacity .364s ease,transform .65s cubic-bezier(.2,.78,.2,1),margin .676s cubic-bezier(.2,.78,.2,1),filter .286s ease;
   will-change:max-height,opacity,transform;
 }
 .faceAncestryStepTarget.faceGenerationAncestryExit{
