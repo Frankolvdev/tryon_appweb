@@ -371,6 +371,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationRecoveryMountedRef = useRef(true);
   const generationPreviewFocusRef = useRef<HTMLDivElement | null>(null);
   const generationFocusScrollTimersRef = useRef<number[]>([]);
+  const generationFocusScrollFrameRef = useRef<number | null>(null);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
   const [generationLoadingProgressMode, setGenerationLoadingProgressMode] = useState<GenerationLoadingProgressMode | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
@@ -395,6 +396,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   useEffect(() => () => {
     generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     generationFocusScrollTimersRef.current = [];
+    if (generationFocusScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(generationFocusScrollFrameRef.current);
+      generationFocusScrollFrameRef.current = null;
+    }
   }, []);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
@@ -695,20 +700,47 @@ useEffect(() => {
     setGeneratingModel(true);
     setGeneratedAspectRatio(null);
 
-    // Keep the user's viewport anchored to the generation preview while the
-    // ancestry/wizard columns animate away. This is intentionally triggered
-    // only by an explicit Generate action; recovery on page load never forces
-    // the user's scroll position.
+    // Generation focus R3: let Motion perform the horizontal choreography first,
+    // then make at most one subtle vertical correction. Native scrollIntoView was
+    // previously fired twice and visibly fought the layout animation. Recovery on
+    // page load still never moves the user's viewport.
     generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    generationFocusScrollTimersRef.current = [220, 1320].map((delay) =>
-      window.setTimeout(() => {
-        generationPreviewFocusRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-          inline: "nearest",
-        });
-      }, delay),
-    );
+    generationFocusScrollTimersRef.current = [];
+    if (generationFocusScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(generationFocusScrollFrameRef.current);
+      generationFocusScrollFrameRef.current = null;
+    }
+    if (!prefersReducedMotion) {
+      const timer = window.setTimeout(() => {
+        const target = generationPreviewFocusRef.current;
+        if (!target) return;
+        const rect = target.getBoundingClientRect();
+        const viewportCenter = window.innerHeight / 2;
+        const targetCenter = rect.top + rect.height / 2;
+        const delta = targetCenter - viewportCenter;
+        // A small dead-zone prevents a needless page nudge when the scanner is
+        // already visually centered. Large corrections are capped so the page
+        // never performs the old dramatic travel.
+        if (Math.abs(delta) <= 72) return;
+        const distance = Math.max(-260, Math.min(260, delta));
+        const startY = window.scrollY;
+        const destinationY = Math.max(0, startY + distance);
+        const startedAt = performance.now();
+        const duration = 640;
+        const tick = (now: number) => {
+          const progress = Math.min(1, (now - startedAt) / duration);
+          const eased = 1 - Math.pow(1 - progress, 4);
+          window.scrollTo(0, startY + (destinationY - startY) * eased);
+          if (progress < 1) {
+            generationFocusScrollFrameRef.current = window.requestAnimationFrame(tick);
+          } else {
+            generationFocusScrollFrameRef.current = null;
+          }
+        };
+        generationFocusScrollFrameRef.current = window.requestAnimationFrame(tick);
+      }, 760);
+      generationFocusScrollTimersRef.current = [timer];
+    }
 
     try {
       // Generar siempre guarda primero el mismo progreso que el botón
@@ -1417,7 +1449,12 @@ useEffect(() => {
         transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.78, ease: [0.22, 1, 0.36, 1] as const } }}
         className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}
       >
-        <div className="facePreviewRail" ref={generationPreviewFocusRef}>
+        <motion.div
+          layout="position"
+          transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 1.22, ease: [0.16, 0.74, 0.18, 1] as const } }}
+          className="facePreviewRail"
+          ref={generationPreviewFocusRef}
+        >
           <section className="facePreviewCard">
             <div
               className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
@@ -1517,7 +1554,7 @@ useEffect(() => {
               {generationIsFinalizing ? "Finalizando resultado…" : generationIsCancelling || cancellingGeneration ? "Cancelando…" : !generatedExecution ? "Preparando…" : "Cancelar generación"}
             </button>
           )}
-        </div>
+        </motion.div>
 
         <motion.section
           className="faceControls faceWizard"

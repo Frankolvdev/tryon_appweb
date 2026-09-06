@@ -4682,3 +4682,14 @@ output.modelSliderValue{
 @media(prefers-reduced-motion:reduce){
   .faceBuilder.faceGenerationFocus{transition-delay:0s,0s!important}
 }
+
+/* AppWeb35 R3 — scanner focus polish.
+   Motion owns horizontal repositioning; page scroll is only a small, delayed
+   vertical correction from FaceStudio. Avoid transform CSS competing with FLIP. */
+.facePreviewRail{
+  will-change:transform;
+  transition:max-width 1.38s cubic-bezier(.16,.74,.18,1)!important;
+}
+.faceBuilder.faceGenerationFocus .facePreviewRail{
+  transform:none;
+}
