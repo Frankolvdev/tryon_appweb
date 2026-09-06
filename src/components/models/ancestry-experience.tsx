@@ -68,6 +68,7 @@ export function AncestryExperience({
 }) {
   const [items, setItems] = useState<AncestryMediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mediaReady, setMediaReady] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<AncestryMediaAsset | null>(null);
   const [hasUserSelection, setHasUserSelection] = useState(false);
   const [countryModal, setCountryModal] = useState(false);
@@ -190,6 +191,42 @@ export function AncestryExperience({
     return () => window.clearInterval(timer);
   }, [countryModal, dragging, effectiveSelected]);
 
+  // Progressive ancestry preload: render the experience as soon as the catalog
+  // arrives, then warm poster images one-by-one. This avoids blocking the whole
+  // ancestry step behind a single global loader and prevents a network burst.
+  useEffect(() => {
+    if (loading || items.length === 0) return;
+    let cancelled = false;
+
+    const warmSequentially = async () => {
+      for (const asset of items) {
+        if (cancelled) return;
+        const key = selectionKey(asset);
+        if (!asset.poster_url) {
+          setMediaReady((current) => new Set(current).add(key));
+          continue;
+        }
+        await new Promise<void>((resolve) => {
+          const image = new Image();
+          let settled = false;
+          const done = () => {
+            if (settled) return;
+            settled = true;
+            if (!cancelled) setMediaReady((current) => new Set(current).add(key));
+            resolve();
+          };
+          image.onload = done;
+          image.onerror = done;
+          image.src = asset.poster_url!;
+          if (image.complete) done();
+        });
+      }
+    };
+
+    void warmSequentially();
+    return () => { cancelled = true; };
+  }, [items, loading]);
+
   const countryResults = useMemo(() => {
     const needle = countryQuery.trim().toLowerCase();
     if (!needle) return FACE_COUNTRIES;
@@ -310,12 +347,16 @@ export function AncestryExperience({
 
   if (loading) {
     return (
-      <section className={styles.shell}>
-        <div className={styles.loading}>
+      <section className={`${styles.shell} ${styles.preloadShell}`} aria-label="Preparando ascendencias">
+        <header className={styles.header}>
           <div>
-            <span className={styles.loader} />
-            <span>Cargando ascendencias…</span>
+            <span className={styles.kicker}>ANCESTRY · LIVE IDENTITY</span>
+            <h3>Elige su ascendencia</h3>
+            <p>Preparando el catálogo visual…</p>
           </div>
+        </header>
+        <div className={styles.preloadCards} aria-hidden="true">
+          {Array.from({ length: 5 }, (_, index) => <span key={index} />)}
         </div>
       </section>
     );
@@ -394,12 +435,17 @@ export function AncestryExperience({
                           preload="metadata"
                         />
                       ) : asset.poster_url ? (
-                        <img
-                          src={asset.poster_url}
-                          alt={asset.display_name}
-                          loading="lazy"
-                          draggable={false}
-                        />
+                        <>
+                          {!mediaReady.has(selectionKey(asset)) && <span className={styles.mediaSkeleton} aria-hidden="true" />}
+                          <img
+                            src={asset.poster_url}
+                            alt={asset.display_name}
+                            loading="eager"
+                            decoding="async"
+                            className={mediaReady.has(selectionKey(asset)) ? styles.mediaLoaded : styles.mediaPending}
+                            draggable={false}
+                          />
+                        </>
                       ) : (
                         <span className={styles.mediaFallback}>
                           <ImageIcon size={24} />

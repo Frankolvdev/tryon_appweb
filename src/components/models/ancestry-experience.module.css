@@ -378,3 +378,14 @@
 /* HOTFIX — long country labels stay inside the existing ancestry card. */
 .cardFooter{min-width:0}
 .cardFooter .name{width:0;min-width:0;max-width:100%}
+
+/* AppWeb34 — progressive ancestry media preload. */
+.preloadShell{min-height:310px;overflow:hidden}
+.preloadCards{display:flex;gap:12px;padding:20px 22px 28px;overflow:hidden}
+.preloadCards>span{flex:0 0 clamp(128px,17vw,172px);aspect-ratio:4/5;border-radius:17px;background:linear-gradient(110deg,#0d0d10 22%,#18181d 42%,#0d0d10 62%);background-size:220% 100%;animation:ancestryPreloadPulse 1.25s ease-in-out infinite}
+.preloadCards>span:nth-child(2){animation-delay:.08s}.preloadCards>span:nth-child(3){animation-delay:.16s}.preloadCards>span:nth-child(4){animation-delay:.24s}.preloadCards>span:nth-child(5){animation-delay:.32s}
+.mediaSkeleton{position:absolute;inset:0;z-index:1;background:linear-gradient(110deg,#0b0b0e 20%,#18181d 42%,#0b0b0e 64%);background-size:220% 100%;animation:ancestryPreloadPulse 1.2s ease-in-out infinite}
+.mediaPending{opacity:0}
+.mediaLoaded{opacity:1;transition:opacity .38s ease}
+@keyframes ancestryPreloadPulse{0%{background-position:100% 0}100%{background-position:-120% 0}}
+@media(prefers-reduced-motion:reduce){.preloadCards>span,.mediaSkeleton{animation:none}.mediaLoaded{transition:none}}

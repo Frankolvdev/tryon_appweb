@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Check,
@@ -361,6 +362,7 @@ function identityDraftSnapshot({
 }
 
 export function FaceStudio({ modelId }: { modelId: number }) {
+  const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const { track } = useGenerationJobs();
   const { user } = useAppSession();
@@ -1395,11 +1397,26 @@ useEffect(() => {
         </header>
       </div>
 
-      <div className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationAncestryExit" : ""}`}>
-        <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
-      </div>
+      <AnimatePresence initial={false}>
+        {!(generationRecoveryPending || generatingModel || generationIsBusy) && (
+          <motion.div
+            key="ancestry-experience"
+            className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}`}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: -18, scale: 0.992 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -96, scale: 0.975, filter: "blur(7px)" }}
+            transition={{ duration: prefersReducedMotion ? 0.12 : 0.72, ease: [0.22, 1, 0.36, 1] as const }}
+          >
+            <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}>
+      <motion.div
+        layout="position"
+        transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.78, ease: [0.22, 1, 0.36, 1] as const } }}
+        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}
+      >
         <div className="facePreviewRail" ref={generationPreviewFocusRef}>
           <section className="facePreviewCard">
             <div
@@ -1976,7 +1993,7 @@ useEffect(() => {
 
           </div>
         </section>
-      </div>
+      </motion.div>
       <IdentitySourceModal
         open={identitySourceOpen}
         initialMode={identityMode}
