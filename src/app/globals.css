@@ -4693,3 +4693,28 @@ output.modelSliderValue{
 .faceBuilder.faceGenerationFocus .facePreviewRail{
   transform:none;
 }
+
+
+/* AppWeb35 R4 — horizontal-only generation focus.
+   Keep ancestry mounted in document flow while it visually exits. This preserves
+   the scanner's Y position; there is no automatic viewport scroll and Motion can
+   float the scanner directly toward the horizontal center. */
+.faceAncestryStepTarget.faceGenerationAncestryVisualExit{
+  pointer-events:none;
+}
+
+
+/* AppWeb35 R5 — restore ancestry upward exit without vertical scanner travel.
+   Motion performs the visible upward fade first. After that, FaceStudio adds
+   faceGenerationAncestryExit and synchronously compensates the document collapse
+   before paint, so the scanner remains pinned on Y while floating on X. */
+.faceAncestryStepTarget.faceGenerationAncestryVisualExit{
+  pointer-events:none;
+}
+.faceAncestryStepTarget.faceGenerationAncestryExit{
+  max-height:0!important;
+  margin-top:0!important;
+  margin-bottom:0!important;
+  pointer-events:none;
+  overflow:hidden;
+}

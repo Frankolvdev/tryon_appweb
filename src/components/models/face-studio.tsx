@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Check,
@@ -369,9 +369,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const owner = isOwnerAccount(user);
   const generationRecoveryRetryRef = useRef<number | null>(null);
   const generationRecoveryMountedRef = useRef(true);
-  const generationPreviewFocusRef = useRef<HTMLDivElement | null>(null);
-  const generationFocusScrollTimersRef = useRef<number[]>([]);
-  const generationFocusScrollFrameRef = useRef<number | null>(null);
+  const generationFocusPreviewRef = useRef<HTMLDivElement | null>(null);
+  const generationAncestryCollapseAnchorTopRef = useRef<number | null>(null);
+  const [generationAncestryCollapsed, setGenerationAncestryCollapsed] = useState(false);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
   const [generationLoadingProgressMode, setGenerationLoadingProgressMode] = useState<GenerationLoadingProgressMode | null>(null);
   const [progressClock, setProgressClock] = useState(() => Date.now());
@@ -393,14 +393,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
-  useEffect(() => () => {
-    generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    generationFocusScrollTimersRef.current = [];
-    if (generationFocusScrollFrameRef.current !== null) {
-      window.cancelAnimationFrame(generationFocusScrollFrameRef.current);
-      generationFocusScrollFrameRef.current = null;
-    }
-  }, []);
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
   const [occupationModalOpen, setOccupationModalOpen] = useState(false);
@@ -658,6 +650,49 @@ useEffect(() => {
     generatedExecution?.id,
   ]);
 
+  // Generation focus R5: ancestry still exits upward, but its layout collapse is
+  // delayed until the visual exit has finished. We then compensate scroll in a
+  // layout effect so the scanner keeps the same viewport Y and only appears to
+  // float horizontally toward center.
+  useEffect(() => {
+    const focusActive = generationRecoveryPending || generatingModel || generationIsBusy;
+    if (!focusActive) {
+      setGenerationAncestryCollapsed(false);
+      generationAncestryCollapseAnchorTopRef.current = null;
+      return;
+    }
+
+    const collapse = () => {
+      generationAncestryCollapseAnchorTopRef.current =
+        generationFocusPreviewRef.current?.getBoundingClientRect().top ?? null;
+      setGenerationAncestryCollapsed(true);
+    };
+
+    // Explicit Generate gets the full upward exit. Recovery should settle without
+    // replaying a long entrance choreography after navigation/reload.
+    if (generatingModel) {
+      const timer = window.setTimeout(collapse, prefersReducedMotion ? 120 : 920);
+      return () => window.clearTimeout(timer);
+    }
+
+    collapse();
+    return undefined;
+  }, [generationRecoveryPending, generatingModel, generationIsBusy, prefersReducedMotion]);
+
+  useLayoutEffect(() => {
+    if (!generationAncestryCollapsed) return;
+    const beforeTop = generationAncestryCollapseAnchorTopRef.current;
+    const rail = generationFocusPreviewRef.current;
+    if (beforeTop == null || !rail) return;
+
+    const afterTop = rail.getBoundingClientRect().top;
+    const delta = afterTop - beforeTop;
+    if (Math.abs(delta) > 0.5) {
+      window.scrollBy({ top: delta, left: 0, behavior: "auto" });
+    }
+    generationAncestryCollapseAnchorTopRef.current = null;
+  }, [generationAncestryCollapsed]);
+
   async function saveDraft() {
     setDraftSaving(true);
     const draft = {
@@ -700,47 +735,9 @@ useEffect(() => {
     setGeneratingModel(true);
     setGeneratedAspectRatio(null);
 
-    // Generation focus R3: let Motion perform the horizontal choreography first,
-    // then make at most one subtle vertical correction. Native scrollIntoView was
-    // previously fired twice and visibly fought the layout animation. Recovery on
-    // page load still never moves the user's viewport.
-    generationFocusScrollTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    generationFocusScrollTimersRef.current = [];
-    if (generationFocusScrollFrameRef.current !== null) {
-      window.cancelAnimationFrame(generationFocusScrollFrameRef.current);
-      generationFocusScrollFrameRef.current = null;
-    }
-    if (!prefersReducedMotion) {
-      const timer = window.setTimeout(() => {
-        const target = generationPreviewFocusRef.current;
-        if (!target) return;
-        const rect = target.getBoundingClientRect();
-        const viewportCenter = window.innerHeight / 2;
-        const targetCenter = rect.top + rect.height / 2;
-        const delta = targetCenter - viewportCenter;
-        // A small dead-zone prevents a needless page nudge when the scanner is
-        // already visually centered. Large corrections are capped so the page
-        // never performs the old dramatic travel.
-        if (Math.abs(delta) <= 72) return;
-        const distance = Math.max(-260, Math.min(260, delta));
-        const startY = window.scrollY;
-        const destinationY = Math.max(0, startY + distance);
-        const startedAt = performance.now();
-        const duration = 640;
-        const tick = (now: number) => {
-          const progress = Math.min(1, (now - startedAt) / duration);
-          const eased = 1 - Math.pow(1 - progress, 4);
-          window.scrollTo(0, startY + (destinationY - startY) * eased);
-          if (progress < 1) {
-            generationFocusScrollFrameRef.current = window.requestAnimationFrame(tick);
-          } else {
-            generationFocusScrollFrameRef.current = null;
-          }
-        };
-        generationFocusScrollFrameRef.current = window.requestAnimationFrame(tick);
-      }, 760);
-      generationFocusScrollTimersRef.current = [timer];
-    }
+    // Generation focus R5 is coordinated by the focus effects above: ancestry
+    // exits upward first, then its space collapses without moving the scanner
+    // vertically in the viewport.
 
     try {
       // Generar siempre guarda primero el mismo progreso que el botón
@@ -1429,20 +1426,21 @@ useEffect(() => {
         </header>
       </div>
 
-      <AnimatePresence initial={false}>
-        {!(generationRecoveryPending || generatingModel || generationIsBusy) && (
-          <motion.div
-            key="ancestry-experience"
-            className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}`}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: -18, scale: 0.992 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -96, scale: 0.975, filter: "blur(7px)" }}
-            transition={{ duration: prefersReducedMotion ? 0.12 : 0.72, ease: [0.22, 1, 0.36, 1] as const }}
-          >
-            <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <motion.div
+        className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationAncestryVisualExit" : ""}${generationAncestryCollapsed ? " faceGenerationAncestryExit" : ""}`}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: -18, scale: 0.992 }}
+        animate={
+          generationRecoveryPending || generatingModel || generationIsBusy
+            ? (prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, y: -96, scale: 0.975, filter: "blur(7px)" })
+            : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
+        }
+        transition={{ duration: prefersReducedMotion ? 0.12 : 0.88, ease: [0.22, 1, 0.36, 1] as const }}
+        aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
+      >
+        <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
+      </motion.div>
 
       <motion.div
         layout="position"
@@ -1450,10 +1448,10 @@ useEffect(() => {
         className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}
       >
         <motion.div
+          ref={generationFocusPreviewRef}
           layout="position"
           transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 1.22, ease: [0.16, 0.74, 0.18, 1] as const } }}
           className="facePreviewRail"
-          ref={generationPreviewFocusRef}
         >
           <section className="facePreviewCard">
             <div
