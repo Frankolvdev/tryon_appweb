@@ -381,6 +381,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
   const [generatingModel, setGeneratingModel] = useState(false);
   const [generatedExecution, setGeneratedExecution] = useState<GenerationExecution | null>(null);
+  const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [selections, setSelections] =
@@ -978,7 +979,6 @@ useEffect(() => {
   const generationIsActive = isGenerationActiveForUi(generatedExecution);
   const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
   const generationIsFinalizing = isGenerationFinalizing(generatedExecution);
-  const generationIsBusy = isGenerationProviderPending(generatedExecution);
 
   const estimatedGenerationSeconds =
     generationLoadingProgressMode === "backend"
