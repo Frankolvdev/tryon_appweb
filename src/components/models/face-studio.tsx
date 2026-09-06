@@ -1519,7 +1519,21 @@ useEffect(() => {
           )}
         </div>
 
-        <section className="faceControls faceWizard">
+        <motion.section
+          className="faceControls faceWizard"
+          animate={
+            generationRecoveryPending || generatingModel || generationIsBusy
+              ? { opacity: 0, x: 180, scale: 0.985 }
+              : { opacity: 1, x: 0, scale: 1 }
+          }
+          transition={{
+            duration: prefersReducedMotion ? 0.12 : generationRecoveryPending || generatingModel || generationIsBusy ? 1.08 : 0.92,
+            delay: prefersReducedMotion ? 0 : generationRecoveryPending || generatingModel || generationIsBusy ? 0 : 0.18,
+            ease: [0.22, 1, 0.36, 1] as const,
+          }}
+          style={{ transformOrigin: "left center" }}
+          aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
+        >
           <div className="identityModeBar">
             <div><span>MODO DE IDENTIDAD</span><strong>{identityMode === "existing" ? "Ya tengo un rostro" : "Crear identidad"}</strong></div>
             <button type="button" onClick={() => setIdentitySourceOpen(true)}>Cambiar modo</button>
@@ -1992,7 +2006,7 @@ useEffect(() => {
             </div>
 
           </div>
-        </section>
+        </motion.section>
       </motion.div>
       <IdentitySourceModal
         open={identitySourceOpen}
