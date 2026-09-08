@@ -923,7 +923,6 @@ useEffect(() => {
         payload = {
           input_1: promptHead,
           input_2: complexionValue,
-          input_3: commaPrompt(identity.prompt),
           input_4: generationSeed(),
           input_5: generationSeed(),
           input_6: bodyNumber("buttSize", 0),
@@ -945,8 +944,40 @@ useEffect(() => {
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
         };
+      } else if (generationModule.id === 9 && identityMode === "existing") {
+        // Local From Head V6 contract. It mirrors the local body/scene inputs
+        // from Create V5 but receives the selected persisted head as input_21.
+        if (!existingIdentityFile) throw new Error("Confirma un rostro de identidad antes de generar.");
+        const headBlob = await downloadLibraryFile(existingIdentityFile.id);
+        const headFile = new File(
+          [headBlob],
+          existingIdentityFile.filename || "identity-head.jpg",
+          { type: existingIdentityFile.content_type || headBlob.type || "image/jpeg" },
+        );
+
+        payload = {
+          input_2: complexionValue,
+          input_4: generationSeed(),
+          input_5: generationSeed(),
+          input_6: bodyNumber("buttSize", 0),
+          input_7: bodyNumber("breasts", 0),
+          input_8: bodyNumber("waist", 0),
+          input_9: skinToneGenerationValue(selections.skinTone),
+          input_10: bodyNumber("height", 0),
+          input_11: bodyNumber("bubbleButt", 0),
+          input_12: hairLength,
+          input_13: "standing full-body confident feminine pose, natural posture",
+          input_14: "front view, full body",
+          input_15: "standing and looking directly at camera",
+          input_16: occupationContext.place,
+          input_17: "soft flattering professional daylight, balanced neutral lighting",
+          input_18: occupationContext.clothes,
+          input_19: customValues.extraDetails?.trim() || " ",
+          input_20: hipsText,
+          input_21: headFile,
+        };
       } else {
-        // Historical remote / existing-head contracts stay untouched.
+        // Historical remote contracts stay untouched.
         const basePayload = {
           input_1: round1(bodyBase.ass + bodyAdjustments.ass),
           input_2: round1(bodyBase.fat + bodyAdjustments.fat),
