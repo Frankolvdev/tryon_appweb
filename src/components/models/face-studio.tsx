@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Check,
-  ChevronRight,
   Eye,
   Sparkles,
   WandSparkles,
@@ -226,7 +225,6 @@ function StepIcon({ id }: { id: StepId }) {
   );
 }
 
-const BODY_FINE_VALUES = Array.from({ length: 17 }, (_, index) => round1(-0.8 + index * 0.1));
 function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
 
 function skinToneGenerationValue(selectionId: string | undefined): number {
@@ -253,7 +251,6 @@ function backendTimestampMs(value: string | null | undefined): number {
     : `${value}Z`;
   return Date.parse(normalized);
 }
-function signed(value: number) { return `${value > 0 ? "+" : ""}${round1(value).toFixed(1)}`; }
 function normalizeBodyDelta(value: unknown) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
@@ -398,6 +395,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [generatedExecution, setGeneratedExecution] = useState<GenerationExecution | null>(null);
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
+  const [editingGeneratedResult, setEditingGeneratedResult] = useState(false);
    const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
@@ -413,10 +411,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [occupationModalOpen, setOccupationModalOpen] = useState(false);
   const [occupationSearch, setOccupationSearch] = useState("");
   const [occupationLocale] = useState<OccupationLocale>("es");
-  const [bodyRefineOpen, setBodyRefineOpen] = useState(false);
   const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, skin_tone: 0, hair_length: 0, butt_elevation: 0 });
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
-  const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [draftSaving, setDraftSaving] = useState(false);
   const [bodyProportionsDraft, setBodyProportionsDraft] = useState<Record<string, unknown> | null>(null);
   const [bodyModeDraft, setBodyModeDraft] = useState<"fit" | "curvy" | null>(null);
@@ -494,7 +490,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 butt_elevation: normalizeBodyDelta(data.bodyAdjustments.butt_elevation),
               };
               setBodyAdjustments(safeBody);
-              setBodyDraft(safeBody);
             }
             const restoredMode: IdentitySourceMode = data.identityMode === "existing" ? "existing" : "create";
             const restoredSteps = restoredMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
@@ -674,7 +669,7 @@ useEffect(() => {
   // layout effect so the scanner keeps the same viewport Y and only appears to
   // float horizontally toward center.
   useEffect(() => {
-    const focusActive = generationRecoveryPending || generatingModel || generationIsBusy;
+    const focusActive = generationRecoveryPending || generatingModel || generationIsBusy || (!editingGeneratedResult && generatedExecution?.status === "completed");
     if (!focusActive) {
       setGenerationAncestryCollapsed(false);
       generationAncestryCollapseAnchorTopRef.current = null;
@@ -690,13 +685,13 @@ useEffect(() => {
     // Explicit Generate gets the full upward exit. Recovery should settle without
     // replaying a long entrance choreography after navigation/reload.
     if (generatingModel) {
-      const timer = window.setTimeout(collapse, prefersReducedMotion ? 120 : 920);
+      const timer = window.setTimeout(collapse, prefersReducedMotion ? 80 : 300);
       return () => window.clearTimeout(timer);
     }
 
     collapse();
     return undefined;
-  }, [generationRecoveryPending, generatingModel, generationIsBusy, prefersReducedMotion]);
+  }, [generationRecoveryPending, generatingModel, generationIsBusy, generatedExecution?.status, editingGeneratedResult, prefersReducedMotion]);
 
   useLayoutEffect(() => {
     if (!generationAncestryCollapsed) return;
@@ -758,6 +753,7 @@ useEffect(() => {
       return;
     }
 
+    setEditingGeneratedResult(false);
     setGeneratingModel(true);
     setGeneratedAspectRatio(null);
 
@@ -1010,6 +1006,15 @@ useEffect(() => {
   const generationIsActive = isGenerationActiveForUi(generatedExecution);
   const generationIsCancelling = isGenerationCancellationPending(generatedExecution);
   const generationIsFinalizing = isGenerationFinalizing(generatedExecution);
+  const generationHasCompletedResult =
+    !editingGeneratedResult &&
+    generatedExecution?.status === "completed" &&
+    Boolean(generatedPreviewUrl);
+  const generationSurfaceVisible =
+    generationRecoveryPending ||
+    generatingModel ||
+    generationIsBusy ||
+    generationHasCompletedResult;
 
   const estimatedGenerationSeconds =
     generationLoadingProgressMode === "backend"
@@ -1429,17 +1434,17 @@ useEffect(() => {
       </div>
 
       <motion.div
-        className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationAncestryVisualExit" : ""}${generationAncestryCollapsed ? " faceGenerationAncestryExit" : ""}`}
+        className={`faceAncestryStepTarget${currentStep?.id === "ancestry" ? " active" : ""}${generationSurfaceVisible ? " faceGenerationAncestryVisualExit" : ""}${generationAncestryCollapsed ? " faceGenerationAncestryExit" : ""}`}
         initial={prefersReducedMotion ? false : { opacity: 0, y: -18, scale: 0.992 }}
         animate={
-          generationRecoveryPending || generatingModel || generationIsBusy
+          generationSurfaceVisible
             ? (prefersReducedMotion
                 ? { opacity: 0 }
-                : { opacity: 0, y: -96, scale: 0.975, filter: "blur(7px)" })
+                : { opacity: 0, y: -20, scale: 0.995, filter: "blur(0px)" })
             : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }
         }
-        transition={{ duration: prefersReducedMotion ? 0.12 : 0.88, ease: [0.22, 1, 0.36, 1] as const }}
-        aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
+        transition={{ duration: prefersReducedMotion ? 0.12 : 0.3, ease: [0.22, 1, 0.36, 1] as const }}
+        aria-hidden={generationSurfaceVisible}
       >
         {currentStep?.id === "ancestry" ? (
           <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
@@ -1448,13 +1453,13 @@ useEffect(() => {
 
       <motion.div
         layout="position"
-        transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.78, ease: [0.22, 1, 0.36, 1] as const } }}
-        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}${!generatedExecution && !generatingModel ? " facePreGenerationControlsOnly" : ""}${currentStep.kind === "body" ? " faceBodyProportionsOnly" : ""}`}
+        transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.32, ease: [0.22, 1, 0.36, 1] as const } }}
+        className={`faceBuilder${generationSurfaceVisible ? " faceGenerationFocus" : ""}${!generationSurfaceVisible ? " facePreGenerationControlsOnly" : ""}${currentStep.kind === "body" ? " faceBodyProportionsOnly" : ""}`}
       >
         <motion.div
           ref={generationFocusPreviewRef}
           layout="position"
-          transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 1.22, ease: [0.16, 0.74, 0.18, 1] as const } }}
+          transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.36, ease: [0.22, 1, 0.36, 1] as const } }}
           className="facePreviewRail"
         >
           <section className="facePreviewCard">
@@ -1462,7 +1467,7 @@ useEffect(() => {
               className={`facePreviewStage${generatedAspectRatio ? " facePreviewStageGenerated" : ""}`}
               style={generatedAspectRatio ? { aspectRatio: `${generatedAspectRatio}` } : undefined}
             >
-              {generationRecoveryPending || generatingModel || generationIsBusy || generatedExecution?.status === "completed" ? (
+              {generationSurfaceVisible ? (
                 <ParticleMorphLoader
                   sourceImages={[
                     "/generation-loaders/model-woman/silhouette-1.webp",
@@ -1503,49 +1508,29 @@ useEffect(() => {
                   <span>Guarda primero el Paso 01 para continuar.</span>
                 </div>
               )}
-              {!generationRecoveryPending && !generatingModel && !generationIsBusy && (
-                <button
-                  type="button"
-                  className="facePreviewHud faceBodyRefineTrigger"
-                  onClick={() => {
-                    setBodyDraft(bodyAdjustments);
-                    setBodyRefineOpen(true);
-                  }}
-                >
-                  <span>BODY</span>
-                  <strong>Mejorar proporciones corporales</strong>
-                  <ChevronRight size={16} />
-                </button>
-              )}
-              {!generationRecoveryPending && !generatingModel && !generationIsBusy && bodyRefineOpen && (
-                <div className="faceBodyRefineCard">
-                  <div className="faceBodyRefineHead">
-                    <div>
-                      <span>AJUSTE FINO · ±0.8</span>
-                      <strong>Mejorar proporciones corporales</strong>
-                      <small>Los cambios son relativos al cuerpo elegido en el paso anterior y avanzan en incrementos de 0.1.</small>
-                    </div>
-                    <button type="button" onClick={() => setBodyRefineOpen(false)} aria-label="Cerrar">×</button>
-                  </div>
-                  <BodyFineTuneSlider label="Hips" internalKey="ass" base={bodyBase.ass} delta={bodyDraft.ass} onChange={(value) => setBodyDraft((current) => ({ ...current, ass: value }))} />
-                  <BodyFineTuneSlider label="Fat / Thin" internalKey="fat" base={bodyBase.fat} delta={bodyDraft.fat} onChange={(value) => setBodyDraft((current) => ({ ...current, fat: value }))} />
-                  <BodyFineTuneSlider label="Breasts" internalKey="breasts" base={bodyBase.breasts} delta={bodyDraft.breasts} onChange={(value) => setBodyDraft((current) => ({ ...current, breasts: value }))} />
-                  <BodyFineTuneSlider label="Butt Elevation" internalKey="butt_elevation" base={bodyBase.butt_elevation} delta={bodyDraft.butt_elevation} onChange={(value) => setBodyDraft((current) => ({ ...current, butt_elevation: value }))} />
-                  <button
-                    type="button"
-                    className="faceBodyRefineAccept"
-                    onClick={() => {
-                      setBodyAdjustments(bodyDraft);
-                      setBodyRefineOpen(false);
-                      notify.success("Proporciones corporales refinadas");
-                    }}
-                  >
-                    <Check size={16} /> Elegir
-                  </button>
-                </div>
-              )}
             </div>
           </section>
+          {generationHasCompletedResult && (
+            <div className="faceGeneratedActions faceGeneratedActionsCentered">
+              <button
+                className="faceGenerateModelButton faceGenerateRetryButton"
+                type="button"
+                onClick={() => setEditingGeneratedResult(true)}
+              >
+                <WandSparkles size={19} />
+                <span><strong>Modificar e intentar de nuevo</strong><small>Conserva todas tus selecciones</small></span>
+              </button>
+              <button
+                className="faceGenerateModelButton faceGenerateModelButtonDone faceUseGeneratedButton"
+                type="button"
+                onClick={() => void useGeneratedModel()}
+                disabled={usingGeneratedModel}
+              >
+                <Check size={19} />
+                {usingGeneratedModel ? "Guardando modelo…" : "Elegir esta"}
+              </button>
+            </div>
+          )}
           {(generatingModel || generationIsActive || generationIsCancelling || cancellingGeneration) && (
             <button
               type="button"
@@ -1561,17 +1546,17 @@ useEffect(() => {
         <motion.section
           className="faceControls faceWizard"
           animate={
-            generationRecoveryPending || generatingModel || generationIsBusy
-              ? { opacity: 0, x: 180, scale: 0.985 }
+            generationSurfaceVisible
+              ? { opacity: 0, x: 42, scale: 0.995 }
               : { opacity: 1, x: 0, scale: 1 }
           }
           transition={{
-            duration: prefersReducedMotion ? 0.12 : generationRecoveryPending || generatingModel || generationIsBusy ? 1.08 : 0.92,
-            delay: prefersReducedMotion ? 0 : generationRecoveryPending || generatingModel || generationIsBusy ? 0 : 0.18,
+            duration: prefersReducedMotion ? 0.12 : 0.32,
+            delay: 0,
             ease: [0.22, 1, 0.36, 1] as const,
           }}
           style={{ transformOrigin: "left center" }}
-          aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
+          aria-hidden={generationSurfaceVisible}
         >
           <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
@@ -1958,30 +1943,10 @@ useEffect(() => {
                       <WandSparkles size={19} />
                       {generationIsFinalizing ? "Finalizando resultado…" : generationIsCancelling ? "Cancelando generación…" : "Generando modelo…"}
                     </button>
-                  ) : generatedExecution?.status === "completed" && generatedImage ? (
-                    <div className="faceGeneratedActions">
-                      <button
-                        className="faceGenerateModelButton faceGenerateRetryButton"
-                        type="button"
-                        onClick={() => void generateModel()}
-                        disabled={generationRecoveryPending || generatingModel}
-                      >
-                        <WandSparkles size={19} />
-                        <span>
-                          <strong>{generatingModel ? "Enviando…" : generateButtonLabel}</strong>
-                          {!generatingModel && <small>{generateTokenLabel}</small>}
-                        </span>
-                      </button>
-                      <button
-                        className="faceGenerateModelButton faceGenerateModelButtonDone faceUseGeneratedButton"
-                        type="button"
-                        onClick={() => void useGeneratedModel()}
-                        disabled={usingGeneratedModel}
-                      >
-                        <Check size={19} />
-                        {usingGeneratedModel ? "Guardando modelo…" : "Usar esta"}
-                      </button>
-                    </div>
+                  ) : generatedExecution?.status === "completed" && generatedImage && !editingGeneratedResult ? (
+                    <button className="faceGenerateModelButton faceGenerateModelButtonDone" type="button" disabled>
+                      <Check size={19} /> Resultado listo
+                    </button>
                   ) : (
                     <button
                       className="faceGenerateModelButton faceGenerateModelButtonDone"
@@ -2061,80 +2026,5 @@ useEffect(() => {
       </div>
     </div>
   </div>
-  );
-}
-
-
-
-function BodyFineTuneSlider({ label, internalKey, base, delta, onChange }: { label: string; internalKey: "ass" | "fat" | "breasts" | "butt_elevation"; base: number; delta: number; onChange: (value: number) => void }) {
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const draggingRef = useRef(false);
-  const index = BODY_FINE_VALUES.findIndex((value) => Math.abs(value - delta) < 0.0001);
-  const safeIndex = index >= 0 ? index : 8;
-  const percent = (safeIndex / (BODY_FINE_VALUES.length - 1)) * 100;
-  const finalValue = round1(base + delta);
-
-  const updateFromClientX = (clientX: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const rect = track.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)));
-    const nextIndex = Math.round(ratio * (BODY_FINE_VALUES.length - 1));
-    onChange(BODY_FINE_VALUES[nextIndex] ?? 0);
-  };
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    draggingRef.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    updateFromClientX(event.clientX);
-  };
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (draggingRef.current) updateFromClientX(event.clientX);
-  };
-  const stopDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    draggingRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    let nextIndex = safeIndex;
-    if (event.key === "ArrowRight" || event.key === "ArrowUp") nextIndex = Math.min(BODY_FINE_VALUES.length - 1, safeIndex + 1);
-    else if (event.key === "ArrowLeft" || event.key === "ArrowDown") nextIndex = Math.max(0, safeIndex - 1);
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = BODY_FINE_VALUES.length - 1;
-    else return;
-    event.preventDefault();
-    onChange(BODY_FINE_VALUES[nextIndex] ?? 0);
-  };
-
-  return (
-    <div className="modelAxis faceBodyFineAxis">
-      <div>
-        <label>{label}</label>
-        <span className="faceBodyFineValues">Base {signed(base)} · Ajuste {signed(delta)} · Final <b>{signed(finalValue)}</b></span>
-      </div>
-      <div
-        ref={trackRef}
-        className="modelDiscreteSlider"
-        role="slider"
-        tabIndex={0}
-        aria-label={`${label} adjustment`}
-        aria-valuemin={-0.8}
-        aria-valuemax={0.8}
-        aria-valuenow={delta}
-        data-internal-key={internalKey}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={stopDrag}
-        onPointerCancel={stopDrag}
-        onKeyDown={onKeyDown}
-      >
-        <div className="modelDiscreteRail" />
-        <div className="modelDiscreteFill" style={{ width: `${percent}%` }} />
-        {BODY_FINE_VALUES.map((value, tickIndex) => (
-          <span key={`${internalKey}-${value}`} className={`modelDiscreteTick${tickIndex === safeIndex ? " active" : ""}`} style={{ left: `${(tickIndex / (BODY_FINE_VALUES.length - 1)) * 100}%` }} />
-        ))}
-        <span className="modelDiscreteThumb" style={{ left: `${percent}%` }} />
-      </div>
-      <div className="modelAxisEnds"><span>-0.8</span><span>0</span><span>+0.8</span></div>
-    </div>
   );
 }
