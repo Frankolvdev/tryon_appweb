@@ -39,7 +39,7 @@ import type {
 import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
-import { BodyProportionsStep } from "./body-proportions-step";
+import { BodyProportionsStep, preloadBodyProportionsStep } from "./body-proportions-step";
 import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
@@ -470,13 +470,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [identityMode, owner]);
 
   useEffect(() => {
+    let cancelled = false;
     getAiModel(modelId)
       .then((result) => {
+        if (cancelled) return;
         if (result.stage === "studio") {
           router.replace(`/models/${modelId}/studio`);
           return;
         }
         setModel(result);
+        const preloadDraft = result.draft_json && typeof result.draft_json === "object"
+          ? (result.draft_json as Record<string, any>).bodyProportions
+          : null;
+        preloadBodyProportionsStep(preloadDraft && typeof preloadDraft === "object" ? preloadDraft : null);
         try {
           const saved = localStorage.getItem(`${STORAGE_PREFIX}${modelId}`);
           const data = result.draft_json && Object.keys(result.draft_json).length ? result.draft_json : (saved ? JSON.parse(saved) : null);
@@ -555,7 +561,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               const recoverPersistedExecution = async () => {
                 try {
                   const execution = await getGenerationExecution(lastExecutionId);
-                  if (!generationRecoveryMountedRef.current) return;
+                  if (cancelled || !generationRecoveryMountedRef.current) return;
                   setRestoredExecution(true);
                   setRestoredResultReady(false);
                   setGeneratedExecution(execution);
@@ -568,7 +574,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   setGenerationRecoveryPending(false);
                   generationRecoveryRetryRef.current = null;
                 } catch {
-                  if (!generationRecoveryMountedRef.current) return;
+                  if (cancelled || !generationRecoveryMountedRef.current) return;
                   generationRecoveryRetryRef.current = window.setTimeout(
                     () => void recoverPersistedExecution(),
                     2000,
@@ -588,6 +594,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         }
       })
       .catch((error) => {
+        if (cancelled) return;
         setGenerationRecoveryPending(false);
         notify.error(
           error instanceof Error
@@ -602,10 +609,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           [tool.id, (await listModelGenerationAssets(tool.id)).items] as const,
       ),
     )
-      .then((entries) => setMediaAssets(Object.fromEntries(entries)))
-      .catch(() =>
-        notify.error("No se pudieron cargar algunas previews de identidad."),
-      );
+      .then((entries) => { if (!cancelled) setMediaAssets(Object.fromEntries(entries)); })
+      .catch(() => {
+        if (!cancelled) notify.error("No se pudieron cargar algunas previews de identidad.");
+      });
+
+    return () => {
+      cancelled = true;
+      if (generationRecoveryRetryRef.current !== null) {
+        window.clearTimeout(generationRecoveryRetryRef.current);
+        generationRecoveryRetryRef.current = null;
+      }
+    };
   }, [modelId, router, track]);
 
   useEffect(() => {

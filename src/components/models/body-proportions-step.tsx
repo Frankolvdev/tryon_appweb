@@ -12,24 +12,61 @@ type BodyControlState={hips:number;buttSize:number;breasts:number;height:number;
 const DEFAULT_BODY:BodyControlState={hips:1,buttSize:0,breasts:0,height:0,bubbleButt:0,waist:0,complexion:"slim"};
 const HIP_LABELS=["Small Hips","Medium Hips","Big Hips","Huge Hips"] as const;
 const BODY_TOOLS:ModelGenerationToolKey[]=["hips","butt_size","breasts","height","bubble_butt","waist","complexion"];
+let BODY_VARIANTS_CACHE:BodyVariant[]|null=null;
+let BODY_VARIANTS_PROMISE:Promise<BodyVariant[]>|null=null;
+let BODY_ASSETS_CACHE:Record<string,ModelGenerationAsset[]>|null=null;
+let BODY_ASSETS_PROMISE:Promise<Record<string,ModelGenerationAsset[]>>|null=null;
+const PRELOADED_PREVIEW_URLS=new Set<string>();
 function ordered(items:ModelGenerationAsset[]){return [...items].sort((a,b)=>(a.position??9999)-(b.position??9999)||a.sort_order-b.sort_order||a.id-b.id)}
 function nearestAsset(items:ModelGenerationAsset[],ratio:number){const rows=ordered(items);if(!rows.length)return null;return rows[Math.round(Math.max(0,Math.min(1,ratio))*(rows.length-1))]??rows[0]}
+function loadBodyVariants(){
+ if(BODY_VARIANTS_CACHE)return Promise.resolve(BODY_VARIANTS_CACHE);
+ if(!BODY_VARIANTS_PROMISE)BODY_VARIANTS_PROMISE=listBodyVariants("woman").then(r=>(BODY_VARIANTS_CACHE=r.items,r.items)).finally(()=>{BODY_VARIANTS_PROMISE=null});
+ return BODY_VARIANTS_PROMISE;
+}
+function loadBodyAssets(){
+ if(BODY_ASSETS_CACHE)return Promise.resolve(BODY_ASSETS_CACHE);
+ if(!BODY_ASSETS_PROMISE)BODY_ASSETS_PROMISE=Promise.all(BODY_TOOLS.map(t=>listModelGenerationAssets(t).catch(()=>({items:[],total:0})))).then(catalogs=>{
+  const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((t,i)=>map[t]=ordered(catalogs[i].items));BODY_ASSETS_CACHE=map;return map;
+ }).finally(()=>{BODY_ASSETS_PROMISE=null});
+ return BODY_ASSETS_PROMISE;
+}
+function preloadPreviewUrl(url:string|null|undefined){
+ if(!url||PRELOADED_PREVIEW_URLS.has(url)||typeof window==="undefined")return;
+ PRELOADED_PREVIEW_URLS.add(url);
+ const img=new Image();img.src=url;
+}
+export function preloadBodyProportionsStep(bodyDraft?:Partial<BodyControlState>|null){
+ void Promise.all([loadBodyVariants(),loadBodyAssets()]).then(([,map])=>{
+  const body={...DEFAULT_BODY,...(bodyDraft||{})};
+  const previews=[
+   nearestAsset(map.hips??[],Math.max(0,Math.min(3,Math.round(Number(body.hips)||0)))/3),
+   nearestAsset(map.butt_size??[],Number(body.buttSize||0)/7),
+   nearestAsset(map.breasts??[],(Number(body.breasts||0)+5)/10),
+   nearestAsset(map.height??[],(Number(body.height||0)+5)/10),
+   nearestAsset(map.bubble_butt??[],Number(body.bubbleButt||0)/.7),
+   nearestAsset(map.waist??[],(Number(body.waist||0)+3)/6),
+   (map.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion||"slim"))??nearestAsset(map.complexion??[],body.complexion==="thick"?1:0),
+  ];
+  previews.forEach(asset=>preloadPreviewUrl(asset?.poster_url||(!asset?.poster_url?asset?.video_url:null)));
+ }).catch(()=>undefined);
+}
 
 export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:number;onComplete:()=>void;onDraftChange?:(body:BodyControlState,mode:"fit"|"curvy")=>void}){
- const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>([]);
- const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>({});
+ const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>(()=>BODY_VARIANTS_CACHE??[]);
+ const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>(()=>BODY_ASSETS_CACHE??{});
  const [body,setBody]=useState(DEFAULT_BODY);
  const [saving,setSaving]=useState(false);
- const [catalogLoading,setCatalogLoading]=useState(true);
+ const [catalogLoading,setCatalogLoading]=useState(()=>!(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE));
  useEffect(()=>{onDraftChange?.(body,"fit")},[body,onDraftChange]);
  useEffect(()=>{
   let alive=true;
   setCatalogLoading(true);
-  Promise.all([getAiModel(modelId),listBodyVariants("woman"),...BODY_TOOLS.map(t=>listModelGenerationAssets(t).catch(()=>({items:[],total:0})))])
-   .then(([m,c,...catalogs])=>{
+  Promise.all([getAiModel(modelId),loadBodyVariants(),loadBodyAssets()])
+   .then(([m,variants,map])=>{
     if(!alive)return;
-    setBodyVariants(c.items);
-    const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((t,i)=>map[t]=ordered(catalogs[i].items));setAssets(map);
+    setBodyVariants(variants);
+    setAssets(map);
     const d=m.draft_json as any;if(d?.bodyProportions){const restored={...DEFAULT_BODY,...d.bodyProportions};restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));setBody(restored)}
    })
    .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar las proporciones")})
