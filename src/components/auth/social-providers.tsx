@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { getOAuthProviders, startGoogleOAuth } from "@/lib/auth-api";
 import { rememberOAuthReturnTo, normalizeReturnTo } from "@/lib/auth-redirect";
 import { hasSession } from "@/lib/auth-storage";
-import { env } from "@/lib/env";
 import { OAuthConsentDialog } from "@/components/auth/oauth-consent-dialog";
 
 type SocialProvidersProps = {
@@ -66,8 +65,9 @@ export function SocialProviders({ registration = false }: SocialProvidersProps) 
     rememberOAuthReturnTo(new URLSearchParams(window.location.search).get("next"));
 
     try {
+      const appOrigin = window.location.origin.replace(/\/$/, "");
       const response = await startGoogleOAuth({
-        redirect_uri: `${env.appUrl}/oauth/callback`,
+        redirect_uri: `${appOrigin}/oauth/callback`,
         terms_accepted: true,
         terms_version: "v1",
         age_confirmed: true,

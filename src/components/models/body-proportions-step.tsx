@@ -59,7 +59,9 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
  const [saving,setSaving]=useState(false);
  const [heightTouched,setHeightTouched]=useState(false);
  const [catalogLoading,setCatalogLoading]=useState(()=>!(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE));
- useEffect(()=>{onDraftChange?.(body,"fit",{heightTouched})},[body,heightTouched,onDraftChange]);
+ const onDraftChangeRef=useRef(onDraftChange);
+ useEffect(()=>{onDraftChangeRef.current=onDraftChange},[onDraftChange]);
+ useEffect(()=>{onDraftChangeRef.current?.(body,"fit",{heightTouched})},[body,heightTouched]);
  useEffect(()=>{
   let alive=true;
   setCatalogLoading(true);
