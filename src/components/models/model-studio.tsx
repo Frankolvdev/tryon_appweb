@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowLeft, Check, Pencil, Save, Upload } from "lucide-react";
+import { ArrowLeft, Check, Save, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft, setAiModelBody } from "@/lib/ai-model-api";
@@ -35,7 +35,7 @@ export function ModelStudio({modelId}:{modelId:number}){
  const [uploading,setUploading]=useState(false); const [uploadProgress,setUploadProgress]=useState(0); const inputRef=useRef<HTMLInputElement|null>(null);
  const [body,setBody]=useState<BodyControlState>(DEFAULT_BODY);
  const [curvyMode,setCurvyMode]=useState(false);
- const [saving,setSaving]=useState(false); const [draftSaving,setDraftSaving]=useState(false); const [nameEditing,setNameEditing]=useState(false);
+ const [saving,setSaving]=useState(false); const [draftSaving,setDraftSaving]=useState(false);
  const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
 
  useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman"),...BODY_TOOLS.map(tool=>listModelGenerationAssets(tool).catch(()=>({items:[],total:0})))])
@@ -65,7 +65,7 @@ export function ModelStudio({modelId}:{modelId:number}){
   }catch(e){toast.error(e instanceof Error?e.message:"No se pudo continuar")}finally{setSaving(false)}}
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
  return <div className="modelStudioViewport modelStudioV2"><aside className="modelStudioStageRail"><ModelGlobalTimeline modelId={modelId} active={phase==="identity"?"identity":"body"} bodyConfirmed={phase==="body"}/></aside><div className="modelStudioStageContent"><div className="modelStudio pageEnter">
-  <div className="modelHeaderShell"><button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button><header className="modelStudioHead"><div className="modelHeaderRail"><div className="modelEditableName">{nameEditing?<input autoFocus value={displayName} maxLength={40} onChange={e=>setDisplayName(e.target.value)} onBlur={()=>setNameEditing(false)} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")setNameEditing(false)}}/>:<button type="button" onClick={()=>setNameEditing(true)}><h1>{displayName}</h1><Pencil size={13}/></button>}</div><div className="modelSculptWidget"><div className="modelSculptWidgetBadge">{phase==="identity"?"01":"02"}</div><div className="modelSculptWidgetCopy"><h2>{phase==="identity"?"Identidad":"Cuerpo"}</h2><p>{phase==="identity"?"Define quién será tu modelo antes de construir sus rasgos.":"Construye el cuerpo y después continúa con cabello, ojos y demás rasgos."}</p></div>{phase==="body"&&<button className="modelDraftSaveButton" onClick={saveBodyDraft} disabled={draftSaving}><Save size={15}/>{draftSaving?"Guardando…":"Guardar borrador"}</button>}</div></div></header></div>
+  <div className="modelHeaderShell"><button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button><header className="modelStudioHead"><div className="modelHeaderRail"><div className="modelEditableName"><h1>{displayName}</h1></div><div className="modelSculptWidget"><div className="modelSculptWidgetBadge">{phase==="identity"?"01":"02"}</div><div className="modelSculptWidgetCopy"><h2>{phase==="identity"?"Identidad":"Cuerpo"}</h2><p>{phase==="identity"?"Define quién será tu modelo antes de construir sus rasgos.":"Construye el cuerpo y después continúa con cabello, ojos y demás rasgos."}</p></div>{phase==="body"&&<button className="modelDraftSaveButton" onClick={saveBodyDraft} disabled={draftSaving}><Save size={15}/>{draftSaving?"Guardando…":"Guardar borrador"}</button>}</div></div></header></div>
   {phase==="identity"?<IdentitySetup name={displayName} setName={setDisplayName} mode={identityMode} setMode={setIdentityMode} file={identityFile} uploading={uploading} progress={uploadProgress} inputRef={inputRef} chooseFile={chooseIdentityFile} onContinue={continueIdentity} saving={saving}/>:<BodySetup body={body} setBody={setBody} curvy={curvyMode} setCurvy={setCurvyMode} preview={preview} onContinue={continueBody} saving={saving}/>} 
  </div></div></div>
 }

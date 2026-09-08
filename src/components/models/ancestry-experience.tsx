@@ -99,7 +99,20 @@ export function AncestryExperience({
     let alive = true;
     setLoading(true);
 
-    listAncestryMediaAssets()
+    const loadCatalog = async () => {
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          return await listAncestryMediaAssets();
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 300 * (attempt + 1)));
+        }
+      }
+      throw lastError;
+    };
+
+    loadCatalog()
       .then((result) => {
         if (!alive) return;
         const next = [...result.items].sort(
@@ -340,7 +353,10 @@ export function AncestryExperience({
       : otherCardRef.current;
     if (!node) return;
     const timer = window.setTimeout(() => {
-      node.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      const track = trackRef.current;
+      if (!track) return;
+      const target = node.offsetLeft - (track.clientWidth - node.offsetWidth) / 2;
+      track.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
     }, 40);
     return () => window.clearTimeout(timer);
   }, [hasUserSelection, items, effectiveSelected]);

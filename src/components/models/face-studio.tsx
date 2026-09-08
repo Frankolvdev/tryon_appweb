@@ -9,7 +9,6 @@ import {
   Eye,
   Sparkles,
   WandSparkles,
-  Pencil,
   Save,
   TriangleAlert,
 } from "lucide-react";
@@ -61,7 +60,6 @@ const MEDIA_TOOLS: {
 
 type StepId =
   | "bodyProportions"
-  | "traits"
   | "ancestry"
   | "eyeColor"
   | "eyebrows"
@@ -90,13 +88,6 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
     shortLabel: "Proporciones",
     hint: "Define las proporciones corporales de tu modelo",
     kind: "body",
-  },
-  {
-    id: "traits",
-    label: "Rasgos",
-    shortLabel: "Rasgos",
-    hint: "Configura los rasgos de la identidad",
-    kind: "intro",
   },
   {
     id: "ancestry",
@@ -407,8 +398,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [generatedExecution, setGeneratedExecution] = useState<GenerationExecution | null>(null);
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
-  const [nameEditing, setNameEditing] = useState(false);
-  const [selections, setSelections] =
+   const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
     Record<string, ModelGenerationAsset[]>
@@ -1233,23 +1223,15 @@ useEffect(() => {
   function goToStep(index: number) {
     if (index === activeStep) return;
     const target = identitySteps[index];
-    if (currentStep.kind !== "summary" && !completedSteps.includes(currentStep.id)) {
-      const pending = pendingFor(currentStep);
-      if (pending === "custom" && !(customValues[currentStep.id] || "").trim()) {
-        showValidation("Completa el campo Custom y pulsa Elegir antes de cambiar de paso.");
-      } else if (pending) {
-        showValidation(`Confirma tu selección de ${currentStep.label} con Elegir antes de cambiar de paso.`);
-      } else if (currentStep.optional) {
-        showValidation(`Confirma ${currentStep.label} con Elegir antes de cambiar de paso.`);
-      } else {
-        showValidation(`Debes elegir una opción en ${currentStep.label} antes de cambiar de paso.`);
-      }
+    if (!target || target.kind === "summary") return;
+
+    // Completed nodes are always revisitable. Unfinished nodes stay locked so
+    // the wizard cannot be jumped out of order.
+    if (!completedSteps.includes(target.id)) {
+      showValidation(`Completa los pasos anteriores antes de abrir ${target.label}.`);
       return;
     }
-    if (target?.id === "summary" && !summaryReady) {
-      showValidation("Completa los pasos obligatorios antes de abrir el resumen.");
-      return;
-    }
+
     clearValidation();
     setActiveStep(index);
   }
@@ -1281,21 +1263,9 @@ useEffect(() => {
 
   function stepAfterCommit(stepId: StepId, completedAfter: string[]) {
     const currentIndex = identitySteps.findIndex((item) => item.id === stepId);
-    const pendingIndexes = identitySteps
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.kind !== "summary" && !completedAfter.includes(item.id))
-      .map(({ index }) => index);
-
-    if (pendingIndexes.length === 0) return identityDoneStepIndex;
-
-    const nextPending = pendingIndexes.find((index) => index > currentIndex);
-    if (nextPending !== undefined) return nextPending;
-
-    const previousPending = [...pendingIndexes]
-      .reverse()
-      .find((index) => index < currentIndex);
-
-    return previousPending ?? pendingIndexes[0] ?? identityDoneStepIndex;
+    if (currentIndex < 0) return identityDoneStepIndex;
+    const nextIndex = currentIndex + 1;
+    return nextIndex < identitySteps.length ? nextIndex : identityDoneStepIndex;
   }
 
   function commitCurrentStep(advance = true) {
@@ -1440,32 +1410,14 @@ useEffect(() => {
         <header className="modelStudioHead">
           <div className="modelHeaderRail faceHeaderRail">
             <div className="modelEditableName">
-              {nameEditing ? (
-                <input
-                  autoFocus
-                  value={displayName}
-                  maxLength={40}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  onBlur={() => setNameEditing(false)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === "Escape") setNameEditing(false);
-                  }}
-                  aria-label="Nombre temporal de la modelo"
-                />
-              ) : (
-                <button type="button" onClick={() => setNameEditing(true)} title="Editar nombre temporal">
-                  <h1>{displayName}</h1>
-                  <Pencil size={13} />
-                </button>
-              )}
+              <h1>{displayName}</h1>
             </div>
             <div className="modelSculptWidget faceStepWidget">
               <div className="modelSculptWidgetBadge">02</div>
               <div className="modelSculptWidgetCopy">
-                <h2>Diseña su identidad</h2>
+                <h2>Crea un cuerpo</h2>
                 <p>
-                  Explora cada preview, confirma con Elegir y avanza paso a
-                  paso.
+                  Define el cuerpo y sus rasgos paso a paso. Confirma cada selección con Elegir.
                 </p>
               </div>
               <button type="button" className="modelDraftSaveButton" onClick={saveDraft} disabled={draftSaving}>
@@ -1621,10 +1573,6 @@ useEffect(() => {
           style={{ transformOrigin: "left center" }}
           aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
         >
-          <div className="identityModeBar">
-            <div><span>MODO DE IDENTIDAD</span><strong>{identityMode === "existing" ? "Ya tengo un rostro" : "Crear identidad"}</strong></div>
-            <button type="button" onClick={() => setIdentitySourceOpen(true)}>Cambiar modo</button>
-          </div>
           <div className="faceControlsIntro faceControlsIntroCompact">
             <span>
               {visibleStepNumber}/{visibleIdentitySteps.length}
@@ -1671,17 +1619,6 @@ useEffect(() => {
                   setCompletedSteps(completedAfter);
                   setActiveStep(stepAfterCommit(currentStep.id, completedAfter));
                 }} />
-              )}
-
-              {currentStep.kind === "intro" && (
-                <div className="faceTraitsIntroCard">
-                  <div className="faceTraitsIntroIcon" aria-hidden="true">✦</div>
-                  <div>
-                    <span>CREAR IDENTIDAD</span>
-                    <h3>Rasgos</h3>
-                    <p>Define la identidad visual de tu modelo. A continuación podrás configurar ascendencia, ojos, cejas, labios, piel y cabello.</p>
-                  </div>
-                </div>
               )}
 
               {currentStep.kind === "ancestry" && (
@@ -2103,11 +2040,9 @@ useEffect(() => {
                     onClick={confirmCurrentStep}
                   >
                     <Check size={17} />
-                    {currentStep.kind === "intro"
-                      ? "Continuar"
-                      : currentStep.optional && !(customValues.extraDetails || "").trim()
-                        ? "Continuar sin detalle"
-                        : "Elegir"}
+                    {currentStep.optional && !(customValues.extraDetails || "").trim()
+                      ? "Continuar sin detalle"
+                      : "Elegir"}
                   </button>
                 </div>
               )}
