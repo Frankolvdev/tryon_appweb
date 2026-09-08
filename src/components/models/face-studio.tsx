@@ -59,6 +59,7 @@ const MEDIA_TOOLS: {
 ];
 
 type StepId =
+  | "traits"
   | "ancestry"
   | "eyeColor"
   | "eyebrows"
@@ -76,11 +77,18 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
+  kind: "intro" | "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
 const CREATE_IDENTITY_STEPS: StepDefinition[] = [
+  {
+    id: "traits",
+    label: "Rasgos",
+    shortLabel: "Rasgos",
+    hint: "Configura los rasgos de la identidad",
+    kind: "intro",
+  },
   {
     id: "ancestry",
     label: "Ascendencia",
@@ -1260,6 +1268,14 @@ useEffect(() => {
     const step = currentStep;
     if (step.kind === "summary") return true;
 
+    if (step.kind === "intro") {
+      clearValidation();
+      const completedAfter = completedSteps.includes(step.id) ? completedSteps : [...completedSteps, step.id];
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
+      return true;
+    }
+
     if (step.kind === "ancestry") {
       if (!ancestry) {
         showValidation("Elige una ascendencia en el selector superior antes de continuar.");
@@ -1439,13 +1455,15 @@ useEffect(() => {
         transition={{ duration: prefersReducedMotion ? 0.12 : 0.88, ease: [0.22, 1, 0.36, 1] as const }}
         aria-hidden={generationRecoveryPending || generatingModel || generationIsBusy}
       >
-        <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
+        {currentStep?.id === "ancestry" ? (
+          <AncestryExperience modelId={modelId} value={ancestry} onChange={handleAncestryChange} />
+        ) : null}
       </motion.div>
 
       <motion.div
         layout="position"
         transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.78, ease: [0.22, 1, 0.36, 1] as const } }}
-        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}`}
+        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}${!generatedExecution && !generatingModel ? " facePreGenerationControlsOnly" : ""}`}
       >
         <motion.div
           ref={generationFocusPreviewRef}
@@ -1611,6 +1629,17 @@ useEffect(() => {
                   <span>{currentStep.hint}</span>
                 </div>
               ) : null}
+
+              {currentStep.kind === "intro" && (
+                <div className="faceTraitsIntroCard">
+                  <div className="faceTraitsIntroIcon" aria-hidden="true">✦</div>
+                  <div>
+                    <span>CREAR IDENTIDAD</span>
+                    <h3>Rasgos</h3>
+                    <p>Define la identidad visual de tu modelo. A continuación podrás configurar ascendencia, ojos, cejas, labios, piel y cabello.</p>
+                  </div>
+                </div>
+              )}
 
               {currentStep.kind === "ancestry" && (
                 <div className="faceAncestrySelectedPreview">
@@ -2031,10 +2060,11 @@ useEffect(() => {
                     onClick={confirmCurrentStep}
                   >
                     <Check size={17} />
-                    {currentStep.optional &&
-                    !(customValues.extraDetails || "").trim()
-                      ? "Continuar sin detalle"
-                      : "Elegir"}
+                    {currentStep.kind === "intro"
+                      ? "Continuar"
+                      : currentStep.optional && !(customValues.extraDetails || "").trim()
+                        ? "Continuar sin detalle"
+                        : "Elegir"}
                   </button>
                 </div>
               )}
