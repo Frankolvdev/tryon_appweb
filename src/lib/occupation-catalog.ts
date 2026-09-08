@@ -345,7 +345,7 @@ function getCustomOccupationContext(customValue?: string): OccupationGenerationC
   if (!occupation) {
     return {
       place: "elegant modern professional or lifestyle environment",
-      clothes: "wear a stylish, flattering and realistic outfit appropriate for the person's occupation, with clear role-appropriate garments and accessories, tasteful and SFW",
+      clothes: "stylish, flattering and realistic outfit appropriate for the person's occupation, with clear role-appropriate garments and accessories, tasteful and SFW",
     };
   }
 
@@ -354,8 +354,12 @@ function getCustomOccupationContext(customValue?: string): OccupationGenerationC
   // receives the exact role they entered.
   return {
     place: `a realistic, attractive environment naturally appropriate for someone whose occupation is: ${occupation}`,
-    clothes: `wear a stylish, flattering and realistic outfit authentically appropriate for the occupation: ${occupation}; use recognizable role-appropriate garments, footwear and subtle accessories, feminine and polished when appropriate, tasteful and SFW`,
+    clothes: `stylish, flattering and realistic outfit authentically appropriate for the occupation: ${occupation}; use recognizable role-appropriate garments, footwear and subtle accessories, feminine and polished when appropriate, tasteful and SFW`,
   };
+}
+
+function clothesWithoutWearPrefix(value: string): string {
+  return value.trim().replace(/^wear\s+(?:a|an)\s+/i, "");
 }
 
 export function getOccupationGenerationContext(
@@ -369,8 +373,9 @@ export function getOccupationGenerationContext(
 
   return {
     place: group?.place || "elegant modern professional or lifestyle interior appropriate to the occupation",
-    clothes:
+    clothes: clothesWithoutWearPrefix(
       clothes ||
       "wear a stylish, flattering and realistic outfit clearly appropriate to the occupation, with recognizable role-specific garments and accessories, tasteful and SFW",
+    ),
   };
 }

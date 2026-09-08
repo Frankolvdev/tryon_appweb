@@ -9,7 +9,7 @@ export type CreateModelExecutionAudience =
 type ExpectedInput = {
   key: string;
   name: string;
-  type: "float" | "text" | "image";
+  type: "float" | "integer" | "text" | "image";
   required: boolean;
 };
 
@@ -45,6 +45,30 @@ const CREATE_MODEL_BASE_INPUTS = [
   { key: "input_12", name: "time_day_weather_or_lighting", type: "text", required: true },
   { key: "input_13", name: "Clothes", type: "text", required: true },
   { key: "input_14", name: "extra_details", type: "text", required: false },
+] as const satisfies readonly ExpectedInput[];
+
+
+const LOCAL_CREATE_V5_INPUTS = [
+  { key: "input_1", name: "prompt head", type: "text", required: true },
+  { key: "input_2", name: "complexion", type: "integer", required: true },
+  { key: "input_3", name: "main prompt", type: "text", required: true },
+  { key: "input_4", name: "Seed Body", type: "integer", required: true },
+  { key: "input_5", name: "Seed Head", type: "integer", required: true },
+  { key: "input_6", name: "ass", type: "float", required: true },
+  { key: "input_7", name: "breasts", type: "float", required: true },
+  { key: "input_8", name: "waist", type: "float", required: true },
+  { key: "input_9", name: "skin tone", type: "float", required: true },
+  { key: "input_10", name: "height", type: "float", required: true },
+  { key: "input_11", name: "bubble butt", type: "float", required: true },
+  { key: "input_12", name: "hair length", type: "float", required: true },
+  { key: "input_13", name: "pose", type: "text", required: true },
+  { key: "input_14", name: "view", type: "text", required: true },
+  { key: "input_15", name: "action", type: "text", required: true },
+  { key: "input_16", name: "place", type: "text", required: true },
+  { key: "input_17", name: "time_weather_lighting", type: "text", required: true },
+  { key: "input_18", name: "clothes", type: "text", required: true },
+  { key: "input_19", name: "extra_details", type: "text", required: true },
+  { key: "input_20", name: "hips", type: "text", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
 const CREATE_MODEL_OUTPUTS = [
@@ -83,11 +107,11 @@ const REMOTE_EXISTING_CONTRACT = {
 } as const satisfies GenerationModuleContract;
 
 const LOCAL_CREATE_BASE = {
-  moduleId: 6,
+  moduleId: 8,
   key: "create_model_woman",
-  name: "Create Model Woman Owner",
-  version: 3,
-  inputs: createPromptInputs,
+  name: "Create Model Woman Owner V2",
+  version: 5,
+  inputs: LOCAL_CREATE_V5_INPUTS,
   outputs: CREATE_MODEL_OUTPUTS,
 } as const;
 

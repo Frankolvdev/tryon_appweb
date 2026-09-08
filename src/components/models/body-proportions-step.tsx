@@ -10,6 +10,7 @@ import type { ModelGenerationAsset, ModelGenerationToolKey } from "@/types/model
 
 type BodyControlState={hips:number;buttSize:number;breasts:number;height:number;bubbleButt:number;waist:number;complexion:"slim"|"thick"};
 const DEFAULT_BODY:BodyControlState={hips:1,buttSize:0,breasts:0,height:0,bubbleButt:0,waist:0,complexion:"slim"};
+const HIP_LABELS=["Small Hips","Medium Hips","Big Hips","Huge Hips"] as const;
 const BODY_TOOLS:ModelGenerationToolKey[]=["hips","butt_size","breasts","height","bubble_butt","waist","complexion"];
 function ordered(items:ModelGenerationAsset[]){return [...items].sort((a,b)=>(a.position??9999)-(b.position??9999)||a.sort_order-b.sort_order||a.id-b.id)}
 function nearestAsset(items:ModelGenerationAsset[],ratio:number){const rows=ordered(items);if(!rows.length)return null;return rows[Math.round(Math.max(0,Math.min(1,ratio))*(rows.length-1))]??rows[0]}
@@ -29,7 +30,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
     if(!alive)return;
     setBodyVariants(c.items);
     const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((t,i)=>map[t]=ordered(catalogs[i].items));setAssets(map);
-    const d=m.draft_json as any;if(d?.bodyProportions)setBody({...DEFAULT_BODY,...d.bodyProportions});
+    const d=m.draft_json as any;if(d?.bodyProportions){const restored={...DEFAULT_BODY,...d.bodyProportions};restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));setBody(restored)}
    })
    .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar las proporciones")})
    .finally(()=>{if(alive)setCatalogLoading(false)});
@@ -43,7 +44,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
  return <div className="modelEmbeddedBodyStep">
   <div className="modelV2Complexion"><div>{(["slim","thick"] as const).map(v=>{const asset=complexionAsset(v);const active=body.complexion===v;return <button key={v} className={active?"active":""} onClick={()=>set("complexion",v)}>{asset?<AssetPreview asset={asset} portrait/>:catalogLoading?<PreviewSkeleton portrait/>:<span className="modelV2AssetPreview modelV2AssetPreviewMissing"/>}<b>{asset?.title?.trim()||asset?.asset_key?.trim()||(v==="slim"?"Slim":"Thick")}</b>{active?<i className="modelComplexionCheck"><Check size={13}/></i>:null}</button>})}</div></div>
   <div className="modelV2ControlsGrid">
-   <Control loading={catalogLoading} label="Hips" value={body.hips} display={valueLabel(body.hips)} min={0} max={3} step={0.2} left="Small" right="Huge" asset={preview.hips} onChange={v=>set("hips",v)}/>
+   <Control loading={catalogLoading} label="Hips" value={body.hips} display={HIP_LABELS[Math.max(0,Math.min(3,Math.round(body.hips)))]} min={0} max={3} step={1} left="Small" right="Huge" asset={preview.hips} onChange={v=>set("hips",Math.round(v))}/>
    <Control loading={catalogLoading} label="Butt Size" value={body.buttSize} display={valueLabel(body.buttSize)} min={0} max={7} step={0.2} left="Small" right="Huge" asset={preview.butt_size} onChange={v=>set("buttSize",v)}/>
    <Control loading={catalogLoading} label="Breasts" value={body.breasts} display={valueLabel(body.breasts)} min={-5} max={5} step={0.2} left="Small" right="Huge" asset={preview.breasts} onChange={v=>set("breasts",v)}/>
    <Control loading={catalogLoading} label="Height" value={body.height} display={valueLabel(body.height)} min={-5} max={5} step={0.2} left="Very short" right="Very tall" asset={preview.height} onChange={v=>set("height",v)}/>

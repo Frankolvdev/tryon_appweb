@@ -65,6 +65,7 @@ type StepId =
   | "lips"
   | "skinTone"
   | "hairstyle"
+  | "hairLength"
   | "hairColor"
   | "occupation"
   | "extraDetails"
@@ -76,7 +77,7 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "body" | "intro" | "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
+  kind: "body" | "intro" | "ancestry" | "color" | "media" | "range" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
@@ -129,6 +130,13 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
     shortLabel: "Cabello",
     hint: "Previsualiza y elige el peinado",
     kind: "media",
+  },
+  {
+    id: "hairLength",
+    label: "Hair Length",
+    shortLabel: "Largo",
+    hint: "Ajusta el largo del cabello",
+    kind: "range",
   },
   {
     id: "hairColor",
@@ -217,7 +225,7 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
-      src={id === "bodyProportions" ? "/model-stage-icons/body.svg" : `/identity-icons/${id}.svg`}
+      src={id === "bodyProportions" ? "/model-stage-icons/body.svg" : id === "hairLength" ? "/identity-icons/hairstyle.svg" : `/identity-icons/${id}.svg`}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -226,6 +234,8 @@ function StepIcon({ id }: { id: StepId }) {
 }
 
 function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
+function generationSeed() { return Math.floor(Math.random() * 2147483647); }
+const HIP_GENERATION_VALUES = ["small hips", "medium hips", "big hips", "huge hips"] as const;
 
 function skinToneGenerationValue(selectionId: string | undefined): number {
   const options = colorCategories.find((category) => category.id === "skinTone")?.options ?? [];
@@ -888,43 +898,84 @@ useEffect(() => {
         "frontal upper-chest beauty portrait",
         "looking directly at camera",
         "neutral-cool soft beauty lighting",
-        "photorealistic",
         "realistic skin texture",
         "highly detailed eyes",
         "realistic hair strands",
         "85mm beauty photography",
-        "clean white photography studio background",
+        "clean white background",
       ].join(", "));
 
-      const basePayload = {
-        input_1: round1(bodyBase.ass + bodyAdjustments.ass),
-        input_2: round1(bodyBase.fat + bodyAdjustments.fat),
-        input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
-        input_4: skinToneGenerationValue(selections.skinTone),
-        input_5: round1(bodyBase.hair_length),
-        input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
-        input_7: "standing full-body confident feminine pose, natural posture",
-        input_8: "standing naturally on the floor",
-        input_9: "front view, full body",
-        input_10: "standing and looking directly at camera",
-        input_11: occupationContext.place,
-        input_12: "soft flattering professional daylight, balanced neutral lighting",
-        input_13: occupationContext.clothes,
-        input_14: customValues.extraDetails?.trim() || null,
+      const hairLength = round1(Number(customValues.hairLength ?? 0));
+      const rawBody = bodyProportionsDraft || {};
+      const bodyNumber = (key: string, fallback = 0) => {
+        const value = Number(rawBody[key]);
+        return Number.isFinite(value) ? round1(value) : fallback;
       };
+      const hipsIndex = Math.max(0, Math.min(3, Math.round(bodyNumber("hips", 0))));
+      const hipsText = HIP_GENERATION_VALUES[hipsIndex];
+      const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
 
       let payload: Record<string, unknown>;
-      if (identityMode === "existing") {
-        if (!existingIdentityFile) throw new Error("Confirma un rostro de identidad antes de generar.");
-        const headBlob = await downloadLibraryFile(existingIdentityFile.id);
-        const headFile = new File(
-          [headBlob],
-          existingIdentityFile.filename || "identity-head.jpg",
-          { type: existingIdentityFile.content_type || headBlob.type || "image/jpeg" },
-        );
-        payload = { ...basePayload, input_15: headFile };
+      if (generationModule.id === 8 && identityMode === "create") {
+        // Local Create V5 contract. Send raw UI body controls; the Backoffice
+        // pipeline owns the Slim/Ass/Breasts compensation so AppWeb never
+        // applies those corrections twice.
+        payload = {
+          input_1: promptHead,
+          input_2: complexionValue,
+          input_3: commaPrompt(identity.prompt),
+          input_4: generationSeed(),
+          input_5: generationSeed(),
+          input_6: bodyNumber("buttSize", 0),
+          input_7: bodyNumber("breasts", 0),
+          input_8: bodyNumber("waist", 0),
+          input_9: skinToneGenerationValue(selections.skinTone),
+          input_10: bodyNumber("height", 0),
+          input_11: bodyNumber("bubbleButt", 0),
+          input_12: hairLength,
+          input_13: "standing full-body confident feminine pose, natural posture",
+          input_14: "front view, full body",
+          input_15: "standing and looking directly at camera",
+          input_16: occupationContext.place,
+          input_17: "soft flattering professional daylight, balanced neutral lighting",
+          input_18: occupationContext.clothes,
+          // input_19 is required in V5. A single space satisfies the transport
+          // contract while the pipeline's clean()/strip() correctly turns it
+          // into an empty optional detail.
+          input_19: customValues.extraDetails?.trim() || " ",
+          input_20: hipsText,
+        };
       } else {
-        payload = { ...basePayload, input_15: promptHead };
+        // Historical remote / existing-head contracts stay untouched.
+        const basePayload = {
+          input_1: round1(bodyBase.ass + bodyAdjustments.ass),
+          input_2: round1(bodyBase.fat + bodyAdjustments.fat),
+          input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
+          input_4: skinToneGenerationValue(selections.skinTone),
+          input_5: hairLength,
+          input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
+          input_7: "standing full-body confident feminine pose, natural posture",
+          input_8: "standing naturally on the floor",
+          input_9: "front view, full body",
+          input_10: "standing and looking directly at camera",
+          input_11: occupationContext.place,
+          input_12: "soft flattering professional daylight, balanced neutral lighting",
+          input_13: occupationContext.clothes,
+          input_14: customValues.extraDetails?.trim() || null,
+        };
+
+        if (identityMode === "existing") {
+          if (!existingIdentityFile) throw new Error("Confirma un rostro de identidad antes de generar.");
+          const headBlob = await downloadLibraryFile(existingIdentityFile.id);
+          const headFile = new File(
+            [headBlob],
+            existingIdentityFile.filename || "identity-head.jpg",
+            { type: existingIdentityFile.content_type || headBlob.type || "image/jpeg" },
+          );
+          payload = { ...basePayload, input_15: headFile };
+        } else {
+          payload = { ...basePayload, input_15: promptHead };
+        }
       }
 
       // Browser diagnostics: exact contract payload immediately before the
@@ -942,23 +993,12 @@ useEffect(() => {
       console.log("Head Prompt:");
       console.log(promptHead);
       console.log("Exact Generation Module inputs:");
-      console.table({
-        input_1: { name: "Hips Size", value: payload.input_1 },
-        input_2: { name: "Fat - Thin", value: payload.input_2 },
-        input_3: { name: "Breasts Size", value: payload.input_3 },
-        input_4: { name: "Skin Tone", value: payload.input_4 },
-        input_5: { name: "Hair Length", value: payload.input_5 },
-        input_6: { name: "Butt Elevation", value: payload.input_6 },
-        input_7: { name: "Pose", value: payload.input_7 },
-        input_8: { name: "On", value: payload.input_8 },
-        input_9: { name: "view", value: payload.input_9 },
-        input_10: { name: "Action", value: payload.input_10 },
-        input_11: { name: "Place", value: payload.input_11 },
-        input_12: { name: "time_day_weather_or_lighting", value: payload.input_12 },
-        input_13: { name: "Clothes", value: payload.input_13 },
-        input_14: { name: "extra_details", value: payload.input_14 },
-        input_15: { name: identityMode === "existing" ? "head" : "prompt_head", value: identityMode === "existing" ? existingIdentityFile?.filename : payload.input_15 },
-      });
+      console.table(Object.fromEntries(
+        generationModule.inputs.map((definition) => [
+          definition.key,
+          { name: definition.name, value: payload[definition.key] },
+        ]),
+      ));
       console.log("Payload:", { inputs: payload });
       console.groupEnd();
 
@@ -1344,6 +1384,7 @@ useEffect(() => {
     if (step.kind === "body") return completedSteps.includes(step.id) ? "done" : "";
     if (step.kind === "ancestry") return ancestry ? ancestry.ancestry_key || String(ancestry.id) : "";
     if (step.kind === "media") return mediaSelected[step.id] || "";
+    if (step.kind === "range") return customValues.hairLength ?? "0";
     if (step.kind === "color") return selections[step.id] || "";
     if (step.kind === "occupation") return selections.occupation || "";
     if (step.kind === "extra") return customValues.extraDetails || "";
@@ -1409,6 +1450,16 @@ useEffect(() => {
       return true;
     }
 
+    if (step.kind === "range") {
+      clearValidation();
+      const completedAfter = completedSteps.includes(step.id)
+        ? completedSteps
+        : [...completedSteps, step.id];
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
+      return true;
+    }
+
     const value = pendingFor(step);
     if (!value) {
       showValidation(`Debes elegir una opción en ${step.label}.`);
@@ -1463,6 +1514,9 @@ useEffect(() => {
       const key = selections[step.id];
       if (key === "custom") return customValues[step.id] || "Custom";
       return colorOption(step.id, key)?.label || "Sin elegir";
+    }
+    if (step.kind === "range") {
+      return Number(customValues.hairLength ?? 0).toFixed(1);
     }
     if (step.kind === "occupation") {
       const key = selections.occupation;
@@ -1907,6 +1961,34 @@ useEffect(() => {
                   </>
                 );
               })()}
+
+              {currentStep.kind === "range" && currentStep.id === "hairLength" && (
+                <div className="modelV2Control faceHairLengthControl">
+                  <div className="modelV2ControlMain">
+                    <div className="modelV2ControlHead">
+                      <strong>Hair Length</strong>
+                      <output>{Number(customValues.hairLength ?? 0).toFixed(1)}</output>
+                    </div>
+                    <input
+                      type="range"
+                      min={-6}
+                      max={6}
+                      step={0.2}
+                      value={Number(customValues.hairLength ?? 0)}
+                      onChange={(event) => {
+                        clearValidation();
+                        const value = round1(Number(event.target.value));
+                        setCustomValues((current) => ({ ...current, hairLength: String(value) }));
+                        if (completedSteps.includes("hairLength")) {
+                          setCompletedSteps((current) => current.filter((id) => id !== "hairLength"));
+                        }
+                      }}
+                      aria-label="Hair Length"
+                    />
+                    <div className="modelAxisEnds"><span>-6</span><span>0</span><span>6</span></div>
+                  </div>
+                </div>
+              )}
 
               {currentStep.kind === "occupation" && (() => {
                 const pending = pendingFor(currentStep);

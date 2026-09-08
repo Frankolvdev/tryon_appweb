@@ -3,7 +3,7 @@
 export type ColorOption={id:string;label:string;tone:string;prompt:string;negative?:string};
 export type ColorCategory={id:"eyeColor"|"skinTone"|"hairColor";label:string;hint:string;options:ColorOption[]};
 export type IdentitySelections=Record<string,string>;
-export const FACE_TRIGGER="4ng3l face";
+export const FACE_TRIGGER="angel face";
 
 export const colorCategories:ColorCategory[]=[
  {id:"eyeColor",label:"Eye color",hint:"Color de iris",options:[
@@ -58,7 +58,20 @@ export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:Ident
  const hairDescription=[hairColor,hairstyleValue?`${hairstyleValue} hair style`:""].filter(Boolean).join(", ");
  const eyebrowDescription=eyebrowValue?`${eyebrowValue} eyebrow shape`:"";
  const lipsDescription=lipsValue?`${lipsValue} lip shape`:"";
- const extra=args.customValues.extraDetails?.trim()||"";
- const pieces=[FACE_TRIGGER,"photorealistic",args.ancestryLabel?`beautiful young adult woman of ${args.ancestryLabel} ancestry`:"beautiful young adult woman",...colorsWithoutHair,hairDescription,eyebrowDescription,lipsDescription,extra,"realistic skin texture, fine pores, highly detailed eyes, realistic hair strands","front-facing professional beauty portrait, neutral-cool soft beauty lighting, 85mm photography","consistent facial identity"];
- return {prompt:pieces.filter(Boolean).join(",\n"),negativePrompt:""};
+ const pieces=[
+   "instapic",
+   FACE_TRIGGER,
+   args.ancestryLabel?`beautiful woman of ${args.ancestryLabel} ancestry`:"beautiful woman",
+   ...colorsWithoutHair,
+   hairDescription,
+   eyebrowDescription,
+   lipsDescription,
+   "realistic skin texture",
+   "fine pores",
+   "highly detailed eyes",
+   "realistic hair strands",
+   "front-facing beauty portrait",
+   "85mm photography",
+ ];
+ return {prompt:pieces.filter(Boolean).join(", "),negativePrompt:""};
 }
