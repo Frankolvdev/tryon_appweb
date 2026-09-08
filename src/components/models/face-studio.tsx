@@ -482,6 +482,30 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const restoredExistingIdentityFile = data.existingIdentityFile || modelSetup?.existingIdentityFile || null;
             setIdentityMode(restoredIdentityMode);
             setExistingIdentityFile(restoredExistingIdentityFile);
+            if (data.ancestry && typeof data.ancestry === "object") {
+              const savedAncestry = data.ancestry as Partial<AncestryMediaAsset>;
+              if (
+                typeof savedAncestry.id === "number" &&
+                typeof savedAncestry.ancestry_key === "string" &&
+                typeof savedAncestry.display_name === "string"
+              ) {
+                setAncestry({
+                  id: savedAncestry.id,
+                  ancestry_key: savedAncestry.ancestry_key,
+                  display_name: savedAncestry.display_name,
+                  country_code: typeof savedAncestry.country_code === "string" ? savedAncestry.country_code : null,
+                  flag_emoji: typeof savedAncestry.flag_emoji === "string" ? savedAncestry.flag_emoji : null,
+                  latitude: typeof savedAncestry.latitude === "number" ? savedAncestry.latitude : null,
+                  longitude: typeof savedAncestry.longitude === "number" ? savedAncestry.longitude : null,
+                  sort_order: typeof savedAncestry.sort_order === "number" ? savedAncestry.sort_order : 0,
+                  storage_mode: typeof savedAncestry.storage_mode === "string" ? savedAncestry.storage_mode : "draft",
+                  poster_url: typeof savedAncestry.poster_url === "string" ? savedAncestry.poster_url : null,
+                  video_url: typeof savedAncestry.video_url === "string" ? savedAncestry.video_url : null,
+                  is_active: savedAncestry.is_active !== false,
+                  metadata: savedAncestry.metadata && typeof savedAncestry.metadata === "object" ? savedAncestry.metadata : {},
+                });
+              }
+            }
             if (data.bodyProportions && typeof data.bodyProportions === "object") setBodyProportionsDraft(data.bodyProportions);
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
@@ -744,6 +768,23 @@ useEffect(() => {
         ...draft,
         ...(bodyProportionsDraft ? { bodyProportions: bodyProportionsDraft } : {}),
         ...(bodyModeDraft ? { bodyMode: bodyModeDraft } : {}),
+        ...(ancestry ? {
+          ancestry: {
+            id: ancestry.id,
+            ancestry_key: ancestry.ancestry_key,
+            display_name: ancestry.display_name,
+            country_code: ancestry.country_code,
+            flag_emoji: ancestry.flag_emoji,
+            latitude: ancestry.latitude,
+            longitude: ancestry.longitude,
+            sort_order: ancestry.sort_order,
+            storage_mode: ancestry.storage_mode,
+            poster_url: ancestry.poster_url,
+            video_url: ancestry.video_url,
+            is_active: ancestry.is_active,
+            metadata: ancestry.metadata,
+          },
+        } : {}),
       }, displayName.trim() || model?.name);
       setModel(updated);
       notify.success("Borrador guardado");
