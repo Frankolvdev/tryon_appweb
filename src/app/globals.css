@@ -4785,3 +4785,21 @@ output.modelSliderValue{
 .faceBuilder.faceBodyProportionsOnly .facePreviewRail{display:none!important}
 .faceBuilder.faceBodyProportionsOnly .faceControls{width:min(100%,1100px);margin-inline:auto}
 .modelEmbeddedBodyStep{width:100%}
+\n\n/* AppWeb44 — Create Model IA proportions polish: side previews, magnetic ticks, preload. */
+.modelV2Complexion>div{grid-template-columns:1fr 1fr}
+.modelV2Complexion button{min-height:104px;padding:12px;display:flex;align-items:center;gap:13px;text-align:left;overflow:visible}
+.modelV2Complexion .modelV2AssetPreview{position:relative;inset:auto;width:78px;height:80px;flex:0 0 78px;border-radius:12px;opacity:1;background:#08080a}
+.modelV2Complexion .modelV2AssetPreview img,.modelV2Complexion .modelV2AssetPreview video{object-fit:contain}
+.modelV2Complexion button:after{display:none}
+.modelV2Complexion button b{position:static;left:auto;bottom:auto;text-shadow:none;z-index:2}
+.modelComplexionCheck{position:absolute;right:10px;top:10px;width:22px;height:22px;border-radius:999px;background:var(--red2);display:grid;place-items:center;color:#fff;z-index:3}
+.modelV2AssetPreviewMissing{border:1px dashed #29292f}
+.modelDiscreteSlider{position:relative}
+.modelDiscreteTick{position:absolute;top:50%;width:1px;height:12px;background:#494950;transform:translate(-50%,-50%);z-index:2;pointer-events:none}
+.modelDiscreteFill,.modelDiscreteThumb{z-index:3}
+.modelProportionsPreload{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.modelProportionsPreload>span{height:88px;border-radius:14px;background:linear-gradient(110deg,#0d0d10 22%,#18181d 42%,#0d0d10 62%);background-size:220% 100%;animation:modelProportionsPreloadPulse 1.25s ease-in-out infinite}
+.modelProportionsPreload>span:nth-child(2){animation-delay:.08s}.modelProportionsPreload>span:nth-child(3){animation-delay:.16s}.modelProportionsPreload>span:nth-child(4){animation-delay:.24s}
+@keyframes modelProportionsPreloadPulse{0%{background-position:100% 0}100%{background-position:-120% 0}}
+@media(max-width:650px){.modelV2Complexion>div{grid-template-columns:1fr}.modelProportionsPreload{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.modelProportionsPreload>span{animation:none}}
