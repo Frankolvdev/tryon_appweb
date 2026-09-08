@@ -501,7 +501,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [draftSaving, setDraftSaving] = useState(false);
   const [bodyProportionsDraft, setBodyProportionsDraft] = useState<Record<string, unknown> | null>(null);
   const [bodyModeDraft, setBodyModeDraft] = useState<"fit" | "curvy" | null>(null);
-  const [bodyProportionsMetaDraft, setBodyProportionsMetaDraft] = useState<{ heightTouched: boolean } | null>(null);
+  const [bodyProportionsMetaDraft, setBodyProportionsMetaDraft] = useState<{ heightTouched: boolean; hipsTouched: boolean; breastsTouched: boolean } | null>(null);
   const [identityMode, setIdentityMode] = useState<IdentitySourceMode>("create");
   const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
@@ -602,9 +602,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             }
             if (data.bodyProportions && typeof data.bodyProportions === "object") setBodyProportionsDraft(data.bodyProportions);
             if (data.bodyProportionsMeta && typeof data.bodyProportionsMeta === "object") {
-              setBodyProportionsMetaDraft({ heightTouched: data.bodyProportionsMeta.heightTouched === true });
+              setBodyProportionsMetaDraft({ heightTouched: data.bodyProportionsMeta.heightTouched === true, hipsTouched: data.bodyProportionsMeta.hipsTouched === true, breastsTouched: data.bodyProportionsMeta.breastsTouched === true });
             } else {
-              setBodyProportionsMetaDraft({ heightTouched: false });
+              setBodyProportionsMetaDraft({ heightTouched: false, hipsTouched: false, breastsTouched: false });
             }
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)

@@ -15,7 +15,7 @@ import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
 
 type BodyControlState={hips:number;buttSize:number;breasts:number;height:number;bubbleButt:number;waist:number;complexion:"slim"|"thick"};
-const DEFAULT_BODY:BodyControlState={hips:1,buttSize:0,breasts:0,height:0,bubbleButt:0,waist:0,complexion:"slim"};
+const DEFAULT_BODY:BodyControlState={hips:0,buttSize:0,breasts:-5,height:0,bubbleButt:0,waist:0,complexion:"slim"};
 const BODY_TOOLS:ModelGenerationToolKey[]=["hips","butt_size","breasts","height","bubble_butt","waist","complexion"];
 const HIP_LABELS=["Small Hips","Medium Hips","Big Hips","Huge Hips"];
 
