@@ -4861,3 +4861,16 @@ output.modelSliderValue{
 @media(prefers-reduced-motion:reduce){
   .modelV2AssetPreview>.modelV2AssetSkeleton,.modelV2AssetPreview.modelV2AssetSkeleton{animation:none}
 }
+
+/* Restoring a previously persisted Create Model result is not a new generation. */
+.faceRecoveredResultLoading{
+  min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;text-align:center;padding:42px 24px;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.035),transparent 52%);
+}
+.faceRecoveredResultLoading .spinner{width:28px;height:28px;border-width:2px}
+.faceRecoveredResultLoading strong{font-size:14px;letter-spacing:.01em;color:#f4f4f5}
+.faceRecoveredResultLoading small{font-size:11px;color:#8f8f98}
+.faceRecoveredResult{position:relative;width:100%;height:100%;min-height:420px;display:grid;place-items:center;overflow:hidden;background:#08080a}
+.faceRecoveredResult>img{width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .18s ease}
+.faceRecoveredResult>img.isReady{opacity:1}
+.faceRecoveredResultLoadingOverlay{position:absolute;inset:0;z-index:2;background:#08080a}

@@ -393,6 +393,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [ancestry, setAncestry] = useState<AncestryMediaAsset | null>(null);
   const [generatingModel, setGeneratingModel] = useState(false);
   const [generatedExecution, setGeneratedExecution] = useState<GenerationExecution | null>(null);
+  const [restoredExecution, setRestoredExecution] = useState(false);
+  const [restoredResultReady, setRestoredResultReady] = useState(false);
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
   const [editingGeneratedResult, setEditingGeneratedResult] = useState(false);
@@ -474,8 +476,12 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             });
             setMediaSelected(data.mediaSelected || {});
             setCustomValues(data.customValues || {});
-            setIdentityMode(data.identityMode === "existing" ? "existing" : "create");
-            setExistingIdentityFile(data.existingIdentityFile || null);
+            const modelSetup = data.modelSetup && typeof data.modelSetup === "object" ? data.modelSetup : null;
+            const restoredIdentityMode: IdentitySourceMode =
+              data.identityMode === "existing" || modelSetup?.identityMode === "existing" ? "existing" : "create";
+            const restoredExistingIdentityFile = data.existingIdentityFile || modelSetup?.existingIdentityFile || null;
+            setIdentityMode(restoredIdentityMode);
+            setExistingIdentityFile(restoredExistingIdentityFile);
             if (data.bodyProportions && typeof data.bodyProportions === "object") setBodyProportionsDraft(data.bodyProportions);
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
@@ -491,7 +497,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               };
               setBodyAdjustments(safeBody);
             }
-            const restoredMode: IdentitySourceMode = data.identityMode === "existing" ? "existing" : "create";
+            const restoredMode: IdentitySourceMode = restoredIdentityMode;
             const restoredSteps = restoredMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS;
             const restoredCompletable = restoredSteps.filter((step) => step.kind !== "summary").map((step) => step.id);
             const restoredDoneIndex = restoredSteps.findIndex((step) => step.kind === "summary");
@@ -515,8 +521,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                 try {
                   const execution = await getGenerationExecution(lastExecutionId);
                   if (!generationRecoveryMountedRef.current) return;
+                  setRestoredExecution(true);
+                  setRestoredResultReady(false);
                   setGeneratedExecution(execution);
-                  setActiveStep((data.identityMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
+                  setActiveStep((restoredMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
                   track(execution, {
                     clickable: true,
                     href: `/models/${modelId}/face`,
@@ -567,11 +575,13 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   useEffect(() => {
     if (!model?.body_proportion_preset_id) return;
+    let alive = true;
     Promise.all([
       listBodyVariants(model.sex),
       listBubbleButtVariants(model.body_proportion_preset_id),
     ])
       .then(([catalog, bubbles]) => {
+        if (!alive) return;
         const body = catalog.items.find((item) => item.id === model.body_proportion_preset_id);
         const bubble = bubbles.items.find((item) => item.id === model.bubble_butt_preset_id)
           || bubbles.items.find((item) => item.variant_index === model.bubble_butt_variant_index);
@@ -584,7 +594,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           butt_elevation: bubble?.bubble_butt ?? 0,
         });
       })
-      .catch(() => notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento."));
+      .catch(() => {
+        if (alive) notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento.");
+      });
+    return () => { alive = false; };
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
 
   useEffect(() => {
@@ -754,6 +767,8 @@ useEffect(() => {
     }
 
     setEditingGeneratedResult(false);
+    setRestoredExecution(false);
+    setRestoredResultReady(false);
     setGeneratingModel(true);
     setGeneratedAspectRatio(null);
 
@@ -1468,6 +1483,36 @@ useEffect(() => {
               style={generatedAspectRatio ? { aspectRatio: `${generatedAspectRatio}` } : undefined}
             >
               {generationSurfaceVisible ? (
+                generationRecoveryPending ? (
+                  <div className="faceRecoveredResultLoading" role="status" aria-live="polite">
+                    <span className="spinner" aria-hidden="true" />
+                    <strong>Cargando resultado…</strong>
+                    <small>Recuperando la generación guardada</small>
+                  </div>
+                ) : restoredExecution && generatedExecution?.status === "completed" && generatedPreviewUrl ? (
+                  <div className="faceRecoveredResult" role="status" aria-live="polite">
+                    {!restoredResultReady && (
+                      <div className="faceRecoveredResultLoading faceRecoveredResultLoadingOverlay">
+                        <span className="spinner" aria-hidden="true" />
+                        <strong>Cargando resultado…</strong>
+                        <small>Preparando la imagen guardada</small>
+                      </div>
+                    )}
+                    <img
+                      src={generatedPreviewUrl}
+                      alt="Resultado generado"
+                      className={restoredResultReady ? "isReady" : ""}
+                      onLoad={(event) => {
+                        const image = event.currentTarget;
+                        if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                          setGeneratedAspectRatio(image.naturalWidth / image.naturalHeight);
+                        }
+                        setRestoredResultReady(true);
+                      }}
+                      onError={() => setRestoredResultReady(true)}
+                    />
+                  </div>
+                ) : (
                 <ParticleMorphLoader
                   sourceImages={[
                     "/generation-loaders/model-woman/silhouette-1.webp",
@@ -1475,7 +1520,7 @@ useEffect(() => {
                     "/generation-loaders/model-woman/silhouette-3.webp",
                   ]}
                   resultUrl={!generatingModel && generatedExecution?.status === "completed" ? generatedPreviewUrl : null}
-                  active={generationRecoveryPending || generationIsBusy || generatingModel}
+                  active={generationIsBusy || generatingModel}
                   label="CREATE MODEL IA"
                   className="faceGenerationMorph"
                   progress={estimatedGenerationProgress}
@@ -1495,6 +1540,7 @@ useEffect(() => {
                     scanIntensity: 1.5,
                   }}
                 />
+                )
               ) : model.body_image_url ? (
                 <ModelImage
                   src={model.body_image_url}
