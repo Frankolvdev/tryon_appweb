@@ -348,6 +348,7 @@ function identityDraftSnapshot({
   selections,
   mediaSelected,
   customValues,
+  hairLengthTouched,
   completedSteps,
   activeStep,
   bodyAdjustments,
@@ -357,6 +358,7 @@ function identityDraftSnapshot({
   selections: IdentitySelections;
   mediaSelected: Record<string, string>;
   customValues: Record<string, string>;
+  hairLengthTouched: boolean;
   completedSteps: string[];
   activeStep: number;
   bodyAdjustments: { ass: number; fat: number; breasts: number; butt_elevation: number };
@@ -368,6 +370,7 @@ function identityDraftSnapshot({
     selections,
     mediaSelected,
     customValues,
+    identityControlMeta: { hairLengthTouched },
     completedSteps,
     activeStep,
     bodyAdjustments,
@@ -381,6 +384,74 @@ function identityDraftSnapshot({
       ? { last_generation_execution_id: lastGenerationExecutionId }
       : {}),
   };
+}
+
+function FaceDiscreteSlider({
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const dragging = useRef(false);
+  const percent = ((value - min) / Math.max(max - min, step)) * 100;
+  const snapPoints = useMemo(() => {
+    const out: number[] = [];
+    for (let point = min; point <= max + 1e-9; point += step) {
+      out.push(Number(point.toFixed(4)));
+    }
+    if (Math.abs((out[out.length - 1] ?? min) - max) > 1e-6) out.push(max);
+    return out;
+  }, [min, max, step]);
+
+  const update = (clientX: number) => {
+    const element = ref.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(rect.width, 1)));
+    const raw = min + ratio * (max - min);
+    let next = snapPoints[0] ?? min;
+    for (const point of snapPoints) {
+      if (Math.abs(point - raw) < Math.abs(next - raw)) next = point;
+    }
+    onChange(Number(next.toFixed(4)));
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="modelDiscreteSlider"
+      role="slider"
+      tabIndex={0}
+      aria-label="Hair Length"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      onPointerDown={(event) => {
+        dragging.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        update(event.clientX);
+      }}
+      onPointerMove={(event) => {
+        if (dragging.current) update(event.clientX);
+      }}
+      onPointerUp={(event) => {
+        dragging.current = false;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+    >
+      <div className="modelDiscreteRail" />
+      <div className="modelDiscreteFill" style={{ width: `${percent}%` }} />
+      <span className="modelDiscreteThumb" style={{ left: `${percent}%` }} />
+    </div>
+  );
 }
 
 export function FaceStudio({ modelId }: { modelId: number }) {
@@ -416,6 +487,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   >({ eyebrows: [], lips: [], hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [hairLengthTouched, setHairLengthTouched] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
@@ -493,7 +565,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               ...(data.selections || {}),
             });
             setMediaSelected(data.mediaSelected || {});
-            setCustomValues(data.customValues || {});
+            const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
+            const restoredCustomValues = { ...(data.customValues || {}) };
+            if (!savedHairLengthTouched) restoredCustomValues.hairLength = "0";
+            setHairLengthTouched(savedHairLengthTouched);
+            setCustomValues(restoredCustomValues);
             const modelSetup = data.modelSetup && typeof data.modelSetup === "object" ? data.modelSetup : null;
             const restoredIdentityMode: IdentitySourceMode =
               data.identityMode === "existing" || modelSetup?.identityMode === "existing" ? "existing" : "create";
@@ -702,6 +778,7 @@ useEffect(() => {
           selections,
           mediaSelected,
           customValues,
+          identityControlMeta: { hairLengthTouched },
           completedSteps,
           activeStep,
           bodyAdjustments,
@@ -724,6 +801,7 @@ useEffect(() => {
     selections,
     mediaSelected,
     customValues,
+    hairLengthTouched,
     completedSteps,
     activeStep,
     bodyAdjustments,
@@ -783,6 +861,7 @@ useEffect(() => {
       selections,
       mediaSelected,
       customValues,
+      hairLengthTouched,
       completedSteps,
       activeStep,
       bodyAdjustments,
@@ -863,6 +942,7 @@ useEffect(() => {
             selections,
             mediaSelected,
             customValues,
+            hairLengthTouched,
             completedSteps,
             activeStep: identityDoneStepIndex,
             bodyAdjustments,
@@ -1080,6 +1160,7 @@ useEffect(() => {
               selections,
               mediaSelected,
               customValues,
+              hairLengthTouched,
               completedSteps,
               activeStep: identityDoneStepIndex,
               bodyAdjustments,
@@ -2022,23 +2103,22 @@ useEffect(() => {
                       <strong>Hair Length</strong>
                       <output>{Number(customValues.hairLength ?? 0).toFixed(1)}</output>
                     </div>
-                    <input
-                      type="range"
+                    <FaceDiscreteSlider
+                      value={Number(customValues.hairLength ?? 0)}
                       min={-6}
                       max={6}
                       step={0.2}
-                      value={Number(customValues.hairLength ?? 0)}
-                      onChange={(event) => {
+                      onChange={(value) => {
                         clearValidation();
-                        const value = round1(Number(event.target.value));
-                        setCustomValues((current) => ({ ...current, hairLength: String(value) }));
+                        setHairLengthTouched(true);
+                        const nextValue = round1(value);
+                        setCustomValues((current) => ({ ...current, hairLength: String(nextValue) }));
                         if (completedSteps.includes("hairLength")) {
                           setCompletedSteps((current) => current.filter((id) => id !== "hairLength"));
                         }
                       }}
-                      aria-label="Hair Length"
                     />
-                    <div className="modelAxisEnds"><span>-6</span><span>0</span><span>6</span></div>
+                    <div className="modelAxisEnds"><span>-6</span><span>6</span></div>
                   </div>
                 </div>
               )}
