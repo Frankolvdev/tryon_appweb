@@ -1245,9 +1245,18 @@ useEffect(() => {
     const target = identitySteps[index];
     if (!target || target.kind === "summary") return;
 
-    // Completed nodes are always revisitable. Unfinished nodes stay locked so
-    // the wizard cannot be jumped out of order.
-    if (!completedSteps.includes(target.id)) {
+    // A completed node is always revisitable. An unfinished node is available
+    // as soon as every required node before it is complete. This keeps the
+    // sequence strict without blocking the next legitimate step (for example
+    // Rostro after switching from Crear rostro to Ya tengo un rostro).
+    const previousRequiredSteps = identitySteps
+      .slice(0, index)
+      .filter((step) => step.kind !== "summary" && !step.optional);
+    const previousStepsComplete = previousRequiredSteps.every((step) =>
+      completedSteps.includes(step.id),
+    );
+
+    if (!completedSteps.includes(target.id) && !previousStepsComplete) {
       showValidation(`Completa los pasos anteriores antes de abrir ${target.label}.`);
       return;
     }
@@ -1484,11 +1493,26 @@ useEffect(() => {
             >
               {generationSurfaceVisible ? (
                 generationRecoveryPending ? (
-                  <div className="faceRecoveredResultLoading" role="status" aria-live="polite">
-                    <span className="spinner" aria-hidden="true" />
-                    <strong>Cargando resultado…</strong>
-                    <small>Recuperando la generación guardada</small>
-                  </div>
+                  <ParticleMorphLoader
+                    sourceImages={[
+                      "/generation-loaders/model-woman/silhouette-1.webp",
+                      "/generation-loaders/model-woman/silhouette-2.webp",
+                      "/generation-loaders/model-woman/silhouette-3.webp",
+                    ]}
+                    active
+                    label="CREATE MODEL IA"
+                    className="faceGenerationMorph faceGenerationRecoveryMorph"
+                    statusText="Cargando resultado anterior…"
+                    statusSubtext="Recuperando la generación guardada"
+                    hideProgress
+                    config={{
+                      particleCount: 4500,
+                      morphDurationMs: 1800,
+                      holdDurationMs: 900,
+                      dispersion: 34,
+                      pointSize: 1.3,
+                    }}
+                  />
                 ) : restoredExecution && generatedExecution?.status === "completed" && generatedPreviewUrl ? (
                   <div className="faceRecoveredResult" role="status" aria-live="polite">
                     {!restoredResultReady && (

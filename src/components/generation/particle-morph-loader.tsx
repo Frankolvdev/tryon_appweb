@@ -26,6 +26,9 @@ type ParticleMorphLoaderProps = {
   progress?: number;
   estimatedSeconds?: number | null;
   secondsLabel?: string;
+  statusText?: string;
+  statusSubtext?: string | null;
+  hideProgress?: boolean;
   onResultAspectRatio?: (ratio: number) => void;
   config?: ParticleMorphLoaderConfig;
 };
@@ -151,6 +154,9 @@ export function ParticleMorphLoader({
   progress = 0,
   estimatedSeconds = null,
   secondsLabel = "Tiempo estimado",
+  statusText,
+  statusSubtext = null,
+  hideProgress = false,
   onResultAspectRatio,
   config,
 }: ParticleMorphLoaderProps) {
@@ -440,25 +446,30 @@ export function ParticleMorphLoader({
       </div>
 
       {!showResult && (
-      <div className="particleMorphStatus particleMorphStatusProgress">
+      <div className={`particleMorphStatus particleMorphStatusProgress${hideProgress ? " particleMorphStatusNoProgress" : ""}`}>
         <div className="particleMorphStatusLine">
           <span>
             <span className="particleMorphStatusDot" />
-            {active
+            {statusText ?? (active
               ? "Construyendo identidad…"
               : showResult
                 ? "Generación lista"
-                : "Preparando preview…"}
+                : "Preparando preview…")}
           </span>
-          <strong>{showResult ? "100%" : `${Math.round(Math.max(0, Math.min(100, progress)))}%`}</strong>
+          {!hideProgress && (
+            <strong>{showResult ? "100%" : `${Math.round(Math.max(0, Math.min(100, progress)))}%`}</strong>
+          )}
         </div>
-        <div className="particleMorphProgressTrack" aria-label="Progreso estimado de generación">
-          <span
-            className="particleMorphProgressFill"
-            style={{ width: `${showResult ? 100 : Math.max(2, Math.min(100, progress))}%` }}
-          />
-        </div>
-        {estimatedSeconds != null && estimatedSeconds > 0 && (
+        {!hideProgress && (
+          <div className="particleMorphProgressTrack" aria-label="Progreso estimado de generación">
+            <span
+              className="particleMorphProgressFill"
+              style={{ width: `${showResult ? 100 : Math.max(2, Math.min(100, progress))}%` }}
+            />
+          </div>
+        )}
+        {statusSubtext ? <small>{statusSubtext}</small> : null}
+        {!hideProgress && !statusSubtext && estimatedSeconds != null && estimatedSeconds > 0 && (
           <small>
             {secondsLabel}: {estimatedSeconds >= 60
               ? `${Math.floor(estimatedSeconds / 60)} min ${Math.round(estimatedSeconds % 60)} s`
