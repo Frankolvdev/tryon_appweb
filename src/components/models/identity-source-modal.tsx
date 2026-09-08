@@ -91,12 +91,12 @@ export function IdentitySourceModal({
 
         <div className="identitySourceChoices">
           <button type="button" className={`identitySourceChoice${mode === "create" ? " active" : ""}`} onClick={() => { setMode("create"); setError(""); }}>
-            <img src="/identity-source/create-identity.svg" alt="Representación tecnológica de una identidad en construcción" />
+            <img src="/identity-source/create-identity.webp" alt="Representación tecnológica de una identidad en construcción" />
             <span><b>Crear identidad</b><small>Diseña ojos, cejas, labios, cabello y demás rasgos con IA.</small></span>
             {mode === "create" && <i><Check size={13}/></i>}
           </button>
           <button type="button" className={`identitySourceChoice${mode === "existing" ? " active" : ""}`} onClick={() => { setMode("existing"); setError(""); }}>
-            <img src="/identity-source/existing-face.svg" alt="Representación tecnológica de un rostro existente" />
+            <img src="/identity-source/existing-face.webp" alt="Representación tecnológica de un rostro existente" />
             <span><b>Ya tengo un rostro de identidad</b><small>Sube una imagen frontal y úsala como referencia de identidad.</small></span>
             {mode === "existing" && <i><Check size={13}/></i>}
           </button>

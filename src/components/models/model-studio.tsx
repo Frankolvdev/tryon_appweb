@@ -1,492 +1,87 @@
 "use client";
-import { useEffect,useMemo,useRef,useState,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, Sparkles, X, Pencil, Save } from "lucide-react";
+
+import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowLeft, Check, Pencil, Save, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { getAiModel,listBodyVariants,listBubbleButtVariants,setAiModelBody,saveAiModelDraft } from "@/lib/ai-model-api";
-import type { AiModelProfile,BodyVariant,BubbleButtVariant } from "@/types/ai-model";
-import { ModelImage } from "./model-image";
+import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft, setAiModelBody } from "@/lib/ai-model-api";
+import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
+import { uploadLibraryFileWithProgress } from "@/lib/user-library-api";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
+import type { AiModelProfile, BodyVariant } from "@/types/ai-model";
+import type { ModelGenerationAsset, ModelGenerationToolKey } from "@/types/model-generation-asset";
+import type { ExistingIdentityFile, IdentitySourceMode } from "./identity-source-modal";
+import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
-import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 
-type AxisState={hips:number;fat:number;breasts:number;breastBand:string};
-const EPS=1e-6;
-const displayBodyName=(value:string)=>value
- .replace(/\bAss\b/gi,"Hips")
- .replace(/([_\-])ass\b/gi,"$1hips");
-const eq=(a:number,b:number)=>Math.abs(a-b)<EPS;
-const distance=(v:BodyVariant,s:AxisState)=>{
- const breastPenalty=s.breastBand&&v.breast_band!==s.breastBand?1000:0;
- return breastPenalty+Math.abs(v.hips_size-s.hips)+Math.abs(v.fat_thin-s.fat)+Math.abs(v.breasts_size-s.breasts);
-};
-const resolveVariant=(rows:BodyVariant[],s:AxisState)=>{
- const exact=rows.find(v=>eq(v.hips_size,s.hips)&&eq(v.fat_thin,s.fat)&&eq(v.breasts_size,s.breasts));
- if(exact)return exact;
- return [...rows].sort((a,b)=>distance(a,s)-distance(b,s))[0]??null;
-};
+type BodyControlState={hips:number;buttSize:number;breasts:number;height:number;bubbleButt:number;waist:number;complexion:"slim"|"thick"};
+const DEFAULT_BODY:BodyControlState={hips:1,buttSize:0,breasts:0,height:0,bubbleButt:0,waist:0,complexion:"slim"};
+const BODY_TOOLS:ModelGenerationToolKey[]=["hips","butt_size","breasts","height","bubble_butt","waist","complexion"];
+const HIP_LABELS=["Small Hips","Medium Hips","Big Hips","Huge Hips"];
 
-function BodyStepScannerOverlay() {
- const [scanPercent,setScanPercent]=useState(10);
-
- useEffect(()=>{
-   let raf=0;
-   let disposed=false;
-   const started=performance.now();
-
-   const frame=(now:number)=>{
-     if(disposed)return;
-     // Same triangle-wave movement used by ParticleMorphLoader:
-     // scanSpeed=0.27 and vertical travel from 10% to 90%.
-     const scanT=((now-started)*0.001*0.27)%1;
-     const wave=scanT<0.5?scanT*2:(1-scanT)*2;
-     setScanPercent(10+wave*80);
-     raf=requestAnimationFrame(frame);
-   };
-
-   raf=requestAnimationFrame(frame);
-   return()=>{disposed=true;cancelAnimationFrame(raf)};
- },[]);
-
- return <div className="modelStep02ScannerOverlay" aria-hidden="true">
-   <div
-     className="modelStep02ScannerBand"
-     style={{top:`${scanPercent}%`}}
-   >
-     <span className="modelStep02ScannerBracket left"/>
-     <span className="modelStep02ScannerBracket right"/>
-     <span className="modelStep02ScannerText">
-       <b>ANALYZING</b>
-       <small>{String(Math.round(scanPercent)).padStart(3,"0")}%</small>
-     </span>
-   </div>
- </div>;
-}
+function ordered(items:ModelGenerationAsset[]){return [...items].sort((a,b)=>(a.position??9999)-(b.position??9999)||a.sort_order-b.sort_order||a.id-b.id)}
+function nearestAsset(items:ModelGenerationAsset[],ratio:number){const rows=ordered(items);if(!rows.length)return null;return rows[Math.round(Math.max(0,Math.min(1,ratio))*(rows.length-1))]??rows[0]}
 
 export function ModelStudio({modelId}:{modelId:number}){
- const [identityChoiceOpen,setIdentityChoiceOpen]=useState(false);
-
  const router=useRouter();
- const searchParams=useSearchParams();
- const forceBodyStage=searchParams.get("stage")==="body";
  const [model,setModel]=useState<AiModelProfile|null>(null);
- const [nameEditing,setNameEditing]=useState(false);
- const [items,setItems]=useState<BodyVariant[]>([]);
- const [selected,setSelected]=useState<BodyVariant|null>(null);
- const [axes,setAxes]=useState<AxisState>({hips:0,fat:0,breasts:0,breastBand:""});
- const [gallery,setGallery]=useState(false);
- const [fatFilter,setFatFilter]=useState("all"); const [hipFilter,setHipFilter]=useState("all"); const [breastFilter,setBreastFilter]=useState("all");
- const [saving,setSaving]=useState(false);
- const [draftSaving,setDraftSaving]=useState(false);
- const [transitionKey,setTransitionKey]=useState(0);
- const [loadingTarget,setLoadingTarget]=useState<BodyVariant|null>(null);
- const [scannerFinishing,setScannerFinishing]=useState(false);
- const [bubbleVariants,setBubbleVariants]=useState<BubbleButtVariant[]>([]);
- const [bubbleLoading,setBubbleLoading]=useState(false);
- const [selectedBubbleLevel,setSelectedBubbleLevel]=useState(1);
- const bubbleRequestRef=useRef(0);
- const loadRequestRef=useRef(0);
- const decodedUrlsRef=useRef<Set<string>>(new Set());
- const MIN_SCANNER_MS=1300;
-
- useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman")]).then(([m,c])=>{
-   if(m.stage==="studio"){
-     router.replace(`/models/${modelId}/studio`);
-     return;
-   }
-   if(m.body_proportion_preset_id&&!forceBodyStage){
-     router.replace(`/models/${modelId}/face`);
-     return;
-   }
-   setModel(m);setItems(c.items);
-   const draft=m.draft_json as {kind?:string;body_proportion_preset_id?:number;bubble_butt_variant_index?:number}|undefined;
-   const draftBodyId=draft?.kind==="body"?draft.body_proportion_preset_id:undefined;
-   const initial=c.items.find(x=>x.id===draftBodyId)||c.items.find(x=>x.id===m.body_proportion_preset_id)||c.items[0]||null;
-   setSelected(initial);
-   setSelectedBubbleLevel(draft?.kind==="body"&&draft.bubble_butt_variant_index!=null?draft.bubble_butt_variant_index:(m.bubble_butt_variant_index ?? 1));
-   if(initial)setAxes({hips:initial.hips_size,fat:initial.fat_thin,breasts:initial.breasts_size,breastBand:initial.breast_band||""});
- }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar el estudio"))},[modelId,forceBodyStage,router]);
-
- const values=useMemo(()=>({
-  hips:[...new Set(items.map(x=>x.hips_size))].sort((a,b)=>a-b),
-  fat:[...new Set(items.map(x=>x.fat_thin))].sort((a,b)=>b-a)
- }),[items]);
-
- const breastLevels=useMemo(()=>{
-   const groups=new Map<string,number[]>();
-   for(const item of items){
-     const band=item.breast_band||"";
-     if(!band)continue;
-     const row=groups.get(band)??[];
-     row.push(item.breasts_size);
-     groups.set(band,row);
-   }
-   return [...groups.entries()]
-     .map(([band,nums])=>({
-       band,
-       value:nums.reduce((sum,n)=>sum+n,0)/Math.max(nums.length,1),
-     }))
-     .sort((a,b)=>a.value-b.value);
- },[items]);
-
- const chooseAxis=(key:keyof AxisState,value:number)=>{
-   setAxes(current=>({...current,[key]:value}));
- };
-
- const chooseVariant=(v:BodyVariant)=>{
-   setAxes({hips:v.hips_size,fat:v.fat_thin,breasts:v.breasts_size,breastBand:v.breast_band||""});
- };
-
- useEffect(()=>{
-   if(!items.length)return;
-   const timer=window.setTimeout(()=>{
-     const resolved=resolveVariant(items,axes);
-     if(!resolved||resolved.id===selected?.id){
-       setLoadingTarget(null);
-       return;
-     }
-
-     const requestId=++loadRequestRef.current;
-     setLoadingTarget(resolved);
-     setScannerFinishing(false);
-
-     const minimumVisiblePromise=new Promise<void>(resolve=>{
-       window.setTimeout(resolve,MIN_SCANNER_MS);
-     });
-
-     const imageReadyPromise=new Promise<void>((resolve,reject)=>{
-       if(decodedUrlsRef.current.has(resolved.image_url)){
-         resolve();
-         return;
-       }
-
-       const image=new Image();
-       image.decoding="async";
-       image.src=resolved.image_url;
-
-       const markReady=()=>{
-         decodedUrlsRef.current.add(resolved.image_url);
-         resolve();
-       };
-
-       const decode=image.decode?.bind(image);
-       if(decode){
-         decode().then(markReady).catch(()=>{
-           if(image.complete&&image.naturalWidth>0){
-             markReady();
-           }else{
-             image.onload=markReady;
-             image.onerror=()=>reject(new Error("No se pudo cargar la imagen de la variante."));
-           }
-         });
-       }else{
-         image.onload=markReady;
-         image.onerror=()=>reject(new Error("No se pudo cargar la imagen de la variante."));
-       }
-     });
-
-     Promise.all([imageReadyPromise,minimumVisiblePromise])
-       .then(()=>{
-         if(loadRequestRef.current!==requestId)return;
-         setSelected(resolved);
-         setLoadingTarget(null);
-         setTransitionKey(k=>k+1);
-         setScannerFinishing(true);
-         window.setTimeout(()=>{
-           if(loadRequestRef.current===requestId)setScannerFinishing(false);
-         },180);
-       })
-       .catch(()=>{
-         if(loadRequestRef.current!==requestId)return;
-         setLoadingTarget(null);
-         setScannerFinishing(false);
-       });
-   },55);
-
-   return()=>window.clearTimeout(timer);
- },[axes,items,selected?.id]);
-
- useEffect(()=>{
-   if(!selected?.image_url)return;
-   decodedUrlsRef.current.add(selected.image_url);
- },[selected?.image_url]);
- useEffect(()=>{
-   if(!selected?.id){
-     setBubbleVariants([]);
-     setBubbleLoading(false);
-     return;
-   }
-   const requestId=++bubbleRequestRef.current;
-   setBubbleLoading(true);
-   setBubbleVariants([]);
-   listBubbleButtVariants(selected.id)
-     .then(result=>{
-       if(bubbleRequestRef.current!==requestId)return;
-       setBubbleVariants(result.items);
-     })
-     .catch(()=>{
-       if(bubbleRequestRef.current!==requestId)return;
-       setBubbleVariants([]);
-     })
-     .finally(()=>{
-       if(bubbleRequestRef.current===requestId)setBubbleLoading(false);
-     });
- },[selected?.id]);
-
- const filtered=items.filter(x=>(fatFilter==="all"||x.fat_band===fatFilter)&&(hipFilter==="all"||x.hips_band===hipFilter)&&(breastFilter==="all"||x.breast_band===breastFilter));
- const bands=(key:"fat_band"|"hips_band"|"breast_band")=>[...new Set(items.map(x=>x[key]).filter(Boolean))] as string[];
- async function saveDraft(){
-  if(!selected){toast.error("Selecciona un cuerpo antes de guardar el borrador.");return;}
-  setDraftSaving(true);
-  try{
-   const updated=await saveAiModelDraft(modelId,{kind:"body",body_proportion_preset_id:selected.id,bubble_butt_variant_index:selectedBubbleLevel,axes},displayName.trim()||model?.name);
-   setModel(updated);
-   toast.success("Borrador guardado");
-  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar el borrador")}finally{setDraftSaving(false)}
- }
- async function confirm(){
-  if(!selected)return;
-  const selectedBubble=bubbleVariants.find(item=>item.variant_index===selectedBubbleLevel);
-  if(!selectedBubble){toast.error("Selecciona un nivel de Butt Elevation disponible.");return;}
-  setSaving(true);
-  try{
-   const m=await setAiModelBody(modelId,selected.id,selectedBubble.id);
-   setModel(m);
-   toast.success("Cuerpo y Butt Elevation guardados en tu modelo");
-   // Paso 01 ya quedó persistido. Antes de entrar al Paso 02 el usuario
-   // elige la fuente de identidad; por defecto se mantiene Crear identidad.
-   setIdentityChoiceOpen(true);
-  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setSaving(false)}
- }
- async function confirmIdentitySource(mode:IdentitySourceMode,file:ExistingIdentityFile|null){
-  try{
-   const currentDraft=(model?.draft_json&&typeof model.draft_json==="object")?model.draft_json:{};
-   const updated=await saveAiModelDraft(modelId,{
-    ...currentDraft,
-    kind:"identity",
-    identityMode:mode,
-    existingIdentityFile:mode==="existing"&&file?file:null,
-   },displayName.trim()||model?.name);
-   setModel(updated);
-   setIdentityChoiceOpen(false);
-   router.push(`/models/${modelId}/face`);
-  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar la fuente de identidad")}
- }
+ const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>([]);
+ const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>({});
+ const [phase,setPhase]=useState<"identity"|"body">("identity");
+ const [identityMode,setIdentityMode]=useState<IdentitySourceMode>("create");
+ const [identityFile,setIdentityFile]=useState<ExistingIdentityFile|null>(null);
+ const [uploading,setUploading]=useState(false); const [uploadProgress,setUploadProgress]=useState(0); const inputRef=useRef<HTMLInputElement|null>(null);
+ const [body,setBody]=useState<BodyControlState>(DEFAULT_BODY);
+ const [curvyMode,setCurvyMode]=useState(false);
+ const [saving,setSaving]=useState(false); const [draftSaving,setDraftSaving]=useState(false); const [nameEditing,setNameEditing]=useState(false);
  const [displayName,setDisplayName]=useModelDisplayName(modelId,model?.name);
+
+ useEffect(()=>{Promise.all([getAiModel(modelId),listBodyVariants("woman"),...BODY_TOOLS.map(tool=>listModelGenerationAssets(tool).catch(()=>({items:[],total:0})))])
+  .then(([m,c,...catalogs])=>{setModel(m);setBodyVariants(c.items);const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((tool,i)=>map[tool]=ordered(catalogs[i].items));setAssets(map);
+   const d=m.draft_json as Record<string,unknown>|undefined; const setup=d?.modelSetup as any; const proportions=d?.bodyProportions as Partial<BodyControlState>|undefined;
+   if(setup?.identityMode)setIdentityMode(setup.identityMode); if(setup?.existingIdentityFile)setIdentityFile(setup.existingIdentityFile); if(proportions)setBody({...DEFAULT_BODY,...proportions});
+   if(setup?.completed===true||m.body_proportion_preset_id)setPhase("body");
+  }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar Models IA"))},[modelId]);
+
+ const preview=useMemo(()=>({
+  hips:nearestAsset(assets.hips??[],body.hips/3), butt_size:nearestAsset(assets.butt_size??[],body.buttSize/(curvyMode?7:6||1)), breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),
+  height:nearestAsset(assets.height??[],(body.height+5)/10), bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7), waist:nearestAsset(assets.waist??[],(body.waist+3)/6),
+  complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)
+ }),[assets,body,curvyMode]);
+
+ async function chooseIdentityFile(candidate?:File){if(!candidate)return;if(!candidate.type.startsWith("image/")){toast.error("Selecciona una imagen válida.");return}setUploading(true);setUploadProgress(1);try{const f=await uploadLibraryFileWithProgress(candidate,setUploadProgress);setIdentityFile({id:f.id,filename:f.filename,content_type:f.content_type,url:f.url});setUploadProgress(100)}catch(e){toast.error(e instanceof Error?e.message:"No se pudo subir el rostro")}finally{setUploading(false)}}
+ async function continueIdentity(){if(identityMode==="existing"&&!identityFile){toast.error("Sube un rostro antes de continuar.");return}setSaving(true);try{const current=(model?.draft_json&&typeof model.draft_json==="object")?model.draft_json:{};const updated=await saveAiModelDraft(modelId,{...current,modelSetup:{sex:"woman",identityMode,existingIdentityFile:identityMode==="existing"?identityFile:null,completed:true}},displayName.trim()||model?.name);setModel(updated);setPhase("body")}catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar Identidad")}finally{setSaving(false)}}
+ async function saveBodyDraft(){setDraftSaving(true);try{const current=(model?.draft_json&&typeof model.draft_json==="object")?model.draft_json:{};const updated=await saveAiModelDraft(modelId,{...current,bodyProportions:body,bodyMode:curvyMode?"curvy":"fit"},displayName.trim()||model?.name);setModel(updated);toast.success("Borrador guardado")}catch(e){toast.error(e instanceof Error?e.message:"No se pudo guardar")}finally{setDraftSaving(false)}}
+ async function continueBody(){if(!bodyVariants.length){toast.error("No hay presets corporales base disponibles.");return}setSaving(true);try{
+   const hipsRatio=body.hips/3, breastRatio=(body.breasts+5)/10; const hipsVals=[...new Set(bodyVariants.map(x=>x.hips_size))].sort((a,b)=>a-b);const breastVals=[...new Set(bodyVariants.map(x=>x.breasts_size))].sort((a,b)=>a-b);
+   const targetHip=hipsVals[Math.round(hipsRatio*Math.max(hipsVals.length-1,0))]??hipsVals[0];const targetBreast=breastVals[Math.round(breastRatio*Math.max(breastVals.length-1,0))]??breastVals[0];
+   const preset=[...bodyVariants].sort((a,b)=>Math.abs(a.hips_size-targetHip)+Math.abs(a.breasts_size-targetBreast))[0]; if(!preset)throw new Error("No se pudo resolver el preset corporal base.");
+   const bubbles=await listBubbleButtVariants(preset.id); const bubbleIndex=Math.round((body.bubbleButt/.7)*Math.max(bubbles.items.length-1,0));const bubble=bubbles.items[bubbleIndex]??bubbles.items[0];if(!bubble)throw new Error("Este cuerpo no tiene Butt Elevation disponible.");
+   const current=(model?.draft_json&&typeof model.draft_json==="object")?model.draft_json:{};await saveAiModelDraft(modelId,{...current,bodyProportions:body,bodyMode:curvyMode?"curvy":"fit"},displayName.trim()||model?.name);await setAiModelBody(modelId,preset.id,bubble.id);router.push(`/models/${modelId}/face`);
+  }catch(e){toast.error(e instanceof Error?e.message:"No se pudo continuar")}finally{setSaving(false)}}
  if(!model)return <div className="modelLoading pageEnter"><span className="spinner"/><p>Preparando el estudio…</p></div>;
- return <div className="modelStudioViewport">
-  <aside className="modelStudioStageRail">
-   <ModelGlobalTimeline modelId={modelId} active="body" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
-  </aside>
-  <div className="modelStudioStageContent">
-   <div className="modelStudio pageEnter">
-  <div className="modelHeaderShell">
-   <button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button>
-   <header className="modelStudioHead">
-    <div className="modelHeaderRail">
-     <div className="modelEditableName">
-      {nameEditing?<input autoFocus value={displayName} maxLength={40} onChange={e=>setDisplayName(e.target.value)} onBlur={()=>setNameEditing(false)} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")setNameEditing(false)}} aria-label="Nombre temporal de la modelo"/>:<button type="button" onClick={()=>setNameEditing(true)} title="Editar nombre temporal"><h1>{displayName}</h1><Pencil size={13}/></button>}
-     </div>
-     <div className="modelSculptWidget">
-      <div className="modelSculptWidgetBadge">01</div>
-      <div className="modelSculptWidgetCopy">
-       <h2>Esculpe tu cuerpo</h2>
-       <p>Define la silueta. Tus sliders conservan cada selección y la preview busca la combinación disponible correspondiente.</p>
-      </div>
-      <button type="button" className="modelDraftSaveButton" onClick={saveDraft} disabled={draftSaving}>
-       <Save size={15}/>{draftSaving?"Guardando…":"Guardar borrador"}
-      </button>
-     </div>
-    </div>
-   </header>
-  </div>
-  {items.length===0?<div className="modelEmpty"><Sparkles/><h2>Aún no hay cuerpos publicados</h2><p>Genera y guarda variantes desde Body Proportions en el BackOffice. Solo las imágenes listas aparecen aquí.</p></div>:<div className="modelBuilder">
-   <div className="modelLeftRail">
-    <section className={`modelPreviewPanel${loadingTarget?" isLoading":""}`}>
-     <div className={`modelPreviewHybrid${loadingTarget?" loading":""}${scannerFinishing?" finishing":""}`}>
-       {selected&&<div key={transitionKey} className="modelPreviewCurrent"><ModelImage src={selected.image_url} alt={displayBodyName(selected.display_name)} className="modelHeroImage"/></div>}
-       {(loadingTarget||scannerFinishing)&&<BodyStepScannerOverlay/>}
-     </div>
-    </section>
-         
-   
-    
-   
-    <button className="modelGalleryBtn modelGalleryBtnBelow" onClick={()=>setGallery(true)}>
-     <span className="modelGalleryCustomIcon" aria-hidden="true">
-      <svg viewBox="0 0 32 32">
-       <rect x="3.5" y="5" width="10" height="10" rx="2.5"/>
-       <rect x="18.5" y="5" width="10" height="10" rx="2.5"/>
-       <rect x="3.5" y="19" width="10" height="8" rx="2.5"/>
-       <path d="M19.5 23h8M23.5 19v8"/>
-       <path d="M6.5 12l2.1-2.1 2.2 2.2"/>
-       <circle cx="24.5" cy="9" r="1.5"/>
-      </svg>
-     </span>
-     <span>Ver todas las variantes</span>
-    </button>
-   </div>
-   <section className="modelControls">
-    <Axis label="Hips" value={axes.hips} values={values.hips} minLabel="Small" maxLabel="Huge" onChange={v=>chooseAxis("hips",v)}/><Axis label="Fat / Thin" value={axes.fat} values={values.fat} minLabel="Very Low Fat" maxLabel="Very High Fat" onChange={v=>chooseAxis("fat",v)}/><BreastAxis levels={breastLevels} selectedBand={axes.breastBand} onChange={level=>setAxes(current=>({...current,breastBand:level.band,breasts:level.value}))}/>
-          <div className="modelBubblePicker">
-     <div className="modelBubbleHeading"><strong>Butt Elevation</strong><span>{bubbleLoading?"Cargando…":`${bubbleVariants.length}/4 disponibles`}</span></div>
-     <div className="modelBubbleRow">
-     {bubbleLoading
-     ? [1,2,3,4].map(index=><div key={index} className="modelBubbleCard loading"><div className="modelBubbleLoadingVisual"><div className="modelImagePlaceholder"><span>✦</span></div></div></div>)
-     : [1,2,3,4].map(index=>{
-     const variant=bubbleVariants.find(item=>item.variant_index===index);
-     return variant
-     ? <button type="button" key={variant.id} className={`modelBubbleCard${selectedBubbleLevel===index?" selected":""}`} onClick={()=>setSelectedBubbleLevel(index)} aria-pressed={selectedBubbleLevel===index}>
-     <ModelImage src={variant.image_url} alt={variant.display_name}/>
-
-     </button>
-     : <div key={index} className="modelBubbleCard missing"><div className="modelBubbleMissing">Sin preview</div></div>;
-     })}
-     </div>
-     </div>
-     <button className="modelConfirm" onClick={confirm} disabled={!selected||saving||!bubbleVariants.some(item=>item.variant_index===selectedBubbleLevel)}><Check size={17}/>{saving?"Guardando…":"Usar este cuerpo"}</button>
-   </section></div>}
-  {gallery&&<div className="modelModal"><button className="modelModalBackdrop" onClick={()=>setGallery(false)} aria-label="Cerrar"/><div className="modelGallery"><header><div><span className="eyebrow">BIBLIOTECA CORPORAL</span><h2>Todas las variantes</h2><p>{filtered.length} de {items.length} disponibles</p></div><button className="modelIconBtn" onClick={()=>setGallery(false)}><X/></button></header><div className="modelFilters"><Filter label="Grasa" value={fatFilter} options={bands("fat_band")} onChange={setFatFilter}/><Filter label="Hips" value={hipFilter} options={bands("hips_band")} onChange={setHipFilter}/><Filter label="Breasts" value={breastFilter} options={bands("breast_band")} onChange={setBreastFilter}/></div><div className="modelGalleryGrid">{filtered.map(v=><button key={v.id} className={`modelVariant${selected?.id===v.id?" active":""}`} onClick={()=>{chooseVariant(v);setGallery(false)}}><ModelImage src={v.image_url} alt={displayBodyName(v.display_name)}/><div><strong>{displayBodyName(v.display_name)}</strong><small>H {v.hips_size} · F {v.fat_thin} · B {v.breasts_size}</small></div></button>)}</div></div></div>}
-  <IdentitySourceModal open={identityChoiceOpen} initialMode="create" onClose={()=>setIdentityChoiceOpen(false)} allowClose={true} onConfirm={confirmIdentitySource}/>
-   </div>
-  </div>
- </div>
+ return <div className="modelStudioViewport modelStudioV2"><aside className="modelStudioStageRail"><ModelGlobalTimeline modelId={modelId} active={phase==="identity"?"identity":"body"} bodyConfirmed={phase==="body"}/></aside><div className="modelStudioStageContent"><div className="modelStudio pageEnter">
+  <div className="modelHeaderShell"><button onClick={()=>router.push("/models")} className="modelIconBtn modelBackOutside"><ArrowLeft size={18}/></button><header className="modelStudioHead"><div className="modelHeaderRail"><div className="modelEditableName">{nameEditing?<input autoFocus value={displayName} maxLength={40} onChange={e=>setDisplayName(e.target.value)} onBlur={()=>setNameEditing(false)} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")setNameEditing(false)}}/>:<button type="button" onClick={()=>setNameEditing(true)}><h1>{displayName}</h1><Pencil size={13}/></button>}</div><div className="modelSculptWidget"><div className="modelSculptWidgetBadge">{phase==="identity"?"01":"02"}</div><div className="modelSculptWidgetCopy"><h2>{phase==="identity"?"Identidad":"Cuerpo"}</h2><p>{phase==="identity"?"Define quién será tu modelo antes de construir sus rasgos.":"Construye el cuerpo y después continúa con cabello, ojos y demás rasgos."}</p></div>{phase==="body"&&<button className="modelDraftSaveButton" onClick={saveBodyDraft} disabled={draftSaving}><Save size={15}/>{draftSaving?"Guardando…":"Guardar borrador"}</button>}</div></div></header></div>
+  {phase==="identity"?<IdentitySetup name={displayName} setName={setDisplayName} mode={identityMode} setMode={setIdentityMode} file={identityFile} uploading={uploading} progress={uploadProgress} inputRef={inputRef} chooseFile={chooseIdentityFile} onContinue={continueIdentity} saving={saving}/>:<BodySetup body={body} setBody={setBody} curvy={curvyMode} setCurvy={setCurvyMode} preview={preview} onContinue={continueBody} saving={saving}/>} 
+ </div></div></div>
 }
 
-function Axis({label,value,values,onChange,minLabel,maxLabel}:{label:string;value:number;values:number[];onChange:(v:number)=>void;minLabel:string;maxLabel:string}){
- const trackRef=useRef<HTMLDivElement|null>(null);
- const draggingRef=useRef(false);
- const index=Math.max(0,values.findIndex(v=>eq(v,value)));
- const safeIndex=index>=0?index:0;
- const percent=values.length<=1?0:(safeIndex/(values.length-1))*100;
-
- const updateFromClientX=(clientX:number)=>{
-   const track=trackRef.current;
-   if(!track||!values.length)return;
-   const rect=track.getBoundingClientRect();
-   const ratio=Math.min(1,Math.max(0,(clientX-rect.left)/Math.max(rect.width,1)));
-   const nextIndex=Math.round(ratio*Math.max(values.length-1,0));
-   const next=values[nextIndex];
-   if(next!==undefined&&!eq(next,value))onChange(next);
- };
-
- const onPointerDown=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   draggingRef.current=true;
-   event.currentTarget.setPointerCapture(event.pointerId);
-   updateFromClientX(event.clientX);
- };
- const onPointerMove=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   if(!draggingRef.current)return;
-   updateFromClientX(event.clientX);
- };
- const stopDrag=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   draggingRef.current=false;
-   if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
- };
- const onKeyDown=(event:ReactKeyboardEvent<HTMLDivElement>)=>{
-   if(!values.length)return;
-   let nextIndex=safeIndex;
-   if(event.key==="ArrowRight"||event.key==="ArrowUp")nextIndex=Math.min(values.length-1,safeIndex+1);
-   else if(event.key==="ArrowLeft"||event.key==="ArrowDown")nextIndex=Math.max(0,safeIndex-1);
-   else if(event.key==="Home")nextIndex=0;
-   else if(event.key==="End")nextIndex=values.length-1;
-   else return;
-   event.preventDefault();
-   onChange(values[nextIndex]??value);
- };
-
- return <div className="modelAxis">
-   <div><label>{label}</label></div>
-   <div
-     ref={trackRef}
-     className="modelDiscreteSlider"
-     role="slider"
-     tabIndex={0}
-     aria-label={label}
-     aria-valuemin={values[0]??0}
-     aria-valuemax={values.at(-1)??0}
-     aria-valuenow={value}
-     onPointerDown={onPointerDown}
-     onPointerMove={onPointerMove}
-     onPointerUp={stopDrag}
-     onPointerCancel={stopDrag}
-     onKeyDown={onKeyDown}
-   >
-     <div className="modelDiscreteRail"/>
-     <div className="modelDiscreteFill" style={{width:`${percent}%`}}/>
-     {values.map((v,i)=><span key={`${label}-${v}`} className={`modelDiscreteTick${i===safeIndex?" active":""}`} style={{left:`${values.length<=1?0:(i/(values.length-1))*100}%`}}/>)}
-     <span className="modelDiscreteThumb" style={{left:`${percent}%`}}/>
-   </div>
-   <div className="modelAxisEnds"><span>{minLabel}</span><span>{maxLabel}</span></div>
- </div>
+function IdentitySetup({name,setName,mode,setMode,file,uploading,progress,inputRef,chooseFile,onContinue,saving}:{name:string;setName:(v:string)=>void;mode:IdentitySourceMode;setMode:(v:IdentitySourceMode)=>void;file:ExistingIdentityFile|null;uploading:boolean;progress:number;inputRef:React.RefObject<HTMLInputElement|null>;chooseFile:(f?:File)=>void;onContinue:()=>void;saving:boolean}){
+ const drop=(e:DragEvent<HTMLButtonElement>)=>{e.preventDefault();if(!uploading)chooseFile(e.dataTransfer.files?.[0])};
+ return <section className="modelV2Centered modelIdentityStep"><div className="modelV2NodeHead"><span>01</span><div><small>INFORMACIÓN INICIAL</small><h2>Identidad</h2><p>Configura los datos base y decide cómo crear el rostro.</p></div></div><div className="modelV2Field"><label>Sexo</label><div className="modelV2Sex"><button className="active"><strong>Mujer</strong><small>Disponible</small></button><button disabled><strong>Hombre</strong><small>Próximamente</small></button></div></div><div className="modelV2Field"><label>Nombre de la modelo</label><input value={name} maxLength={40} onChange={e=>setName(e.target.value)} placeholder="Ej. Sofia"/></div><div className="modelV2IdentityChoices"><button className={mode==="create"?"active":""} onClick={()=>setMode("create")}><img src="/identity-source/create-identity.svg" alt=""/><span><b>Crear identidad</b><small>Diseña el rostro y sus rasgos con IA.</small></span>{mode==="create"&&<i><Check size={13}/></i>}</button><button className={mode==="existing"?"active":""} onClick={()=>setMode("existing")}><img src="/identity-source/existing-face.svg" alt=""/><span><b>Ya tengo un rostro</b><small>Usa una imagen frontal autorizada.</small></span>{mode==="existing"&&<i><Check size={13}/></i>}</button></div>{mode==="existing"&&<><button className={`modelV2Drop${file?" hasFile":""}`} onClick={()=>!uploading&&inputRef.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={drop}>{file?<img src={file.url} alt="Rostro seleccionado"/>:<Upload size={24}/>}<span><b>{file?file.filename:"Arrastra aquí el rostro o haz clic para elegirlo"}</b><small>JPG, PNG o WEBP · imagen clara y frontal</small></span></button><input ref={inputRef} hidden type="file" accept="image/*" onChange={e=>chooseFile(e.target.files?.[0])}/>{(uploading||progress>0)&&<div className="modelV2Progress"><span style={{width:`${progress}%`}}/></div>}</>}<button className="modelConfirm" onClick={onContinue} disabled={saving||(mode==="existing"&&!file)}><Check size={17}/>{saving?"Guardando…":"Continuar a Cuerpo"}</button></section>
 }
 
-function BreastAxis({levels,selectedBand,onChange}:{levels:{band:string;value:number}[];selectedBand:string;onChange:(level:{band:string;value:number})=>void}){
- const trackRef=useRef<HTMLDivElement|null>(null);
- const draggingRef=useRef(false);
- const selectedIndex=Math.max(0,levels.findIndex(level=>level.band===selectedBand));
- const safeIndex=selectedIndex>=0?selectedIndex:0;
- const percent=levels.length<=1?0:(safeIndex/(levels.length-1))*100;
-
- const updateFromClientX=(clientX:number)=>{
-   const track=trackRef.current;
-   if(!track||!levels.length)return;
-   const rect=track.getBoundingClientRect();
-   const ratio=Math.min(1,Math.max(0,(clientX-rect.left)/Math.max(rect.width,1)));
-   const nextIndex=Math.round(ratio*Math.max(levels.length-1,0));
-   const next=levels[nextIndex];
-   if(next&&next.band!==selectedBand)onChange(next);
- };
-
- const onPointerDown=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   draggingRef.current=true;
-   event.currentTarget.setPointerCapture(event.pointerId);
-   updateFromClientX(event.clientX);
- };
- const onPointerMove=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   if(draggingRef.current)updateFromClientX(event.clientX);
- };
- const stopDrag=(event:ReactPointerEvent<HTMLDivElement>)=>{
-   draggingRef.current=false;
-   if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
- };
- const onKeyDown=(event:ReactKeyboardEvent<HTMLDivElement>)=>{
-   if(!levels.length)return;
-   let nextIndex=safeIndex;
-   if(event.key==="ArrowRight"||event.key==="ArrowUp")nextIndex=Math.min(levels.length-1,safeIndex+1);
-   else if(event.key==="ArrowLeft"||event.key==="ArrowDown")nextIndex=Math.max(0,safeIndex-1);
-   else if(event.key==="Home")nextIndex=0;
-   else if(event.key==="End")nextIndex=levels.length-1;
-   else return;
-   event.preventDefault();
-   const next=levels[nextIndex];
-   if(next)onChange(next);
- };
-
- const current=levels[safeIndex];
- return <div className="modelAxis">
-   <div><label>Breasts</label></div>
-   <div
-     ref={trackRef}
-     className="modelDiscreteSlider"
-     role="slider"
-     tabIndex={0}
-     aria-label="Breasts"
-     aria-valuemin={0}
-     aria-valuemax={Math.max(0,levels.length-1)}
-     aria-valuenow={safeIndex}
-     onPointerDown={onPointerDown}
-     onPointerMove={onPointerMove}
-     onPointerUp={stopDrag}
-     onPointerCancel={stopDrag}
-     onKeyDown={onKeyDown}
-   >
-     <div className="modelDiscreteRail"/>
-     <div className="modelDiscreteFill" style={{width:`${percent}%`}}/>
-     {levels.map((level,i)=><span key={level.band} className={`modelDiscreteTick${i===safeIndex?" active":""}`} style={{left:`${levels.length<=1?0:(i/(levels.length-1))*100}%`}}/>)}
-     <span className="modelDiscreteThumb" style={{left:`${percent}%`}}/>
-   </div>
-   <div className="modelAxisEnds"><span>Small</span><span>Huge</span></div>
- </div>
+function BodySetup({body,setBody,curvy,setCurvy,preview,onContinue,saving}:{body:BodyControlState;setBody:React.Dispatch<React.SetStateAction<BodyControlState>>;curvy:boolean;setCurvy:(v:boolean)=>void;preview:Record<string,ModelGenerationAsset|null>;onContinue:()=>void;saving:boolean}){
+ const set=<K extends keyof BodyControlState>(key:K,value:BodyControlState[K])=>setBody(s=>({...s,[key]:value}));
+ return <section className="modelV2Centered modelBodyStep"><div className="modelV2NodeHead"><span>01</span><div><small>NODO 01</small><h2>Proporciones corporales</h2><p>Define la silueta base. Los previews cambian según las posiciones publicadas en Backoffice.</p></div></div><div className="modelV2Complexion"><label>Complexion</label><div>{(["slim","thick"] as const).map(v=><button key={v} className={body.complexion===v?"active":""} onClick={()=>set("complexion",v)}>{preview.complexion&&body.complexion===v?<AssetPreview asset={preview.complexion}/>:null}<b>{v==="slim"?"Slim":"Thick"}</b></button>)}</div></div><div className="modelV2ControlsGrid">
+ <Control label="Hips" value={body.hips} display={HIP_LABELS[body.hips]} min={0} max={3} step={1} left="Small" right="Huge" asset={preview.hips} onChange={v=>set("hips",v)}/>
+ <div><div className="modelV2ModeRow"><strong>Butt Size</strong><span><button className={!curvy?"active":""} onClick={()=>{setCurvy(false);if(body.buttSize>6)set("buttSize",6)}}>Fit</button><button className={curvy?"active":""} onClick={()=>setCurvy(true)}>Curvy</button></span></div><Control label="" value={body.buttSize} display={`+${body.buttSize}`} min={0} max={curvy?7:6} step={1} left="0" right={`+${curvy?7:6}`} asset={preview.butt_size} onChange={v=>set("buttSize",v)}/></div>
+ <Control label="Breasts" value={body.breasts} display={body.breasts>0?`+${body.breasts}`:`${body.breasts}`} min={-5} max={5} step={1} left="-5" right="+5" asset={preview.breasts} onChange={v=>set("breasts",v)}/>
+ <Control label="Height" value={body.height} display={body.height>0?`+${body.height}`:`${body.height}`} min={-5} max={5} step={1} left="-5" right="+5" asset={preview.height} onChange={v=>set("height",v)}/>
+ <Control label="Bubble Butt" value={body.bubbleButt} display={body.bubbleButt.toFixed(1)} min={0} max={0.7} step={0.1} left="0" right="0.7" asset={preview.bubble_butt} onChange={v=>set("bubbleButt",Number(v.toFixed(1)))}/>
+ <Control label="Waist" value={body.waist} display={body.waist>0?`+${body.waist}`:`${body.waist}`} min={-3} max={3} step={1} left="-3" right="+3" asset={preview.waist} onChange={v=>set("waist",v)}/>
+ </div><button className="modelConfirm" onClick={onContinue} disabled={saving}><Check size={17}/>{saving?"Guardando…":"Continuar con los rasgos"}</button></section>
 }
-function Filter({label,value,options,onChange}:{label:string;value:string;options:string[];onChange:(v:string)=>void}){return <label><span>{label}</span><select value={value} onChange={e=>onChange(e.target.value)}><option value="all">Todos</option>{options.map(x=><option value={x} key={x}>{x.replaceAll("_"," ")}</option>)}</select></label>}
+function AssetPreview({asset}:{asset:ModelGenerationAsset}){const src=asset.poster_url||asset.video_url;return src?<span className="modelV2AssetPreview">{asset.video_url&&!asset.poster_url?<video src={asset.video_url} muted playsInline/>:<img src={src} alt=""/>}</span>:null}
+function Control({label,value,display,min,max,step,left,right,asset,onChange}:{label:string;value:number;display:string;min:number;max:number;step:number;left:string;right:string;asset:ModelGenerationAsset|null;onChange:(v:number)=>void}){return <div className="modelV2Control">{asset&&<AssetPreview asset={asset}/>}<div className="modelV2ControlMain"><div className="modelV2ControlHead"><strong>{label}</strong><output>{display}</output></div><DiscreteSlider value={value} min={min} max={max} step={step} onChange={onChange}/><div className="modelAxisEnds"><span>{left}</span><span>{right}</span></div></div></div>}
+function DiscreteSlider({value,min,max,step,onChange}:{value:number;min:number;max:number;step:number;onChange:(v:number)=>void}){const ref=useRef<HTMLDivElement|null>(null);const drag=useRef(false);const percent=((value-min)/Math.max(max-min,step))*100;const update=(x:number)=>{const el=ref.current;if(!el)return;const r=el.getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(x-r.left)/Math.max(r.width,1)));const raw=min+ratio*(max-min);const next=Math.max(min,Math.min(max,Math.round((raw-min)/step)*step+min));onChange(Number(next.toFixed(4)))};return <div ref={ref} className="modelDiscreteSlider" role="slider" tabIndex={0} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} onPointerDown={(e:ReactPointerEvent<HTMLDivElement>)=>{drag.current=true;e.currentTarget.setPointerCapture(e.pointerId);update(e.clientX)}} onPointerMove={(e:ReactPointerEvent<HTMLDivElement>)=>{if(drag.current)update(e.clientX)}} onPointerUp={e=>{drag.current=false;e.currentTarget.releasePointerCapture(e.pointerId)}} onKeyDown={e=>{if(e.key==="ArrowLeft"||e.key==="ArrowDown"){e.preventDefault();onChange(Math.max(min,value-step))}if(e.key==="ArrowRight"||e.key==="ArrowUp"){e.preventDefault();onChange(Math.min(max,value+step))}}><div className="modelDiscreteRail"/><div className="modelDiscreteFill" style={{width:`${percent}%`}}/><span className="modelDiscreteThumb" style={{left:`${percent}%`}}/></div>}

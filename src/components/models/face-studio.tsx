@@ -1376,7 +1376,7 @@ useEffect(() => {
   return (
     <div className="modelStudioViewport">
       <aside className="modelStudioStageRail">
-        <ModelGlobalTimeline modelId={modelId} active="identity" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
+        <ModelGlobalTimeline modelId={modelId} active="body" bodyConfirmed={Boolean(model.body_proportion_preset_id)} />
       </aside>
       <div className="modelStudioStageContent">
         <div className="modelStudio faceStudio pageEnter">
