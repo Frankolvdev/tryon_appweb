@@ -382,6 +382,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationRecoveryRetryRef = useRef<number | null>(null);
   const generationRecoveryMountedRef = useRef(true);
   const generationFocusPreviewRef = useRef<HTMLDivElement | null>(null);
+  const generationVisualClockRef = useRef<{ id: string; startedAtMs: number } | null>(null);
   const generationAncestryCollapseAnchorTopRef = useRef<number | null>(null);
   const [generationAncestryCollapsed, setGenerationAncestryCollapsed] = useState(false);
   const [generationModuleInfo, setGenerationModuleInfo] = useState<GenerationModule | null>(null);
@@ -626,6 +627,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
 
   useEffect(() => {
     if (!isGenerationProviderPending(generatedExecution)) return;
+    if (
+      generatedExecution &&
+      generatedExecution.engine !== "owner_local" &&
+      generatedExecution.engine !== "local_docker" &&
+      generationVisualClockRef.current?.id !== generatedExecution.id
+    ) {
+      generationVisualClockRef.current = { id: generatedExecution.id, startedAtMs: Date.now() };
+    }
     setProgressClock(Date.now());
     const timer = window.setInterval(() => setProgressClock(Date.now()), 500);
     return () => window.clearInterval(timer);
@@ -962,6 +971,8 @@ useEffect(() => {
       console.groupEnd();
 
       const execution = await executeGenerationModule(generationModule.id, payload);
+      generationVisualClockRef.current = { id: execution.id, startedAtMs: Date.now() };
+      setProgressClock(Date.now());
       setGeneratedExecution(execution);
       setActiveStep(identityDoneStepIndex);
       track(execution, {
@@ -1072,27 +1083,45 @@ useEffect(() => {
     generationIsBusy ||
     generationHasCompletedResult;
 
-  const estimatedGenerationSeconds =
-    generationLoadingProgressMode === "backend"
-      ? generatedExecution?.loading_backend_estimated_duration_seconds ?? null
-      : (generatingModel ? null : generatedExecution?.estimated_duration_seconds) ??
-        generationModuleInfo?.pricing?.estimated_duration_seconds ??
-        null;
+  const generationUsesLocalTiming =
+    generatedExecution?.engine === "owner_local" ||
+    generatedExecution?.engine === "local_docker" ||
+    (!generatedExecution &&
+      (generationModuleInfo?.default_execution_engine === "owner_local" ||
+        generationModuleInfo?.default_execution_engine === "local_docker"));
 
+  const estimatedGenerationSeconds = generationUsesLocalTiming
+    ? (generationLoadingProgressMode === "backend"
+        ? generatedExecution?.loading_backend_estimated_duration_seconds ?? null
+        : generatedExecution?.estimated_duration_seconds ??
+          generationModuleInfo?.pricing?.estimated_duration_seconds ??
+          null)
+    : (generatingModel ? null : generatedExecution?.estimated_duration_seconds) ??
+      generationModuleInfo?.pricing?.estimated_duration_seconds ??
+      null;
+
+  // Remote providers use one visual clock for BOTH countdown and percentage.
+  // Never derive the percentage from backend created_at/started_at while the
+  // countdown is using another ETA source; that was what allowed 7 min ETA to
+  // jump to ~95% after only a few minutes. Local/Owner Local intentionally
+  // remain backend-driven because ComfyUI/local execution has different timing.
   const elapsedGenerationSeconds = useMemo(() => {
-    // A new dispatch must start from a clean visual clock even while a slow
-    // connection still leaves the previous completed execution in React state.
     if (generatingModel || !generatedExecution) return 0;
+
+    if (!generationUsesLocalTiming) {
+      const anchor = generationVisualClockRef.current;
+      if (!anchor || anchor.id !== generatedExecution.id) return 0;
+      const endMs = generatedExecution.finished_at ? progressClock : progressClock;
+      return Math.max(0, (endMs - anchor.startedAtMs) / 1000);
+    }
+
     const startedAt = generatedExecution.started_at || generatedExecution.created_at;
     const startedMs = backendTimestampMs(startedAt);
     if (!Number.isFinite(startedMs)) return 0;
     const endMs = generatedExecution.finished_at ? backendTimestampMs(generatedExecution.finished_at) : progressClock;
     return Math.max(0, (endMs - startedMs) / 1000);
-  }, [generatedExecution, generatingModel, progressClock]);
+  }, [generatedExecution, generatingModel, generationUsesLocalTiming, progressClock]);
 
-  // User-facing generation ETA is provider-agnostic. It is a countdown tied
-  // to the same visual progress clock: 0..95% during queued/running, and 100%
-  // only after Backend confirms completed. If ETA expires first, stay at 95%.
   const loadingDisplaySeconds = useMemo(() => {
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) return null;
     if (generatingModel) return estimatedGenerationSeconds;
@@ -1107,13 +1136,19 @@ useEffect(() => {
       return Math.max(0, Math.min(95, generatedExecution.progress || 0));
     }
 
+    // Local Docker / Owner Local: preserve the legacy distinction. Their
+    // provider/backend progress is authoritative; do not fake remote ETA progress.
+    if (generationUsesLocalTiming) {
+      return Math.min(95, Math.max(generatedExecution.status === "queued" ? 2 : 8, generatedExecution.progress || 0));
+    }
+
     if (!estimatedGenerationSeconds || estimatedGenerationSeconds <= 0) {
       return Math.min(95, Math.max(generatedExecution.status === "queued" ? 2 : 8, generatedExecution.progress || 0));
     }
 
     const timeProgress = (elapsedGenerationSeconds / estimatedGenerationSeconds) * 95;
     return Math.max(0, Math.min(95, timeProgress));
-  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution, generatingModel]);
+  }, [elapsedGenerationSeconds, estimatedGenerationSeconds, generatedExecution, generatingModel, generationUsesLocalTiming]);
 
   const estimatedTokens =
     generationModuleInfo?.pricing?.required_tokens ??
@@ -1629,7 +1664,7 @@ useEffect(() => {
                 onClick={() => setEditingGeneratedResult(true)}
               >
                 <WandSparkles size={19} />
-                <span><strong>Modificar e intentar de nuevo</strong><small>Conserva todas tus selecciones</small></span>
+                <span><strong>Modificar</strong></span>
               </button>
               <button
                 className="faceGenerateModelButton faceGenerateModelButtonDone faceUseGeneratedButton"
