@@ -52,13 +52,14 @@ export function preloadBodyProportionsStep(bodyDraft?:Partial<BodyControlState>|
  }).catch(()=>undefined);
 }
 
-export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:number;onComplete:()=>void;onDraftChange?:(body:BodyControlState,mode:"fit"|"curvy")=>void}){
+export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:number;onComplete:()=>void;onDraftChange?:(body:BodyControlState,mode:"fit"|"curvy",meta:{heightTouched:boolean})=>void}){
  const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>(()=>BODY_VARIANTS_CACHE??[]);
  const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>(()=>BODY_ASSETS_CACHE??{});
  const [body,setBody]=useState(DEFAULT_BODY);
  const [saving,setSaving]=useState(false);
+ const [heightTouched,setHeightTouched]=useState(false);
  const [catalogLoading,setCatalogLoading]=useState(()=>!(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE));
- useEffect(()=>{onDraftChange?.(body,"fit")},[body,onDraftChange]);
+ useEffect(()=>{onDraftChange?.(body,"fit",{heightTouched})},[body,heightTouched,onDraftChange]);
  useEffect(()=>{
   let alive=true;
   setCatalogLoading(true);
@@ -67,7 +68,22 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
     if(!alive)return;
     setBodyVariants(variants);
     setAssets(map);
-    const d=m.draft_json as any;if(d?.bodyProportions){const restored={...DEFAULT_BODY,...d.bodyProportions};restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));setBody(restored)}
+    const d=m.draft_json as any;
+    if(d?.bodyProportions){
+      const savedHeightTouched=d?.bodyProportionsMeta?.heightTouched===true;
+      const restored={...DEFAULT_BODY,...d.bodyProportions};
+      restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));
+      // Drafts created before height-touch tracking can contain a legacy
+      // height value even when the user never chose Height. Treat those as
+      // untouched and restore the documented default (0). Once the user
+      // moves Height, heightTouched=true preserves the chosen value.
+      if(!savedHeightTouched)restored.height=0;
+      setHeightTouched(savedHeightTouched);
+      setBody(restored);
+    } else {
+      setHeightTouched(false);
+      setBody(DEFAULT_BODY);
+    }
    })
    .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar las proporciones")})
    .finally(()=>{if(alive)setCatalogLoading(false)});
@@ -75,7 +91,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
  },[modelId]);
  const preview=useMemo(()=>({hips:nearestAsset(assets.hips??[],body.hips/3),butt_size:nearestAsset(assets.butt_size??[],body.buttSize/7),breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),height:nearestAsset(assets.height??[],(body.height+5)/10),bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7),waist:nearestAsset(assets.waist??[],(body.waist+3)/6),complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)}),[assets,body]);
  const set=<K extends keyof BodyControlState>(k:K,v:BodyControlState[K])=>setBody(s=>({...s,[k]:v}));
- async function confirm(){if(!bodyVariants.length){toast.error("No hay presets corporales base disponibles.");return}setSaving(true);try{const hipsVals=[...new Set(bodyVariants.map(x=>x.hips_size))].sort((a,b)=>a-b);const breastVals=[...new Set(bodyVariants.map(x=>x.breasts_size))].sort((a,b)=>a-b);const targetHip=hipsVals[Math.round((body.hips/3)*Math.max(hipsVals.length-1,0))]??hipsVals[0];const targetBreast=breastVals[Math.round(((body.breasts+5)/10)*Math.max(breastVals.length-1,0))]??breastVals[0];const preset=[...bodyVariants].sort((a,b)=>Math.abs(a.hips_size-targetHip)+Math.abs(a.breasts_size-targetBreast))[0];if(!preset)throw new Error("No se pudo resolver el preset corporal base.");const bubbles=await listBubbleButtVariants(preset.id);const bubble=bubbles.items[Math.round((body.bubbleButt/.7)*Math.max(bubbles.items.length-1,0))]??bubbles.items[0];if(!bubble)throw new Error("Este cuerpo no tiene Butt Elevation disponible.");const m=await getAiModel(modelId);const current=(m.draft_json&&typeof m.draft_json==="object")?m.draft_json:{};await saveAiModelDraft(modelId,{...current,bodyProportions:body,bodyMode:"fit"},m.name);await setAiModelBody(modelId,preset.id,bubble.id);onComplete()}catch(e){toast.error(e instanceof Error?e.message:"No se pudieron guardar las proporciones")}finally{setSaving(false)}}
+ async function confirm(){if(!bodyVariants.length){toast.error("No hay presets corporales base disponibles.");return}setSaving(true);try{const hipsVals=[...new Set(bodyVariants.map(x=>x.hips_size))].sort((a,b)=>a-b);const breastVals=[...new Set(bodyVariants.map(x=>x.breasts_size))].sort((a,b)=>a-b);const targetHip=hipsVals[Math.round((body.hips/3)*Math.max(hipsVals.length-1,0))]??hipsVals[0];const targetBreast=breastVals[Math.round(((body.breasts+5)/10)*Math.max(breastVals.length-1,0))]??breastVals[0];const preset=[...bodyVariants].sort((a,b)=>Math.abs(a.hips_size-targetHip)+Math.abs(a.breasts_size-targetBreast))[0];if(!preset)throw new Error("No se pudo resolver el preset corporal base.");const bubbles=await listBubbleButtVariants(preset.id);const bubble=bubbles.items[Math.round((body.bubbleButt/.7)*Math.max(bubbles.items.length-1,0))]??bubbles.items[0];if(!bubble)throw new Error("Este cuerpo no tiene Butt Elevation disponible.");const m=await getAiModel(modelId);const current=(m.draft_json&&typeof m.draft_json==="object")?m.draft_json:{};await saveAiModelDraft(modelId,{...current,bodyProportions:body,bodyProportionsMeta:{...(current as any).bodyProportionsMeta,heightTouched},bodyMode:"fit"},m.name);await setAiModelBody(modelId,preset.id,bubble.id);onComplete()}catch(e){toast.error(e instanceof Error?e.message:"No se pudieron guardar las proporciones")}finally{setSaving(false)}}
  const complexionAsset=(value:"slim"|"thick")=>(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(value))??nearestAsset(assets.complexion??[],value==="slim"?0:1);
  const valueLabel=(value:number)=>Number(value.toFixed(1)).toFixed(1);
  return <div className="modelEmbeddedBodyStep">
@@ -84,7 +100,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
    <Control loading={catalogLoading} label="Hips" value={body.hips} display={HIP_LABELS[Math.max(0,Math.min(3,Math.round(body.hips)))]} min={0} max={3} step={1} left="Small" right="Huge" asset={preview.hips} onChange={v=>set("hips",Math.round(v))}/>
    <Control loading={catalogLoading} label="Butt Size" value={body.buttSize} display={valueLabel(body.buttSize)} min={0} max={7} step={0.2} left="Small" right="Huge" asset={preview.butt_size} onChange={v=>set("buttSize",v)}/>
    <Control loading={catalogLoading} label="Breasts" value={body.breasts} display={valueLabel(body.breasts)} min={-5} max={5} step={0.2} left="Small" right="Huge" asset={preview.breasts} onChange={v=>set("breasts",v)}/>
-   <Control loading={catalogLoading} label="Height" value={body.height} display={valueLabel(body.height)} min={-5} max={5} step={0.2} left="Very short" right="Very tall" asset={preview.height} onChange={v=>set("height",v)}/>
+   <Control loading={catalogLoading} label="Height" value={body.height} display={valueLabel(body.height)} min={-5} max={5} step={0.2} left="Very short" right="Very tall" asset={preview.height} onChange={v=>{setHeightTouched(true);set("height",v)}}/>
    <Control loading={catalogLoading} label="Bubble Butt" value={body.bubbleButt} display={valueLabel(body.bubbleButt)} min={0} max={.7} step={.2} left="Low lift" right="High lift" asset={preview.bubble_butt} onChange={v=>set("bubbleButt",Number(v.toFixed(1)))}/>
    <Control loading={catalogLoading} label="Waist" value={body.waist} display={valueLabel(body.waist)} min={-3} max={3} step={0.2} left="Very narrow" right="Very wide" asset={preview.waist} onChange={v=>set("waist",v)}/>
   </div>

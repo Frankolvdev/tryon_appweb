@@ -429,6 +429,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [draftSaving, setDraftSaving] = useState(false);
   const [bodyProportionsDraft, setBodyProportionsDraft] = useState<Record<string, unknown> | null>(null);
   const [bodyModeDraft, setBodyModeDraft] = useState<"fit" | "curvy" | null>(null);
+  const [bodyProportionsMetaDraft, setBodyProportionsMetaDraft] = useState<{ heightTouched: boolean } | null>(null);
   const [identityMode, setIdentityMode] = useState<IdentitySourceMode>("create");
   const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
@@ -524,6 +525,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               }
             }
             if (data.bodyProportions && typeof data.bodyProportions === "object") setBodyProportionsDraft(data.bodyProportions);
+            if (data.bodyProportionsMeta && typeof data.bodyProportionsMeta === "object") {
+              setBodyProportionsMetaDraft({ heightTouched: data.bodyProportionsMeta.heightTouched === true });
+            } else {
+              setBodyProportionsMetaDraft({ heightTouched: false });
+            }
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
               ? data.completedSteps
@@ -793,6 +799,7 @@ useEffect(() => {
         ...baseDraft,
         ...draft,
         ...(bodyProportionsDraft ? { bodyProportions: bodyProportionsDraft } : {}),
+        ...(bodyProportionsMetaDraft ? { bodyProportionsMeta: bodyProportionsMetaDraft } : {}),
         ...(bodyModeDraft ? { bodyMode: bodyModeDraft } : {}),
         ...(ancestry ? {
           ancestry: {
@@ -1830,7 +1837,7 @@ useEffect(() => {
               ) : null}
 
               {currentStep.kind === "body" && (
-                <BodyProportionsStep modelId={modelId} onDraftChange={(nextBody, nextMode) => { setBodyProportionsDraft(nextBody); setBodyModeDraft(nextMode); }} onComplete={() => {
+                <BodyProportionsStep modelId={modelId} onDraftChange={(nextBody, nextMode, nextMeta) => { setBodyProportionsDraft(nextBody); setBodyModeDraft(nextMode); setBodyProportionsMetaDraft(nextMeta); }} onComplete={() => {
                   clearValidation();
                   const completedAfter = completedSteps.includes(currentStep.id) ? completedSteps : [...completedSteps, currentStep.id];
                   setCompletedSteps(completedAfter);
