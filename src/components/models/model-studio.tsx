@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ArrowLeft, Check, Pencil, Save, Upload } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft, setAiModelBody } from "@/lib/ai-model-api";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
@@ -24,6 +24,8 @@ function nearestAsset(items:ModelGenerationAsset[],ratio:number){const rows=orde
 
 export function ModelStudio({modelId}:{modelId:number}){
  const router=useRouter();
+ const searchParams=useSearchParams();
+ const forceIdentityStage=searchParams.get("stage")==="identity";
  const [model,setModel]=useState<AiModelProfile|null>(null);
  const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>([]);
  const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>({});
@@ -40,8 +42,10 @@ export function ModelStudio({modelId}:{modelId:number}){
   .then(([m,c,...catalogs])=>{setModel(m);setBodyVariants(c.items);const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((tool,i)=>map[tool]=ordered(catalogs[i].items));setAssets(map);
    const d=m.draft_json as Record<string,unknown>|undefined; const setup=d?.modelSetup as any; const proportions=d?.bodyProportions as Partial<BodyControlState>|undefined;
    if(setup?.identityMode)setIdentityMode(setup.identityMode); if(setup?.existingIdentityFile)setIdentityFile(setup.existingIdentityFile); if(proportions)setBody({...DEFAULT_BODY,...proportions});
-   // Step 01 always stays here; Step 02 lives in the /face wizard timeline.
-  }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar Models IA"))},[modelId]);
+   // Normal reopen resumes the persisted workflow. The explicit stage=identity
+   // route is reserved for the global timeline/back button so Step 01 remains reachable.
+   if(setup?.completed&&!forceIdentityStage){router.replace(`/models/${modelId}/face`);return}
+  }).catch(e=>toast.error(e instanceof Error?e.message:"No se pudo cargar Models IA"))},[modelId,forceIdentityStage,router]);
 
  const preview=useMemo(()=>({
   hips:nearestAsset(assets.hips??[],body.hips/3), butt_size:nearestAsset(assets.butt_size??[],body.buttSize/(curvyMode?7:6)), breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),

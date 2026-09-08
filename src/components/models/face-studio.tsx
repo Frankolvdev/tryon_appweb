@@ -428,6 +428,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [bodyAdjustments, setBodyAdjustments] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [bodyDraft, setBodyDraft] = useState({ ass: 0, fat: 0, breasts: 0, butt_elevation: 0 });
   const [draftSaving, setDraftSaving] = useState(false);
+  const [bodyProportionsDraft, setBodyProportionsDraft] = useState<Record<string, unknown> | null>(null);
+  const [bodyModeDraft, setBodyModeDraft] = useState<"fit" | "curvy" | null>(null);
   const [identityMode, setIdentityMode] = useState<IdentitySourceMode>("create");
   const [existingIdentityFile, setExistingIdentityFile] = useState<ExistingIdentityFile | null>(null);
   const [identitySourceOpen, setIdentitySourceOpen] = useState(false);
@@ -488,6 +490,8 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             setCustomValues(data.customValues || {});
             setIdentityMode(data.identityMode === "existing" ? "existing" : "create");
             setExistingIdentityFile(data.existingIdentityFile || null);
+            if (data.bodyProportions && typeof data.bodyProportions === "object") setBodyProportionsDraft(data.bodyProportions);
+            if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
               ? data.completedSteps
               : [];
@@ -735,7 +739,14 @@ useEffect(() => {
       existingIdentityFile,
     };
     try {
-      const updated = await saveAiModelDraft(modelId, draft, displayName.trim() || model?.name);
+      const latestModel = await getAiModel(modelId);
+      const baseDraft = latestModel.draft_json && typeof latestModel.draft_json === "object" ? latestModel.draft_json : {};
+      const updated = await saveAiModelDraft(modelId, {
+        ...baseDraft,
+        ...draft,
+        ...(bodyProportionsDraft ? { bodyProportions: bodyProportionsDraft } : {}),
+        ...(bodyModeDraft ? { bodyMode: bodyModeDraft } : {}),
+      }, displayName.trim() || model?.name);
       setModel(updated);
       notify.success("Borrador guardado");
     } catch (error) {
@@ -767,9 +778,12 @@ useEffect(() => {
     try {
       // Generar siempre guarda primero el mismo progreso que el botón
       // "Guardar borrador", pero sin un toast intermedio.
+      const latestBeforeGeneration = await getAiModel(modelId);
+      const baseDraftBeforeGeneration = latestBeforeGeneration.draft_json && typeof latestBeforeGeneration.draft_json === "object" ? latestBeforeGeneration.draft_json : {};
       const savedBeforeGeneration = await saveAiModelDraft(
         modelId,
         {
+          ...baseDraftBeforeGeneration,
           ...identityDraftSnapshot({
             selections,
             mediaSelected,
@@ -918,9 +932,12 @@ useEffect(() => {
       // what allows the generation screen to recover after an AppWeb or
       // Backend restart.
       try {
+        const latestForExecutionPointer = await getAiModel(modelId);
+        const baseDraftForExecutionPointer = latestForExecutionPointer.draft_json && typeof latestForExecutionPointer.draft_json === "object" ? latestForExecutionPointer.draft_json : {};
         const updated = await saveAiModelDraft(
           modelId,
           {
+            ...baseDraftForExecutionPointer,
             ...identityDraftSnapshot({
               selections,
               mediaSelected,
@@ -1648,7 +1665,7 @@ useEffect(() => {
               ) : null}
 
               {currentStep.kind === "body" && (
-                <BodyProportionsStep modelId={modelId} onComplete={() => {
+                <BodyProportionsStep modelId={modelId} onDraftChange={(nextBody, nextMode) => { setBodyProportionsDraft(nextBody); setBodyModeDraft(nextMode); }} onComplete={() => {
                   clearValidation();
                   const completedAfter = completedSteps.includes(currentStep.id) ? completedSteps : [...completedSteps, currentStep.id];
                   setCompletedSteps(completedAfter);
