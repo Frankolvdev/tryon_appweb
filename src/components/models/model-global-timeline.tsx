@@ -23,7 +23,7 @@ export function ModelGlobalTimeline({
       notify.error("Primero completa Identidad para continuar a Cuerpo.");
       return;
     }
-    router.push(stage === "identity" ? `/models/${modelId}` : `/models/${modelId}?stage=body`);
+    router.push(stage === "identity" ? `/models/${modelId}?stage=identity` : `/models/${modelId}/face`);
   }
 
   return (

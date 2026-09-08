@@ -4773,3 +4773,15 @@ output.modelSliderValue{
 @media(max-width:1000px){
   .faceBuilder.facePreGenerationControlsOnly .faceControls.faceWizard{width:100%!important}
 }
+
+/* Models IA R3: identity source cards use the original previews as full-width hero media. */
+.modelV2IdentityChoices>button{display:grid;grid-template-columns:1fr;align-items:start;padding:0;overflow:hidden;gap:0}
+.modelV2IdentityChoices img{width:100%;height:220px;object-fit:cover;display:block;background:#09090b}
+.modelV2IdentityChoices span{padding:14px 16px 16px}
+@media(max-width:650px){.modelV2IdentityChoices img{width:100%;height:180px}}
+
+/* Step 02 / Proporciones is a timeline node, never a separate scanner screen. */
+.faceBuilder.faceBodyProportionsOnly{grid-template-columns:minmax(0,1fr)}
+.faceBuilder.faceBodyProportionsOnly .facePreviewRail{display:none!important}
+.faceBuilder.faceBodyProportionsOnly .faceControls{width:min(100%,1100px);margin-inline:auto}
+.modelEmbeddedBodyStep{width:100%}

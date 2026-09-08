@@ -41,6 +41,7 @@ import type {
 import type { AncestryMediaAsset } from "@/types/ancestry-media";
 import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
+import { BodyProportionsStep } from "./body-proportions-step";
 import { AncestryExperience } from "./ancestry-experience";
 import { useRouter } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
@@ -59,6 +60,7 @@ const MEDIA_TOOLS: {
 ];
 
 type StepId =
+  | "bodyProportions"
   | "traits"
   | "ancestry"
   | "eyeColor"
@@ -77,11 +79,18 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "intro" | "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
+  kind: "body" | "intro" | "ancestry" | "color" | "media" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
 const CREATE_IDENTITY_STEPS: StepDefinition[] = [
+  {
+    id: "bodyProportions",
+    label: "Proporciones corporales",
+    shortLabel: "Proporciones",
+    hint: "Define las proporciones corporales de tu modelo",
+    kind: "body",
+  },
   {
     id: "traits",
     label: "Rasgos",
@@ -164,6 +173,13 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
 
 const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
   {
+    id: "bodyProportions",
+    label: "Proporciones corporales",
+    shortLabel: "Proporciones",
+    hint: "Define las proporciones corporales de tu modelo",
+    kind: "body",
+  },
+  {
     id: "ancestry",
     label: "Ascendencia",
     shortLabel: "Ascendencia",
@@ -211,7 +227,7 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
-      src={`/identity-icons/${id}.svg`}
+      src={id === "bodyProportions" ? "/model-stage-icons/body.svg" : `/identity-icons/${id}.svg`}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -1235,6 +1251,7 @@ useEffect(() => {
 
   function pendingFor(step: StepDefinition) {
     if (pendingValues[step.id] !== undefined) return pendingValues[step.id];
+    if (step.kind === "body") return completedSteps.includes(step.id) ? "done" : "";
     if (step.kind === "ancestry") return ancestry ? ancestry.ancestry_key || String(ancestry.id) : "";
     if (step.kind === "media") return mediaSelected[step.id] || "";
     if (step.kind === "color") return selections[step.id] || "";
@@ -1398,7 +1415,7 @@ useEffect(() => {
         <div className="modelStudio faceStudio pageEnter">
       <div className="modelHeaderShell">
         <button
-          onClick={() => router.push(`/models/${modelId}`)}
+          onClick={() => router.push(`/models/${modelId}?stage=identity`)}
           className="modelIconBtn modelBackOutside faceBack"
         >
           <ArrowLeft size={18} />
@@ -1463,7 +1480,7 @@ useEffect(() => {
       <motion.div
         layout="position"
         transition={{ layout: { duration: prefersReducedMotion ? 0.12 : 0.78, ease: [0.22, 1, 0.36, 1] as const } }}
-        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}${!generatedExecution && !generatingModel ? " facePreGenerationControlsOnly" : ""}`}
+        className={`faceBuilder${generationRecoveryPending || generatingModel || generationIsBusy ? " faceGenerationFocus" : ""}${!generatedExecution && !generatingModel ? " facePreGenerationControlsOnly" : ""}${currentStep.kind === "body" ? " faceBodyProportionsOnly" : ""}`}
       >
         <motion.div
           ref={generationFocusPreviewRef}
@@ -1629,6 +1646,15 @@ useEffect(() => {
                   <span>{currentStep.hint}</span>
                 </div>
               ) : null}
+
+              {currentStep.kind === "body" && (
+                <BodyProportionsStep modelId={modelId} onComplete={() => {
+                  clearValidation();
+                  const completedAfter = completedSteps.includes(currentStep.id) ? completedSteps : [...completedSteps, currentStep.id];
+                  setCompletedSteps(completedAfter);
+                  setActiveStep(stepAfterCommit(currentStep.id, completedAfter));
+                }} />
+              )}
 
               {currentStep.kind === "intro" && (
                 <div className="faceTraitsIntroCard">
@@ -2052,7 +2078,7 @@ useEffect(() => {
                 </div>
               )}
 
-              {currentStep.kind !== "summary" && (
+              {currentStep.kind !== "summary" && currentStep.kind !== "body" && (
                 <div className="faceStepConfirmRow">
                   <button
                     type="button"
