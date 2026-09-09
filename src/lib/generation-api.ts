@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiStream } from "@/lib/api";
 import type { GenerationExecution, GenerationModule, GenerationModuleList } from "@/types/generation";
 
 export const listGenerationModules = (category?: string) => apiFetch<GenerationModuleList>(`/api/v1/generation-modules/${category ? `?category=${encodeURIComponent(category)}` : ""}`);
@@ -48,4 +48,68 @@ export async function getGenerationLoadingProgressMode(): Promise<GenerationLoad
   return config.public_settings?.generation_loading_progress_mode === "backend"
     ? "backend"
     : "elapsed_estimate";
+}
+
+
+export type GenerationExecutionRealtimeEvent = {
+  id: string;
+  module_id: number;
+  module_key: string;
+  status: GenerationExecution["status"];
+  progress: number;
+  cancel_requested: boolean;
+  provider_status?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  duration_ms?: number | null;
+  queue_name?: string | null;
+  queue_position?: number | null;
+  heartbeat_at?: string | null;
+  recovery_count?: number;
+  recovered_at?: string | null;
+};
+
+export type GenerationRealtimeHandlers = {
+  signal: AbortSignal;
+  onExecution: (event: GenerationExecutionRealtimeEvent) => void;
+  onTransport: (crossProcess: boolean) => void;
+};
+
+export async function consumeGenerationExecutionEvents({ signal, onExecution, onTransport }: GenerationRealtimeHandlers) {
+  const response = await apiStream("/api/v1/generation-modules/execution-events", signal);
+  if (!response.body) throw new Error("El servidor no devolvió un stream de ejecuciones.");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (!signal.aborted) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const block = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+      if (!block || block.startsWith(":")) continue;
+
+      let eventName = "message";
+      const dataLines: string[] = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event:")) eventName = line.slice(6).trim();
+        if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+      }
+      if (!dataLines.length) continue;
+      try {
+        const payload = JSON.parse(dataLines.join("\n")) as Record<string, unknown>;
+        if (eventName === "transport") {
+          onTransport(payload.cross_process === true);
+        } else if (eventName === "execution" && payload.execution && typeof payload.execution === "object") {
+          onExecution(payload.execution as GenerationExecutionRealtimeEvent);
+        }
+      } catch {}
+    }
+  }
 }

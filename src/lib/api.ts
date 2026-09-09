@@ -108,3 +108,48 @@ export async function apiFetchBlob(path: string, init: RequestInit = {}): Promis
   }
   return response.blob();
 }
+
+
+export async function apiStream(path: string, signal?: AbortSignal): Promise<Response> {
+  let token: string | null;
+  try {
+    token = await getUsableAccessToken();
+  } catch {
+    throw new ApiRequestError("No se pudo renovar la sesión porque el servidor no está disponible.", 0);
+  }
+
+  const makeRequest = (accessToken: string | null) => {
+    const headers = new Headers();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+    headers.set("Accept", "text/event-stream");
+    return fetch(targetFor(path), {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal,
+    });
+  };
+
+  let response: Response;
+  try {
+    response = await makeRequest(token);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw new ApiRequestError("No se pudo conectar con el servidor. Verifica que el backend esté encendido.", 0);
+  }
+
+  if (response.status === 401 && token) {
+    try {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) response = await makeRequest(refreshed);
+    } catch {
+      throw new ApiRequestError("No se pudo renovar la sesión porque el servidor no está disponible.", 0);
+    }
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) clearSession();
+    throw new ApiRequestError(`Error ${response.status}`, response.status);
+  }
+  return response;
+}

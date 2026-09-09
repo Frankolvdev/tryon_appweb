@@ -10,7 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getGenerationExecution, listActiveGenerationExecutions } from "@/lib/generation-api";
+import {
+  consumeGenerationExecutionEvents,
+  getGenerationExecution,
+  listActiveGenerationExecutions,
+  type GenerationExecutionRealtimeEvent,
+} from "@/lib/generation-api";
 import type { GenerationExecution } from "@/types/generation";
 import { isGenerationProviderPending, shouldPollGenerationExecution } from "@/lib/generation-execution-contract";
 
@@ -26,16 +31,21 @@ type ResolvedNavigation = {
   label: string | null;
 };
 
+type ExecutionListener = (job: GenerationExecution) => void;
+
 type JobsContextValue = {
   jobs: GenerationExecution[];
   refresh: () => Promise<void>;
   track: (job: GenerationExecution, navigation?: GenerationJobNavigation) => void;
+  subscribe: (listener: ExecutionListener) => () => void;
+  realtimeConnected: boolean;
   getForModule: (moduleId: number) => GenerationExecution | null;
   navigationFor: (job: GenerationExecution) => ResolvedNavigation;
 };
 
 const JobsContext = createContext<JobsContextValue | null>(null);
-const POLL_INTERVAL_MS = 2000;
+const FALLBACK_POLL_INTERVAL_MS = 2000;
+const FALLBACK_DISCOVERY_INTERVAL_MS = 15000;
 const NAV_STORAGE_KEY = "tryon-generation-job-navigation-v1";
 const JOBS_STORAGE_KEY = "tryon-generation-jobs-v1";
 
@@ -55,7 +65,6 @@ function writeStoredNavigation(value: Record<string, GenerationJobNavigation>) {
     window.localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(value));
   } catch {}
 }
-
 
 function readStoredJobs(): GenerationExecution[] {
   if (typeof window === "undefined") return [];
@@ -95,17 +104,9 @@ function mergePendingJobs(...lists: GenerationExecution[][]): GenerationExecutio
 }
 
 function defaultNavigation(job: GenerationExecution): ResolvedNavigation {
-  // Never guess a generic Try-On route for executions that belong to a
-  // dedicated product surface. Their exact href is persisted by track().
-  // A missing explicit route is safer as non-clickable than sending the user
-  // to a different studio.
   const dedicatedSurface = job.module_key === "create_model_woman" || job.module_key === "create_model_woman_from_head";
   if (dedicatedSurface) {
-    return {
-      clickable: false,
-      href: null,
-      label: "Create Model IA",
-    };
+    return { clickable: false, href: null, label: "Create Model IA" };
   }
   return {
     clickable: true,
@@ -117,35 +118,60 @@ function defaultNavigation(job: GenerationExecution): ResolvedNavigation {
 export function GenerationJobsProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<GenerationExecution[]>([]);
   const [navigation, setNavigation] = useState<Record<string, GenerationJobNavigation>>({});
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const mounted = useRef(true);
+  const jobsRef = useRef<GenerationExecution[]>([]);
+  const listenersRef = useRef(new Set<ExecutionListener>());
+
+  const replaceJobs = useCallback((next: GenerationExecution[]) => {
+    jobsRef.current = next;
+    writeStoredJobs(next);
+    if (mounted.current) setJobs(next);
+  }, []);
+
+  const notifyListeners = useCallback((job: GenerationExecution) => {
+    for (const listener of listenersRef.current) {
+      try { listener(job); } catch {}
+    }
+  }, []);
+
+  const applyExecutionUpdate = useCallback((job: GenerationExecution) => {
+    const pending = isGenerationProviderPending(job);
+    const next = pending
+      ? [job, ...jobsRef.current.filter((item) => item.id !== job.id)]
+      : jobsRef.current.filter((item) => item.id !== job.id);
+    replaceJobs(next);
+    notifyListeners(job);
+  }, [notifyListeners, replaceJobs]);
 
   useEffect(() => {
     setNavigation(readStoredNavigation());
-    setJobs((current) => mergePendingJobs(current, readStoredJobs()));
-  }, []);
+    replaceJobs(mergePendingJobs(jobsRef.current, readStoredJobs()));
+  }, [replaceJobs]);
 
   const refresh = useCallback(async () => {
     try {
       const result = await listActiveGenerationExecutions();
-      if (mounted.current) {
-        setJobs((current) => {
-          const next = mergePendingJobs(current, result.items);
-          writeStoredJobs(next);
-          return next;
-        });
-      }
+      if (!mounted.current) return;
+
+      const discoveredIds = new Set(result.items.map((item) => item.id));
+      const knownButMissing = jobsRef.current.filter((item) => !discoveredIds.has(item.id));
+      const reconciled = await Promise.allSettled(
+        knownButMissing.map((item) => getGenerationExecution(item.id)),
+      );
+      if (!mounted.current) return;
+
+      const recovered = reconciled.flatMap((entry) =>
+        entry.status === "fulfilled" ? [entry.value] : [],
+      );
+      const next = mergePendingJobs(result.items, recovered);
+      replaceJobs(next);
+      for (const job of [...result.items, ...recovered]) notifyListeners(job);
     } catch {}
-  }, []);
+  }, [notifyListeners, replaceJobs]);
 
   const track = useCallback((job: GenerationExecution, options?: GenerationJobNavigation) => {
-    setJobs((previous) => {
-      const next = [job, ...previous.filter((item) => item.id !== job.id)].filter((item) =>
-        isGenerationProviderPending(item),
-      );
-      writeStoredJobs(next);
-      return next;
-    });
-
+    applyExecutionUpdate(job);
     if (options) {
       setNavigation((previous) => {
         const next = { ...previous, [job.id]: options };
@@ -153,6 +179,11 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
         return next;
       });
     }
+  }, [applyExecutionUpdate]);
+
+  const subscribe = useCallback((listener: ExecutionListener) => {
+    listenersRef.current.add(listener);
+    return () => listenersRef.current.delete(listener);
   }, []);
 
   const navigationFor = useCallback(
@@ -171,49 +202,103 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mounted.current = true;
     void refresh();
-    return () => {
-      mounted.current = false;
-    };
+    return () => { mounted.current = false; };
   }, [refresh]);
 
+  // Durable discovery is performed once on mount and whenever connectivity
+  // returns. SSE is only a notification channel; SQL remains the source of truth.
   useEffect(() => {
-    const timer = window.setInterval(async () => {
-      const snapshot = jobs.filter((item) => shouldPollGenerationExecution(item));
-      if (!snapshot.length) {
-        void refresh();
+    const handleOnline = () => void refresh();
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [refresh]);
+
+  // One authenticated SSE stream per browser session. Redis supplies
+  // cross-process fanout; reconnects automatically without changing job state.
+  useEffect(() => {
+    const controller = new AbortController();
+    let stopped = false;
+    let backoffMs = 1000;
+
+    const handleRealtimeEvent = async (event: GenerationExecutionRealtimeEvent) => {
+      const existing = jobsRef.current.find((item) => item.id === event.id);
+      if (existing && (event.status === "queued" || event.status === "running")) {
+        applyExecutionUpdate({ ...existing, ...event });
         return;
       }
+      try {
+        const full = await getGenerationExecution(event.id);
+        if (!stopped) applyExecutionUpdate(full);
+      } catch {}
+    };
 
-      const next = await Promise.all(
-        snapshot.map(async (job) => {
-          try {
-            return await getGenerationExecution(job.id);
-          } catch {
-            return job;
-          }
-        }),
-      );
-
-      if (mounted.current) {
-        const pending = next.filter((item) => isGenerationProviderPending(item));
-        writeStoredJobs(pending);
-        setJobs(pending);
+    const run = async () => {
+      while (!stopped && !controller.signal.aborted) {
+        try {
+          await consumeGenerationExecutionEvents({
+            signal: controller.signal,
+            onExecution: (event) => { void handleRealtimeEvent(event); },
+            onTransport: (crossProcess) => {
+              if (!stopped) {
+                setRealtimeConnected(crossProcess);
+                if (crossProcess) backoffMs = 1000;
+              }
+            },
+          });
+          if (!stopped) setRealtimeConnected(false);
+        } catch (error) {
+          if (controller.signal.aborted) break;
+          if (!stopped) setRealtimeConnected(false);
+        }
+        if (stopped) break;
+        void refresh();
+        await new Promise((resolve) => window.setTimeout(resolve, backoffMs));
+        backoffMs = Math.min(backoffMs * 2, 15000);
       }
-    }, POLL_INTERVAL_MS);
+    };
 
+    void run();
+    return () => {
+      stopped = true;
+      controller.abort();
+    };
+  }, [applyExecutionUpdate, refresh]);
+
+  // Existing status polling remains as a safety net only while cross-process
+  // realtime is unavailable. There is no 2-second idle /active-executions loop.
+  useEffect(() => {
+    if (realtimeConnected) return;
+    const pollKnown = async () => {
+      const snapshot = jobsRef.current.filter((item) => shouldPollGenerationExecution(item));
+      if (!snapshot.length) return;
+      const results = await Promise.allSettled(snapshot.map((job) => getGenerationExecution(job.id)));
+      for (const result of results) {
+        if (result.status === "fulfilled") applyExecutionUpdate(result.value);
+      }
+    };
+    const timer = window.setInterval(() => void pollKnown(), FALLBACK_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [jobs, refresh]);
+  }, [applyExecutionUpdate, realtimeConnected]);
+
+  // If SSE/Redis is unavailable, rediscover durable active work occasionally.
+  // This is 7.5x less frequent than the old permanent idle 2-second request.
+  useEffect(() => {
+    if (realtimeConnected) return;
+    const timer = window.setInterval(() => void refresh(), FALLBACK_DISCOVERY_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [realtimeConnected, refresh]);
 
   const value = useMemo(
     () => ({
       jobs,
       refresh,
       track,
+      subscribe,
+      realtimeConnected,
       navigationFor,
-      getForModule: (moduleId: number) =>
-        jobs.find((item) => item.module_id === moduleId) ?? null,
+      getForModule: (moduleId: number) => jobs.find((item) => item.module_id === moduleId) ?? null,
     }),
-    [jobs, refresh, track, navigationFor],
+    [jobs, refresh, track, subscribe, realtimeConnected, navigationFor],
   );
 
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;
@@ -221,8 +306,6 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
 
 export function useGenerationJobs() {
   const value = useContext(JobsContext);
-  if (!value) {
-    throw new Error("useGenerationJobs must be used inside GenerationJobsProvider");
-  }
+  if (!value) throw new Error("useGenerationJobs must be used inside GenerationJobsProvider");
   return value;
 }

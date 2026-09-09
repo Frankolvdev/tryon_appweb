@@ -319,7 +319,7 @@ export function GenerationStudio({ moduleId = null }: { moduleId?: number | null
   const dedicatedModuleId = typeof moduleId === "number" && Number.isInteger(moduleId) && moduleId > 0
     ? moduleId
     : null;
-  const { track } = useGenerationJobs();
+  const { track, subscribe } = useGenerationJobs();
   const { user } = useAppSession();
   const owner = isOwnerAccount(user);
   const [modules, setModules] = useState<GenerationModule[]>([]);
@@ -328,7 +328,6 @@ export function GenerationStudio({ moduleId = null }: { moduleId?: number | null
   const [executions, setExecutions] = useState<GenerationExecution[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pollFailures, setPollFailures] = useState(0);
   const [restoring, setRestoring] = useState(false);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
   const [settlingIds, setSettlingIds] = useState<Set<string>>(new Set());
@@ -367,44 +366,28 @@ export function GenerationStudio({ moduleId = null }: { moduleId?: number | null
     setExecutions([]);
     setRestoring(true);
     listGenerationExecutions({ moduleId: selected.id, limit: EXECUTION_HISTORY_LIMIT })
-      .then((response) => setExecutions(response.items))
+      .then((response) => {
+        setExecutions(response.items);
+        for (const execution of response.items) {
+          if (shouldPollGenerationExecution(execution)) track(execution);
+        }
+      })
       .catch((cause) => setError(normalizeGenerationError(cause)))
       .finally(() => setRestoring(false));
-  }, [selectedId]);
+  }, [selectedId, track]);
+
+  useEffect(() => {
+    return subscribe((latest) => {
+      if (latest.module_id !== selectedId) return;
+      setExecutions((current) => upsertExecution(current, latest));
+      if (latest.status === "completed") refreshModuleEstimates();
+    });
+  }, [selectedId, subscribe]);
 
   const activeExecutionIds = useMemo(
     () => executions.filter((item) => shouldPollGenerationExecution(item)).map((item) => item.id),
     [executions],
   );
-  const activeExecutionKey = activeExecutionIds.join("|");
-
-  useEffect(() => {
-    const ids = activeExecutionKey ? activeExecutionKey.split("|") : [];
-    if (ids.length === 0) return;
-
-    const refresh = () => {
-      Promise.allSettled(ids.map((id) => getGenerationExecution(id))).then(
-        (results) => {
-          let hadFailure = false;
-          results.forEach((result) => {
-            if (result.status === "fulfilled") {
-              setExecutions((current) => upsertExecution(current, result.value));
-              track(result.value);
-              if (result.value.status === "completed") {
-                refreshModuleEstimates();
-              }
-            } else {
-              hadFailure = true;
-            }
-          });
-          setPollFailures((value) => (hadFailure ? value + 1 : 0));
-        },
-      );
-    };
-
-    const timer = window.setInterval(refresh, 2000);
-    return () => window.clearInterval(timer);
-  }, [activeExecutionKey, track]);
 
   async function run() {
     if (!selected) return;
@@ -456,12 +439,6 @@ export function GenerationStudio({ moduleId = null }: { moduleId?: number | null
       {error && (
         <div className="generationError" role="alert">
           {error}
-        </div>
-      )}
-
-      {pollFailures >= 3 && (
-        <div className="generationError" role="status">
-          La conexión está inestable. Seguiremos intentando automáticamente.
         </div>
       )}
 

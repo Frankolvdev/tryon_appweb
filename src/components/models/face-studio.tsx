@@ -234,7 +234,19 @@ function StepIcon({ id }: { id: StepId }) {
 }
 
 function round1(value: number) { return Math.round((value + Number.EPSILON) * 10) / 10; }
-function generationSeed() { return Math.floor(Math.random() * 2147483647); }
+function generationSeed() {
+  const minimum = 100_000_000_000_000;
+  const range = 900_000_000_000_000;
+  const sourceRange = 2 ** 52;
+  const acceptanceLimit = Math.floor(sourceRange / range) * range;
+  const words = new Uint32Array(2);
+  let candidate = acceptanceLimit;
+  while (candidate >= acceptanceLimit) {
+    crypto.getRandomValues(words);
+    candidate = (words[0] * 2 ** 20) + (words[1] & 0xFFFFF);
+  }
+  return minimum + (candidate % range);
+}
 const HIP_GENERATION_VALUES = ["small hips", "medium hips", "big hips", "huge hips"] as const;
 
 function skinToneGenerationValue(selectionId: string | undefined): number {
@@ -457,7 +469,7 @@ function FaceDiscreteSlider({
 export function FaceStudio({ modelId }: { modelId: number }) {
   const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
-  const { track } = useGenerationJobs();
+  const { track, subscribe } = useGenerationJobs();
   const { user } = useAppSession();
   const owner = isOwnerAccount(user);
   const generationRecoveryRetryRef = useRef<number | null>(null);
@@ -480,9 +492,6 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
   const [editingGeneratedResult, setEditingGeneratedResult] = useState(false);
-  const [generationReuseModalOpen, setGenerationReuseModalOpen] = useState(false);
-  const [reusePreviousBodySeed, setReusePreviousBodySeed] = useState(false);
-  const [reusePreviousHeadSeed, setReusePreviousHeadSeed] = useState(false);
    const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
@@ -743,35 +752,27 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [generatedExecution?.id, generatedExecution?.status]);
 
 useEffect(() => {
-  const execution = generatedExecution;
-  if (!execution || !isGenerationExecutionPollable(execution)) return;
-
+  const executionId = generatedExecution?.id;
+  if (!executionId) return;
   let cancelled = false;
-  const executionId = execution.id;
 
-    const refreshExecution = async () => {
-      try {
-        const latest = await getGenerationExecution(executionId);
-        if (cancelled) return;
-        setGeneratedExecution(latest);
-        track(latest, {
-          clickable: true,
-          href: `/models/${modelId}/face`,
-          label: "Create Model IA",
-        });
-        if (latest.status === "failed") {
-          notify.error(latest.error || "La generación del modelo falló.");
-        }
-      } catch {}
-    };
+  const apply = (latest: GenerationExecution) => {
+    if (cancelled || latest.id !== executionId) return;
+    setGeneratedExecution(latest);
+    if (latest.status === "failed") {
+      notify.error(latest.error || "La generación del modelo falló.");
+    }
+  };
 
-    void refreshExecution();
-    const timer = window.setInterval(() => void refreshExecution(), 2000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [generatedExecution?.id, generatedExecution?.status, modelId, track]);
+  // Close the tiny race between the POST response and attaching the realtime
+  // listener. This is one read per execution, not a polling loop.
+  void getGenerationExecution(executionId).then(apply).catch(() => {});
+  const unsubscribe = subscribe(apply);
+  return () => {
+    cancelled = true;
+    unsubscribe();
+  };
+}, [generatedExecution?.id, subscribe]);
 
   useEffect(() => {
     try {
@@ -908,7 +909,7 @@ useEffect(() => {
     } finally { setDraftSaving(false); }
   }
 
-  async function generateModel(options?: { reuseBodySeed?: boolean; reuseHeadSeed?: boolean }) {
+  async function generateModel() {
     // queued/running remains exclusive even while cancellation is pending.
     // Do not allow a second execution until Backend reaches a terminal state.
     if (!model || generationRecoveryPending || generatingModel || isGenerationProviderPending(generatedExecution)) return;
@@ -997,14 +998,11 @@ useEffect(() => {
         selections.occupation,
         customValues.occupation,
       );
-      const previousBodySeed = Number(generatedExecution?.inputs?.input_4);
-      const previousHeadSeed = Number(generatedExecution?.inputs?.input_5);
-      const bodySeed = options?.reuseBodySeed && Number.isInteger(previousBodySeed)
-        ? previousBodySeed
-        : generationSeed();
-      const headSeed = options?.reuseHeadSeed && Number.isInteger(previousHeadSeed)
-        ? previousHeadSeed
-        : generationSeed();
+      // Every generation gets fresh independent 15-digit seeds. The previous
+      // seed-reuse UI is intentionally disabled so variants never carry a
+      // static body/head seed forward.
+      const bodySeed = generationSeed();
+      const headSeed = generationSeed();
       const promptHead = commaPrompt([
         identity.prompt,
         "fitted black top",
@@ -2314,17 +2312,7 @@ useEffect(() => {
                     <button
                       className="faceGenerateModelButton faceGenerateModelButtonDone"
                       type="button"
-                      onClick={() => {
-                        const hasPreviousResult = generatedExecution?.status === "completed" && Boolean(generatedPreviewUrl);
-                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9;
-                        if (hasPreviousResult && seedReuseSupported) {
-                          setReusePreviousBodySeed(false);
-                          setReusePreviousHeadSeed(false);
-                          setGenerationReuseModalOpen(true);
-                          return;
-                        }
-                        void generateModel();
-                      }}
+                      onClick={() => { void generateModel(); }}
                       disabled={generationRecoveryPending || generatingModel}
                     >
                       <WandSparkles size={19} />
@@ -2403,71 +2391,6 @@ useEffect(() => {
           </div>
         </motion.section>
       </motion.div>
-      {generationReuseModalOpen && (
-        <div className="faceSeedReuseBackdrop" role="presentation" onMouseDown={() => setGenerationReuseModalOpen(false)}>
-          <section
-            className="faceSeedReuseModal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="face-seed-reuse-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="faceSeedReuseModalHead">
-              <div>
-                <span>NUEVA VARIANTE</span>
-                <h3 id="face-seed-reuse-title">¿Qué quieres conservar?</h3>
-                <p>Por defecto la nueva variante usa seeds nuevos. Activa solo lo que quieras mantener igual a la generación anterior.</p>
-              </div>
-              <button type="button" onClick={() => setGenerationReuseModalOpen(false)} aria-label="Cerrar">×</button>
-            </div>
-
-            <div className="faceSeedReuseOptions">
-              {identityMode === "create" && (
-                <label>
-                  <span>
-                    <strong>Mantener mismo rostro anterior</strong>
-                    <small>Reutiliza el Seed Head de la generación anterior.</small>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={reusePreviousHeadSeed}
-                    onChange={(event) => setReusePreviousHeadSeed(event.target.checked)}
-                  />
-                  <i aria-hidden="true" />
-                </label>
-              )}
-              <label>
-                <span>
-                  <strong>Mantener mismo cuerpo anterior</strong>
-                  <small>Reutiliza el Seed Body de la generación anterior.</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={reusePreviousBodySeed}
-                  onChange={(event) => setReusePreviousBodySeed(event.target.checked)}
-                />
-                <i aria-hidden="true" />
-              </label>
-            </div>
-
-            <div className="faceSeedReuseActions">
-              <button type="button" onClick={() => setGenerationReuseModalOpen(false)}>Cancelar</button>
-              <button
-                type="button"
-                onClick={() => {
-                  setGenerationReuseModalOpen(false);
-                  void generateModel({
-                    reuseBodySeed: reusePreviousBodySeed,
-                    reuseHeadSeed: identityMode === "create" ? reusePreviousHeadSeed : false,
-                  });
-                }}
-              >
-                Continuar
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
       <IdentitySourceModal
         open={identitySourceOpen}
         initialMode={identityMode}
