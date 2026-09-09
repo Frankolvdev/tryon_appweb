@@ -66,12 +66,13 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
  useEffect(()=>{onDraftChangeRef.current?.(body,"fit",{heightTouched,hipsTouched,breastsTouched})},[body,heightTouched,hipsTouched,breastsTouched]);
  useEffect(()=>{
   let alive=true;
-  setCatalogLoading(true);
-  Promise.all([getAiModel(modelId),loadBodyVariants(),loadBodyAssets()])
-   .then(([m,variants,map])=>{
+
+  // Restore the user's saved sliders independently from the heavy preview/body
+  // catalogs. The draft is authoritative for the editor and should appear as
+  // soon as /ai-models/{id} returns, even if storage previews are still loading.
+  getAiModel(modelId)
+   .then((m)=>{
     if(!alive)return;
-    setBodyVariants(variants);
-    setAssets(map);
     const d=m.draft_json as any;
     if(d?.bodyProportions){
       const savedHeightTouched=d?.bodyProportionsMeta?.heightTouched===true;
@@ -79,9 +80,6 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
       const savedBreastsTouched=d?.bodyProportionsMeta?.breastsTouched===true;
       const restored={...DEFAULT_BODY,...d.bodyProportions};
       restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));
-      // Legacy drafts may contain previous defaults even when the user never
-      // moved these controls. Only preserve a stored value after the control
-      // has explicitly been touched under the current defaults.
       if(!savedHeightTouched)restored.height=0;
       if(!savedHipsTouched)restored.hips=0;
       if(!savedBreastsTouched)restored.breasts=-5;
@@ -96,8 +94,24 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
       setBody(DEFAULT_BODY);
     }
    })
-   .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar las proporciones")})
-   .finally(()=>{if(alive)setCatalogLoading(false)});
+   .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar tus proporciones guardadas")});
+
+  if(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE){
+    setBodyVariants(BODY_VARIANTS_CACHE);
+    setAssets(BODY_ASSETS_CACHE);
+    setCatalogLoading(false);
+  }else{
+    setCatalogLoading(true);
+    Promise.allSettled([loadBodyVariants(),loadBodyAssets()])
+     .then(([variantsResult,assetsResult])=>{
+      if(!alive)return;
+      if(variantsResult.status==="fulfilled")setBodyVariants(variantsResult.value);
+      if(assetsResult.status==="fulfilled")setAssets(assetsResult.value);
+      if(variantsResult.status==="rejected")toast.error("No se pudieron cargar los presets corporales base.");
+      if(assetsResult.status==="rejected")toast.error("No se pudieron cargar algunas previews de proporciones.");
+     })
+     .finally(()=>{if(alive)setCatalogLoading(false)});
+  }
   return()=>{alive=false};
  },[modelId]);
  const preview=useMemo(()=>({hips:nearestAsset(assets.hips??[],body.hips/3),butt_size:nearestAsset(assets.butt_size??[],body.buttSize/7),breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),height:nearestAsset(assets.height??[],(body.height+5)/10),bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7),waist:nearestAsset(assets.waist??[],(body.waist+3)/6),complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)}),[assets,body]);
@@ -115,7 +129,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
    <Control loading={catalogLoading} label="Bubble Butt" value={body.bubbleButt} display={valueLabel(body.bubbleButt)} min={0} max={.7} step={.2} left="Low lift" right="High lift" asset={preview.bubble_butt} onChange={v=>set("bubbleButt",Number(v.toFixed(1)))}/>
    <Control loading={catalogLoading} label="Waist" value={body.waist} display={valueLabel(body.waist)} min={-3} max={3} step={0.2} left="Very narrow" right="Very wide" asset={preview.waist} onChange={v=>set("waist",v)}/>
   </div>
-  <div className="faceStepConfirmRow"><button type="button" className="faceChooseButton" onClick={confirm} disabled={saving||catalogLoading}><Check size={17}/>{saving?"Guardando…":"Elegir"}</button></div>
+  <div className="faceStepConfirmRow"><button type="button" className="faceChooseButton" onClick={confirm} disabled={saving||catalogLoading}><Check size={17}/>{saving?"Guardando…":"Confirmar"}</button></div>
  </div>
 }
 function PreviewSkeleton({portrait=false}:{portrait?:boolean}){return <span className={`modelV2AssetPreview modelV2AssetSkeleton${portrait?" modelV2AssetPreviewPortrait":""}`} aria-hidden="true"/>}

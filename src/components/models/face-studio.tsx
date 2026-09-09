@@ -746,7 +746,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         });
       })
       .catch(() => {
-        if (alive) notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento.");
+        if (!alive) return;
+        const draft = model?.draft_json && typeof model.draft_json === "object" ? model.draft_json as Record<string, unknown> : null;
+        // The current body editor restores its sliders from draft_json.bodyProportions.
+        // Failure to load the historical preset catalog must not show a scary
+        // refinement error or imply that the user's saved values were lost.
+        if (!draft?.bodyProportions) {
+          notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento.");
+        }
       });
     return () => { alive = false; };
   }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
@@ -1549,10 +1556,14 @@ useEffect(() => {
 
 
   function stepAfterCommit(stepId: StepId, completedAfter: string[]) {
-    const currentIndex = identitySteps.findIndex((item) => item.id === stepId);
-    if (currentIndex < 0) return identityDoneStepIndex;
-    const nextIndex = currentIndex + 1;
-    return nextIndex < identitySteps.length ? nextIndex : identityDoneStepIndex;
+    // After confirming any node, continue with the first required node that is
+    // still incomplete. If none remain, always land on the summary. This is
+    // important when revisiting an earlier completed node from “Modificar”:
+    // confirming Proporciones must not walk through already-completed nodes.
+    const firstIncompleteRequired = identitySteps.findIndex(
+      (item) => item.kind !== "summary" && !item.optional && !completedAfter.includes(item.id),
+    );
+    return firstIncompleteRequired >= 0 ? firstIncompleteRequired : identityDoneStepIndex;
   }
 
   function commitCurrentStep(advance = true) {
