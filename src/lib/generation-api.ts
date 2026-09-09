@@ -1,7 +1,27 @@
 import { apiFetch, apiStream } from "@/lib/api";
 import type { GenerationExecution, GenerationModule, GenerationModuleList } from "@/types/generation";
 
-export const listGenerationModules = (category?: string) => apiFetch<GenerationModuleList>(`/api/v1/generation-modules/${category ? `?category=${encodeURIComponent(category)}` : ""}`);
+const generationModulesCache = new Map<string, { at: number; value: GenerationModuleList }>();
+const generationModulesInflight = new Map<string, Promise<GenerationModuleList>>();
+const GENERATION_MODULES_CACHE_MS = 30_000;
+
+export const listGenerationModules = (category?: string) => {
+  const key = category || "__all__";
+  const cached = generationModulesCache.get(key);
+  if (cached && Date.now() - cached.at < GENERATION_MODULES_CACHE_MS) {
+    return Promise.resolve(cached.value);
+  }
+  const pending = generationModulesInflight.get(key);
+  if (pending) return pending;
+  const request = apiFetch<GenerationModuleList>(`/api/v1/generation-modules/${category ? `?category=${encodeURIComponent(category)}` : ""}`)
+    .then((value) => {
+      generationModulesCache.set(key, { at: Date.now(), value });
+      return value;
+    })
+    .finally(() => generationModulesInflight.delete(key));
+  generationModulesInflight.set(key, request);
+  return request;
+};
 export const getGenerationModule = (id: number) => apiFetch<GenerationModule>(`/api/v1/generation-modules/${id}`);
 export const executeGenerationModule = (
   id: number,
@@ -20,7 +40,15 @@ export const executeGenerationModule = (
   form.append("payload", JSON.stringify({ inputs: serialized }));
   return apiFetch<GenerationExecution>(`/api/v1/generation-modules/${id}/executions`, { method: "POST", body: form });
 };
-export const getGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/status`);
+const generationExecutionInflight = new Map<string, Promise<GenerationExecution>>();
+export const getGenerationExecution = (id: string) => {
+  const pending = generationExecutionInflight.get(id);
+  if (pending) return pending;
+  const request = apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/status`)
+    .finally(() => generationExecutionInflight.delete(id));
+  generationExecutionInflight.set(id, request);
+  return request;
+};
 export const cancelGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/cancel`, { method: "POST" });
 export const settlePendingGenerationBilling = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/settle-pending-billing`, { method: "POST" });
 export const listGenerationExecutions = (params?: { moduleId?: number; status?: string; skip?: number; limit?: number }) => {
@@ -32,9 +60,16 @@ export const listGenerationExecutions = (params?: { moduleId?: number; status?: 
   return apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/execution-history?${query.toString()}`);
 };
 export const retryGenerationExecution = (id: string) => apiFetch<GenerationExecution>(`/api/v1/generation-modules/executions/${id}/retry`, { method: "POST", body: JSON.stringify({}) });
+const activeExecutionsInflight = new Map<string, Promise<import("@/types/generation").GenerationExecutionList>>();
 export const listActiveGenerationExecutions = (moduleId?: number) => {
   const query = moduleId ? `?module_id=${moduleId}` : "";
-  return apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/active-executions${query}`);
+  const key = query || "__all__";
+  const pending = activeExecutionsInflight.get(key);
+  if (pending) return pending;
+  const request = apiFetch<import("@/types/generation").GenerationExecutionList>(`/api/v1/generation-modules/active-executions${query}`)
+    .finally(() => activeExecutionsInflight.delete(key));
+  activeExecutionsInflight.set(key, request);
+  return request;
 };
 
 export type GenerationLoadingProgressMode = "backend" | "elapsed_estimate";
@@ -43,11 +78,24 @@ type PublicFrontendConfig = {
   public_settings?: Record<string, unknown>;
 };
 
+let loadingProgressModeCache: { at: number; value: GenerationLoadingProgressMode } | null = null;
+let loadingProgressModeInflight: Promise<GenerationLoadingProgressMode> | null = null;
+
 export async function getGenerationLoadingProgressMode(): Promise<GenerationLoadingProgressMode> {
-  const config = await apiFetch<PublicFrontendConfig>("/api/v1/system/config");
-  return config.public_settings?.generation_loading_progress_mode === "backend"
-    ? "backend"
-    : "elapsed_estimate";
+  if (loadingProgressModeCache && Date.now() - loadingProgressModeCache.at < 60_000) {
+    return loadingProgressModeCache.value;
+  }
+  if (loadingProgressModeInflight) return loadingProgressModeInflight;
+  loadingProgressModeInflight = apiFetch<PublicFrontendConfig>("/api/v1/system/config")
+    .then((config) => {
+      const value: GenerationLoadingProgressMode = config.public_settings?.generation_loading_progress_mode === "backend"
+        ? "backend"
+        : "elapsed_estimate";
+      loadingProgressModeCache = { at: Date.now(), value };
+      return value;
+    })
+    .finally(() => { loadingProgressModeInflight = null; });
+  return loadingProgressModeInflight;
 }
 
 

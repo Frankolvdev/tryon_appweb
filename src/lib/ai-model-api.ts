@@ -2,7 +2,14 @@ import { apiFetch } from "@/lib/api";
 import type { AiModelProfile, BodyVariantCatalog, BubbleButtVariantCatalog, ModelSex } from "@/types/ai-model";
 export const listAiModels=()=>apiFetch<AiModelProfile[]>("/api/v1/ai-models/");
 export const createAiModel=(name:string,sex:ModelSex)=>apiFetch<AiModelProfile>("/api/v1/ai-models/",{method:"POST",body:JSON.stringify({name,sex})});
-export const getAiModel=(id:number)=>apiFetch<AiModelProfile>(`/api/v1/ai-models/${id}`);
+const aiModelInflight = new Map<number, Promise<AiModelProfile>>();
+export const getAiModel=(id:number)=>{
+  const pending=aiModelInflight.get(id);
+  if(pending)return pending;
+  const request=apiFetch<AiModelProfile>(`/api/v1/ai-models/${id}`).finally(()=>aiModelInflight.delete(id));
+  aiModelInflight.set(id,request);
+  return request;
+};
 export const listBodyVariants=(sex:ModelSex)=>apiFetch<BodyVariantCatalog>(`/api/v1/ai-models/body-variants?sex=${sex}`);
 export const setAiModelBody=(id:number,presetId:number,bubbleButtPresetId:number)=>apiFetch<AiModelProfile>(`/api/v1/ai-models/${id}/body`,{method:"PUT",body:JSON.stringify({body_proportion_preset_id:presetId,bubble_butt_preset_id:bubbleButtPresetId})});
 
