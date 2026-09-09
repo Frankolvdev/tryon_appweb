@@ -36,7 +36,9 @@ function store(value: BrandingConfig) {
 export function getPublicBranding(force = false): Promise<BrandingConfig> {
   const cached = !force ? readBrandingCache() : null;
   if (cached) return Promise.resolve(cached);
-  if (!force && inflight) return inflight;
+  // Even a forced refresh shares an already-running request. This keeps one branding
+  // revalidation per mount burst while still bypassing stale localStorage data.
+  if (inflight) return inflight;
   inflight = fetch(`${env.apiBaseUrl}/api/v1/system/branding`, {
     headers: { Accept: "application/json" },
     cache: "no-store",

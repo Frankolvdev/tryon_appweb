@@ -7,7 +7,12 @@ import type { BrandingConfig } from "@/types/branding";
 
 export function PlatformLogo({ compact = false, height = 42, className = "" }: { compact?: boolean; height?: number; className?: string }) {
   const [branding, setBranding] = useState<BrandingConfig | null>(() => readBrandingCache());
-  useEffect(() => { void getPublicBranding().then(setBranding).catch(() => undefined); }, []);
+  useEffect(() => {
+    // Paint the cached logo immediately, then always revalidate once against Backend.
+    // Branding changes are rare, but when they happen a 5-minute local cache must not
+    // keep the previous logo visible after a reload. Concurrent callers are deduped.
+    void getPublicBranding(true).then(setBranding).catch(() => undefined);
+  }, []);
   const source = compact
     ? resolveBrandAssetUrl(branding?.favicon.url ?? branding?.logo.small_url)
     : resolveBrandAssetUrl(branding?.logo.medium_url ?? branding?.logo.small_url);
@@ -21,7 +26,7 @@ export function PlatformLogo({ compact = false, height = 42, className = "" }: {
 
 export function BrandingBootstrap() {
   useEffect(() => {
-    void getPublicBranding().then((branding) => {
+    void getPublicBranding(true).then((branding) => {
       if (branding.app_name) document.title = document.title.replace(/^LUXIA\b/i, branding.app_name);
       const href = resolveBrandAssetUrl(branding.favicon.url);
       if (!href) return;
@@ -32,8 +37,20 @@ export function BrandingBootstrap() {
         link.setAttribute("data-platform-favicon", "true");
         document.head.appendChild(link);
       }
-      link.href = href;
+      // Backend includes ?v=<branding version>, so a changed favicon gets a new URL
+      // and cannot be hidden behind the browser's long-lived favicon cache.
       link.type = "image/png";
+      link.href = href;
+
+      let shortcut = document.querySelector<HTMLLinkElement>('link[data-platform-shortcut-icon="true"]');
+      if (!shortcut) {
+        shortcut = document.createElement("link");
+        shortcut.rel = "shortcut icon";
+        shortcut.setAttribute("data-platform-shortcut-icon", "true");
+        document.head.appendChild(shortcut);
+      }
+      shortcut.type = "image/png";
+      shortcut.href = href;
     }).catch(() => undefined);
   }, []);
   return null;
