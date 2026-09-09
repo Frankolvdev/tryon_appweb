@@ -22,33 +22,45 @@ export function readBrandingCache(): BrandingConfig | null {
     if (!parsed.at || !parsed.value || Date.now() - parsed.at >= CACHE_MS) return null;
     memory = { at: parsed.at, value: parsed.value };
     return parsed.value;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function store(value: BrandingConfig) {
   const entry = { at: Date.now(), value };
   memory = entry;
   if (typeof window !== "undefined") {
-    try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(entry)); } catch { /* cache is optional */ }
+    try {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+    } catch {
+      // Branding cache is optional; never block AppWeb if storage is unavailable.
+    }
   }
 }
 
 export function getPublicBranding(force = false): Promise<BrandingConfig> {
   const cached = !force ? readBrandingCache() : null;
   if (cached) return Promise.resolve(cached);
-  // Even a forced refresh shares an already-running request. This keeps one branding
-  // revalidation per mount burst while still bypassing stale localStorage data.
+
+  // A forced refresh still joins an already-running request. This gives us immediate
+  // revalidation after reload without creating duplicate branding requests from the
+  // sidebar, auth shell and favicon bootstrap mounting together.
   if (inflight) return inflight;
+
   inflight = fetch(`${env.apiBaseUrl}/api/v1/system/branding`, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   })
     .then(async (response) => {
-      if (!response.ok) throw new Error("branding unavailable");
-      const value = await response.json() as BrandingConfig;
+      if (!response.ok) throw new Error(`branding unavailable (${response.status})`);
+      const value = (await response.json()) as BrandingConfig;
       store(value);
       return value;
     })
-    .finally(() => { inflight = null; });
+    .finally(() => {
+      inflight = null;
+    });
+
   return inflight;
 }
