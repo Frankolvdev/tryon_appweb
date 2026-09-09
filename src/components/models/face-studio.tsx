@@ -480,6 +480,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
   const [editingGeneratedResult, setEditingGeneratedResult] = useState(false);
+  const [generationReuseModalOpen, setGenerationReuseModalOpen] = useState(false);
+  const [reusePreviousBodySeed, setReusePreviousBodySeed] = useState(false);
+  const [reusePreviousHeadSeed, setReusePreviousHeadSeed] = useState(false);
    const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
@@ -905,7 +908,7 @@ useEffect(() => {
     } finally { setDraftSaving(false); }
   }
 
-  async function generateModel() {
+  async function generateModel(options?: { reuseBodySeed?: boolean; reuseHeadSeed?: boolean }) {
     // queued/running remains exclusive even while cancellation is pending.
     // Do not allow a second execution until Backend reaches a terminal state.
     if (!model || generationRecoveryPending || generatingModel || isGenerationProviderPending(generatedExecution)) return;
@@ -994,6 +997,14 @@ useEffect(() => {
         selections.occupation,
         customValues.occupation,
       );
+      const previousBodySeed = Number(generatedExecution?.inputs?.input_4);
+      const previousHeadSeed = Number(generatedExecution?.inputs?.input_5);
+      const bodySeed = options?.reuseBodySeed && Number.isInteger(previousBodySeed)
+        ? previousBodySeed
+        : generationSeed();
+      const headSeed = options?.reuseHeadSeed && Number.isInteger(previousHeadSeed)
+        ? previousHeadSeed
+        : generationSeed();
       const promptHead = commaPrompt([
         identity.prompt,
         "fitted black top",
@@ -1025,8 +1036,8 @@ useEffect(() => {
         payload = {
           input_1: promptHead,
           input_2: complexionValue,
-          input_4: generationSeed(),
-          input_5: generationSeed(),
+          input_4: bodySeed,
+          input_5: headSeed,
           input_6: bodyNumber("buttSize", 0),
           input_7: bodyNumber("breasts", 0),
           input_8: bodyNumber("waist", 0),
@@ -1038,7 +1049,7 @@ useEffect(() => {
           input_14: "front view, full body",
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
-          input_17: "soft flattering professional daylight, balanced neutral lighting",
+          input_17: "",
           input_18: occupationContext.clothes,
           // input_19 is required in V5. A single space satisfies the transport
           // contract while the pipeline's clean()/strip() correctly turns it
@@ -1059,8 +1070,8 @@ useEffect(() => {
 
         payload = {
           input_2: complexionValue,
-          input_4: generationSeed(),
-          input_5: generationSeed(),
+          input_4: bodySeed,
+          input_5: headSeed,
           input_6: bodyNumber("buttSize", 0),
           input_7: bodyNumber("breasts", 0),
           input_8: bodyNumber("waist", 0),
@@ -1072,7 +1083,7 @@ useEffect(() => {
           input_14: "front view, full body",
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
-          input_17: "soft flattering professional daylight, balanced neutral lighting",
+          input_17: "",
           input_18: occupationContext.clothes,
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
@@ -1092,7 +1103,7 @@ useEffect(() => {
           input_9: "front view, full body",
           input_10: "standing and looking directly at camera",
           input_11: occupationContext.place,
-          input_12: "soft flattering professional daylight, balanced neutral lighting",
+          input_12: "",
           input_13: occupationContext.clothes,
           input_14: customValues.extraDetails?.trim() || null,
         };
@@ -1171,6 +1182,11 @@ useEffect(() => {
             // Preserve the chosen identity source every time the execution pointer is saved.
             identityMode,
             existingIdentityFile,
+            last_generation_seeds: {
+              body: bodySeed,
+              head: headSeed,
+              execution_id: execution.id,
+            },
           },
           displayName.trim() || model.name,
         );
@@ -2278,7 +2294,7 @@ useEffect(() => {
                     </span>
                     <div>
                       <span>STEP DONE</span>
-                      <h3>{identityMode === "existing" ? "Tu rostro de identidad está listo" : "Tu identidad está lista"}</h3>
+                      <h3>Tus elecciones están listas</h3>
                       <p>
                         Todos los pasos fueron confirmados. Ya puedes generar tu modelo.
                       </p>
@@ -2298,7 +2314,17 @@ useEffect(() => {
                     <button
                       className="faceGenerateModelButton faceGenerateModelButtonDone"
                       type="button"
-                      onClick={() => void generateModel()}
+                      onClick={() => {
+                        const hasPreviousResult = generatedExecution?.status === "completed" && Boolean(generatedPreviewUrl);
+                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9;
+                        if (hasPreviousResult && seedReuseSupported) {
+                          setReusePreviousBodySeed(false);
+                          setReusePreviousHeadSeed(false);
+                          setGenerationReuseModalOpen(true);
+                          return;
+                        }
+                        void generateModel();
+                      }}
                       disabled={generationRecoveryPending || generatingModel}
                     >
                       <WandSparkles size={19} />
@@ -2306,6 +2332,20 @@ useEffect(() => {
                         <strong>{generatingModel ? "Enviando generación…" : generateButtonLabel}</strong>
                         {!generatingModel && <small>{generateTokenLabel}</small>}
                       </span>
+                    </button>
+                  )}
+
+                  {editingGeneratedResult && generatedExecution?.status === "completed" && generatedPreviewUrl && (
+                    <button
+                      className="facePreviousResultButton"
+                      type="button"
+                      onClick={() => {
+                        setRestoredExecution(false);
+                        setRestoredResultReady(true);
+                        setEditingGeneratedResult(false);
+                      }}
+                    >
+                      <Eye size={18} /> Ver resultado anterior
                     </button>
                   )}
 
@@ -2363,6 +2403,71 @@ useEffect(() => {
           </div>
         </motion.section>
       </motion.div>
+      {generationReuseModalOpen && (
+        <div className="faceSeedReuseBackdrop" role="presentation" onMouseDown={() => setGenerationReuseModalOpen(false)}>
+          <section
+            className="faceSeedReuseModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="face-seed-reuse-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="faceSeedReuseModalHead">
+              <div>
+                <span>NUEVA VARIANTE</span>
+                <h3 id="face-seed-reuse-title">¿Qué quieres conservar?</h3>
+                <p>Por defecto la nueva variante usa seeds nuevos. Activa solo lo que quieras mantener igual a la generación anterior.</p>
+              </div>
+              <button type="button" onClick={() => setGenerationReuseModalOpen(false)} aria-label="Cerrar">×</button>
+            </div>
+
+            <div className="faceSeedReuseOptions">
+              {identityMode === "create" && (
+                <label>
+                  <span>
+                    <strong>Mantener mismo rostro anterior</strong>
+                    <small>Reutiliza el Seed Head de la generación anterior.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={reusePreviousHeadSeed}
+                    onChange={(event) => setReusePreviousHeadSeed(event.target.checked)}
+                  />
+                  <i aria-hidden="true" />
+                </label>
+              )}
+              <label>
+                <span>
+                  <strong>Mantener mismo cuerpo anterior</strong>
+                  <small>Reutiliza el Seed Body de la generación anterior.</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={reusePreviousBodySeed}
+                  onChange={(event) => setReusePreviousBodySeed(event.target.checked)}
+                />
+                <i aria-hidden="true" />
+              </label>
+            </div>
+
+            <div className="faceSeedReuseActions">
+              <button type="button" onClick={() => setGenerationReuseModalOpen(false)}>Cancelar</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGenerationReuseModalOpen(false);
+                  void generateModel({
+                    reuseBodySeed: reusePreviousBodySeed,
+                    reuseHeadSeed: identityMode === "create" ? reusePreviousHeadSeed : false,
+                  });
+                }}
+              >
+                Continuar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <IdentitySourceModal
         open={identitySourceOpen}
         initialMode={identityMode}
