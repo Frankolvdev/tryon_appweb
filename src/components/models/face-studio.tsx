@@ -697,15 +697,22 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         );
       });
 
-    Promise.all(
-      MEDIA_TOOLS.map(
-        async (tool) =>
-          [tool.id, (await listModelGenerationAssets(tool.id)).items] as const,
-      ),
-    )
-      .then((entries) => { if (!cancelled) setMediaAssets(Object.fromEntries(entries)); })
+    // Identity previews are auxiliary UI. Load the three tool catalogs in one
+    // request so returning to an active execution is not competing with three
+    // independent HTTP/DB/storage-signing requests. A preview failure must not
+    // block generation recovery or surface a misleading global studio error.
+    listModelGenerationAssets(MEDIA_TOOLS.map((tool) => tool.id))
+      .then((result) => {
+        if (cancelled) return;
+        const grouped: Record<string, ModelGenerationAsset[]> = { eyebrows: [], lips: [], hairstyle: [] };
+        for (const item of result.items) {
+          if (item.tool_key in grouped) grouped[item.tool_key].push(item);
+        }
+        setMediaAssets(grouped);
+      })
       .catch(() => {
-        if (!cancelled) notify.error("No se pudieron cargar algunas previews de identidad.");
+        // Keep the current empty catalogs. These previews are lazy/optional and
+        // can be retried on the next mount without delaying a recovered result.
       });
 
     return () => {
