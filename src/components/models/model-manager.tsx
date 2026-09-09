@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { createAiModel, listAiModels } from "@/lib/ai-model-api";
+import { visibleAiModelName } from "@/lib/ai-model-draft-name";
 import type { AiModelProfile } from "@/types/ai-model";
 import { ModelImage } from "./model-image";
 
@@ -49,7 +50,7 @@ export function ModelManager(){
             :<div className="modelBlank"><UserRound/><span>Sin cuerpo seleccionado</span></div>}
           <span className="modelStage">{m.stage==="studio"?"MODELO LISTO":m.stage==="body_selected"?"CUERPO LISTO":"EN CREACIÓN"}</span>
         </div>
-        <div className="modelCardCopy"><div><small>{m.sex==="woman"?"FEMALE MODEL":"MALE MODEL"}</small><h2>{m.name}</h2></div><b>Entrar al estudio →</b></div>
+        <div className="modelCardCopy"><div><small>{m.sex==="woman"?"FEMALE MODEL":"MALE MODEL"}</small><h2>{visibleAiModelName(m.name,"Modelo en creación")}</h2></div><b>Entrar al estudio →</b></div>
       </Link>)}</div>
       :<div className="modelEmpty modelEmptyHero">
         <Sparkles/>

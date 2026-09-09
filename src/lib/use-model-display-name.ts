@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isTemporaryAiModelName } from "@/lib/ai-model-draft-name";
 
 const keyFor = (modelId: number) => `tryon-model-display-name:${modelId}`;
 
@@ -10,7 +11,7 @@ export function useModelDisplayName(modelId: number, backendName?: string | null
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(keyFor(modelId));
-    setDisplayNameState(stored?.trim() || backendName || "");
+    setDisplayNameState(stored?.trim() || (isTemporaryAiModelName(backendName) ? "" : backendName) || "");
   }, [modelId, backendName]);
 
   useEffect(() => {
@@ -33,5 +34,5 @@ export function useModelDisplayName(modelId: number, backendName?: string | null
     }
   };
 
-  return [displayName || backendName || "Modelo", setDisplayName] as const;
+  return [displayName || (isTemporaryAiModelName(backendName) ? "" : backendName) || "Modelo", setDisplayName] as const;
 }
