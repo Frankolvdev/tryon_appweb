@@ -664,7 +664,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   setActiveStep((restoredMode === "existing" ? EXISTING_IDENTITY_STEPS : CREATE_IDENTITY_STEPS).findIndex((step) => step.kind === "summary"));
                   track(execution, {
                     clickable: true,
-                    href: `/models/${modelId}/face`,
+                    href: editingFinalModel ? `/models/${modelId}/face?edit=1` : `/models/${modelId}/face`,
                     label: "Create Model IA",
                   });
                   setGenerationRecoveryPending(false);
@@ -1169,7 +1169,7 @@ useEffect(() => {
       setActiveStep(identityDoneStepIndex);
       track(execution, {
         clickable: true,
-        href: `/models/${modelId}/face`,
+        href: editingFinalModel ? `/models/${modelId}/face?edit=1` : `/models/${modelId}/face`,
         label: "Create Model IA",
       });
 
@@ -1238,14 +1238,14 @@ useEffect(() => {
     try {
       const updated = await cancelGenerationExecution(executionId);
       setGeneratedExecution(updated);
-      track(updated, { clickable: true, href: `/models/${modelId}/face`, label: "Create Model IA" });
+      track(updated, { clickable: true, href: editingFinalModel ? `/models/${modelId}/face?edit=1` : `/models/${modelId}/face`, label: "Create Model IA" });
       notify.success(updated.status === "cancelled" ? "Generación cancelada." : "Cancelación solicitada.");
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "No se pudo cancelar la generación.");
       try {
         const latest = await getGenerationExecution(executionId);
         setGeneratedExecution(latest);
-        track(latest, { clickable: true, href: `/models/${modelId}/face`, label: "Create Model IA" });
+        track(latest, { clickable: true, href: editingFinalModel ? `/models/${modelId}/face?edit=1` : `/models/${modelId}/face`, label: "Create Model IA" });
       } catch {
         // Backend status remains authoritative; keep the last safe local snapshot.
       }
