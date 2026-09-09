@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { getPublicBranding, readBrandingCache, resolveBrandAssetUrl } from "@/lib/branding";
 import type { BrandingConfig } from "@/types/branding";
 
@@ -67,8 +66,8 @@ export function PlatformLogo({ compact = false, height = 42, className = "" }: P
         style={{
           display: "block",
           height,
-          width: compact ? height : "auto",
-          maxWidth: compact ? height : 230,
+          width: compact ? height : "100%",
+          maxWidth: compact ? height : 252,
           objectFit: "contain",
         }}
         decoding="async"
@@ -79,16 +78,19 @@ export function PlatformLogo({ compact = false, height = 42, className = "" }: P
     );
   }
 
-  // Logo-only branding: never print LUXIA/app_name beside the mark while the remote
-  // asset is loading or unavailable. The compact mark is only a neutral visual fallback.
+  // Logo-only branding: reserve the layout while loading, but never render a
+  // text name or substitute SVG mark in place of the configured logo.
   return (
     <span
-      className={`appBrandMark ${className}`.trim()}
+      className={className}
       aria-label={branding?.app_name || "Logo"}
-      title={branding?.app_name || undefined}
-    >
-      <Sparkles size={20} strokeWidth={1.8} />
-    </span>
+      style={{
+        display: "block",
+        height,
+        width: compact ? height : "100%",
+        maxWidth: compact ? height : 252,
+      }}
+    />
   );
 }
 

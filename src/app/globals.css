@@ -1237,7 +1237,7 @@ html,body{font-family:Arial,Helvetica,sans-serif}
 .appDesktopSidebar{position:fixed;inset:0 auto 0 0;z-index:40;width:288px;border-right:1px solid rgba(255,255,255,.06);background:rgba(7,7,8,.96);backdrop-filter:blur(20px);transition:width .3s ease}
 .appFrameCollapsed .appDesktopSidebar{width:80px}
 .appSidebarInner{display:flex;height:100%;flex-direction:column}
-.appBrand{display:flex;min-height:80px;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.06);padding:0 22px}
+.appBrand{display:flex;min-height:88px;align-items:center;justify-content:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.06);padding:0 14px}
 .appBrandCollapsed{justify-content:center;padding:0}
 .appBrandMark{display:flex;width:42px;height:42px;flex:0 0 42px;align-items:center;justify-content:center;border:1px solid rgba(225,29,53,.18);border-radius:14px;background:linear-gradient(145deg,rgba(77,7,17,.78),rgba(22,5,8,.92));color:#e11d35;box-shadow:0 0 30px rgba(225,29,53,.11),inset 0 1px 0 rgba(255,255,255,.04)}
 .appBrandCopy{display:flex;min-width:0;flex-direction:column}.appBrandCopy strong{font-size:17px;font-weight:650;letter-spacing:.18em;color:#fff}.appBrandCopy small{margin-top:4px;font-size:9px;font-weight:650;letter-spacing:.25em;color:#dc263e}

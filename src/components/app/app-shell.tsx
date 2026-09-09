@@ -30,7 +30,7 @@ function initials(name?: string | null) {
 function AppBrand({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <Link href="/dashboard" className={`appBrand${collapsed ? " appBrandCollapsed" : ""}`} aria-label="Inicio">
-      <PlatformLogo compact={collapsed} height={collapsed ? 38 : 42} />
+      <PlatformLogo compact={collapsed} height={collapsed ? 38 : 56} />
     </Link>
   );
 }
