@@ -1049,7 +1049,7 @@ useEffect(() => {
           input_14: "front view, full body",
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
-          input_17: "",
+          input_17: " ",
           input_18: occupationContext.clothes,
           // input_19 is required in V5. A single space satisfies the transport
           // contract while the pipeline's clean()/strip() correctly turns it
@@ -1083,7 +1083,7 @@ useEffect(() => {
           input_14: "front view, full body",
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
-          input_17: "",
+          input_17: " ",
           input_18: occupationContext.clothes,
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
@@ -1103,7 +1103,7 @@ useEffect(() => {
           input_9: "front view, full body",
           input_10: "standing and looking directly at camera",
           input_11: occupationContext.place,
-          input_12: "",
+          input_12: " ",
           input_13: occupationContext.clothes,
           input_14: customValues.extraDetails?.trim() || null,
         };
