@@ -968,6 +968,9 @@ useEffect(() => {
           }),
           identityMode,
           existingIdentityFile,
+          ...(bodyProportionsDraft ? { bodyProportions: bodyProportionsDraft } : {}),
+          ...(bodyProportionsMetaDraft ? { bodyProportionsMeta: bodyProportionsMetaDraft } : {}),
+          ...(bodyModeDraft ? { bodyMode: bodyModeDraft } : {}),
           ancestry: {
             id: ancestry.id,
             ancestry_key: ancestry.ancestry_key,
@@ -1193,6 +1196,9 @@ useEffect(() => {
             // Preserve the chosen identity source every time the execution pointer is saved.
             identityMode,
             existingIdentityFile,
+            ...(bodyProportionsDraft ? { bodyProportions: bodyProportionsDraft } : {}),
+            ...(bodyProportionsMetaDraft ? { bodyProportionsMeta: bodyProportionsMetaDraft } : {}),
+            ...(bodyModeDraft ? { bodyMode: bodyModeDraft } : {}),
             last_generation_seeds: {
               body: bodySeed,
               head: headSeed,
