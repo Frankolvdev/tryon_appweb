@@ -725,6 +725,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   }, [modelId, router, track]);
 
   useEffect(() => {
+    // The current Create/From Head contracts (8/9) persist body controls directly
+    // in draft_json.bodyProportions. They must never pay the legacy body-variant
+    // lookup cost. Keep this catalog reconstruction only as a compatibility
+    // fallback for historical generation contracts that still consume bodyBase.
+    if (!generationModuleInfo || generationModuleInfo.id === 8 || generationModuleInfo.id === 9) return;
     if (!model?.body_proportion_preset_id) return;
     let alive = true;
     Promise.all([
@@ -746,17 +751,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         });
       })
       .catch(() => {
-        if (!alive) return;
-        const draft = model?.draft_json && typeof model.draft_json === "object" ? model.draft_json as Record<string, unknown> : null;
-        // The current body editor restores its sliders from draft_json.bodyProportions.
-        // Failure to load the historical preset catalog must not show a scary
-        // refinement error or imply that the user's saved values were lost.
-        if (!draft?.bodyProportions) {
-          notify.warning("No se pudieron cargar los valores base del cuerpo para el refinamiento.");
-        }
+        // Historical compatibility only. The new template does not depend on
+        // these presets and therefore never surfaces the legacy refinement error.
       });
     return () => { alive = false; };
-  }, [model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
+  }, [generationModuleInfo?.id, model?.body_proportion_preset_id, model?.bubble_butt_preset_id, model?.bubble_butt_variant_index, model?.sex]);
 
   useEffect(() => {
     if (!isGenerationProviderPending(generatedExecution)) return;
@@ -1970,7 +1969,13 @@ useEffect(() => {
               ) : null}
 
               {currentStep.kind === "body" && (
-                <BodyProportionsStep modelId={modelId} onDraftChange={(nextBody, nextMode, nextMeta) => { setBodyProportionsDraft(nextBody); setBodyModeDraft(nextMode); setBodyProportionsMetaDraft(nextMeta); }} onComplete={() => {
+                <BodyProportionsStep
+                  modelId={modelId}
+                  initialBody={bodyProportionsDraft}
+                  initialMeta={bodyProportionsMetaDraft}
+                  legacyBodyCompatibility={Boolean(generationModuleInfo && generationModuleInfo.id !== 8 && generationModuleInfo.id !== 9)}
+                  onDraftChange={(nextBody, nextMode, nextMeta) => { setBodyProportionsDraft(nextBody); setBodyModeDraft(nextMode); setBodyProportionsMetaDraft(nextMeta); }}
+                  onComplete={() => {
                   clearValidation();
                   const completedAfter = completedSteps.includes(currentStep.id) ? completedSteps : [...completedSteps, currentStep.id];
                   setCompletedSteps(completedAfter);

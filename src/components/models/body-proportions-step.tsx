@@ -26,8 +26,11 @@ function loadBodyVariants(){
 }
 function loadBodyAssets(){
  if(BODY_ASSETS_CACHE)return Promise.resolve(BODY_ASSETS_CACHE);
- if(!BODY_ASSETS_PROMISE)BODY_ASSETS_PROMISE=Promise.all(BODY_TOOLS.map(t=>listModelGenerationAssets(t).catch(()=>({items:[],total:0})))).then(catalogs=>{
-  const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach((t,i)=>map[t]=ordered(catalogs[i].items));BODY_ASSETS_CACHE=map;return map;
+ if(!BODY_ASSETS_PROMISE)BODY_ASSETS_PROMISE=listModelGenerationAssets(BODY_TOOLS).then(result=>{
+  const map:Record<string,ModelGenerationAsset[]>={};BODY_TOOLS.forEach(t=>map[t]=[]);
+  for(const item of result.items){if(item.tool_key in map)map[item.tool_key].push(item)}
+  BODY_TOOLS.forEach(t=>map[t]=ordered(map[t]));
+  BODY_ASSETS_CACHE=map;return map;
  }).finally(()=>{BODY_ASSETS_PROMISE=null});
  return BODY_ASSETS_PROMISE;
 }
@@ -37,7 +40,7 @@ function preloadPreviewUrl(url:string|null|undefined){
  const img=new Image();img.src=url;
 }
 export function preloadBodyProportionsStep(bodyDraft?:Partial<BodyControlState>|null){
- void Promise.all([loadBodyVariants(),loadBodyAssets()]).then(([,map])=>{
+ void loadBodyAssets().then(map=>{
   const body={...DEFAULT_BODY,...(bodyDraft||{})};
   const previews=[
    nearestAsset(map.hips??[],Math.max(0,Math.min(3,Math.round(Number(body.hips)||0)))/3),
@@ -52,71 +55,108 @@ export function preloadBodyProportionsStep(bodyDraft?:Partial<BodyControlState>|
  }).catch(()=>undefined);
 }
 
-export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:number;onComplete:()=>void;onDraftChange?:(body:BodyControlState,mode:"fit"|"curvy",meta:{heightTouched:boolean;hipsTouched:boolean;breastsTouched:boolean})=>void}){
- const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>(()=>BODY_VARIANTS_CACHE??[]);
+export function BodyProportionsStep({
+ modelId,
+ initialBody,
+ initialMeta,
+ legacyBodyCompatibility=false,
+ onComplete,
+ onDraftChange,
+}:{
+ modelId:number;
+ initialBody?:Partial<BodyControlState>|null;
+ initialMeta?:{heightTouched:boolean;hipsTouched:boolean;breastsTouched:boolean}|null;
+ legacyBodyCompatibility?:boolean;
+ onComplete:()=>void;
+ onDraftChange?:(body:BodyControlState,mode:"fit"|"curvy",meta:{heightTouched:boolean;hipsTouched:boolean;breastsTouched:boolean})=>void;
+}){
+ const normalizeInitialBody=()=>{
+  const restored={...DEFAULT_BODY,...(initialBody||{})};
+  restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));
+  return restored;
+ };
  const [assets,setAssets]=useState<Record<string,ModelGenerationAsset[]>>(()=>BODY_ASSETS_CACHE??{});
- const [body,setBody]=useState(DEFAULT_BODY);
+ const [bodyVariants,setBodyVariants]=useState<BodyVariant[]>(()=>legacyBodyCompatibility?(BODY_VARIANTS_CACHE??[]):[]);
+ const [body,setBody]=useState<BodyControlState>(normalizeInitialBody);
  const [saving,setSaving]=useState(false);
- const [heightTouched,setHeightTouched]=useState(false);
- const [hipsTouched,setHipsTouched]=useState(false);
- const [breastsTouched,setBreastsTouched]=useState(false);
- const [catalogLoading,setCatalogLoading]=useState(()=>!(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE));
+ const [heightTouched,setHeightTouched]=useState(initialMeta?.heightTouched===true);
+ const [hipsTouched,setHipsTouched]=useState(initialMeta?.hipsTouched===true);
+ const [breastsTouched,setBreastsTouched]=useState(initialMeta?.breastsTouched===true);
+ const [catalogLoading,setCatalogLoading]=useState(()=>!BODY_ASSETS_CACHE);
  const onDraftChangeRef=useRef(onDraftChange);
+ const hydratedKeyRef=useRef("");
  useEffect(()=>{onDraftChangeRef.current=onDraftChange},[onDraftChange]);
+ useEffect(()=>{
+  const key=JSON.stringify([initialBody||null,initialMeta||null]);
+  if(hydratedKeyRef.current===key)return;
+  hydratedKeyRef.current=key;
+  const restored={...DEFAULT_BODY,...(initialBody||{})};
+  restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));
+  setBody(restored);
+  setHeightTouched(initialMeta?.heightTouched===true);
+  setHipsTouched(initialMeta?.hipsTouched===true);
+  setBreastsTouched(initialMeta?.breastsTouched===true);
+ },[initialBody,initialMeta]);
  useEffect(()=>{onDraftChangeRef.current?.(body,"fit",{heightTouched,hipsTouched,breastsTouched})},[body,heightTouched,hipsTouched,breastsTouched]);
  useEffect(()=>{
   let alive=true;
-
-  // Restore the user's saved sliders independently from the heavy preview/body
-  // catalogs. The draft is authoritative for the editor and should appear as
-  // soon as /ai-models/{id} returns, even if storage previews are still loading.
-  getAiModel(modelId)
-   .then((m)=>{
-    if(!alive)return;
-    const d=m.draft_json as any;
-    if(d?.bodyProportions){
-      const savedHeightTouched=d?.bodyProportionsMeta?.heightTouched===true;
-      const savedHipsTouched=d?.bodyProportionsMeta?.hipsTouched===true;
-      const savedBreastsTouched=d?.bodyProportionsMeta?.breastsTouched===true;
-      const restored={...DEFAULT_BODY,...d.bodyProportions};
-      restored.hips=Math.max(0,Math.min(3,Math.round(Number(restored.hips)||0)));
-      if(!savedHeightTouched)restored.height=0;
-      if(!savedHipsTouched)restored.hips=0;
-      if(!savedBreastsTouched)restored.breasts=-5;
-      setHeightTouched(savedHeightTouched);
-      setHipsTouched(savedHipsTouched);
-      setBreastsTouched(savedBreastsTouched);
-      setBody(restored);
-    } else {
-      setHeightTouched(false);
-      setHipsTouched(false);
-      setBreastsTouched(false);
-      setBody(DEFAULT_BODY);
-    }
-   })
-   .catch(e=>{if(alive)toast.error(e instanceof Error?e.message:"No se pudieron cargar tus proporciones guardadas")});
-
-  if(BODY_VARIANTS_CACHE&&BODY_ASSETS_CACHE){
-    setBodyVariants(BODY_VARIANTS_CACHE);
-    setAssets(BODY_ASSETS_CACHE);
-    setCatalogLoading(false);
+  if(BODY_ASSETS_CACHE){
+   setAssets(BODY_ASSETS_CACHE);
+   setCatalogLoading(false);
   }else{
-    setCatalogLoading(true);
-    Promise.allSettled([loadBodyVariants(),loadBodyAssets()])
-     .then(([variantsResult,assetsResult])=>{
-      if(!alive)return;
-      if(variantsResult.status==="fulfilled")setBodyVariants(variantsResult.value);
-      if(assetsResult.status==="fulfilled")setAssets(assetsResult.value);
-      if(variantsResult.status==="rejected")toast.error("No se pudieron cargar los presets corporales base.");
-      if(assetsResult.status==="rejected")toast.error("No se pudieron cargar algunas previews de proporciones.");
-     })
-     .finally(()=>{if(alive)setCatalogLoading(false)});
+   setCatalogLoading(true);
+   loadBodyAssets()
+    .then(map=>{if(alive)setAssets(map)})
+    .catch(()=>{if(alive)toast.error("No se pudieron cargar algunas previews de proporciones.")})
+    .finally(()=>{if(alive)setCatalogLoading(false)});
   }
   return()=>{alive=false};
- },[modelId]);
+ },[]);
+ useEffect(()=>{
+  if(!legacyBodyCompatibility)return;
+  let alive=true;
+  loadBodyVariants()
+   .then(items=>{if(alive)setBodyVariants(items)})
+   .catch(()=>{if(alive)toast.error("No se pudieron cargar los presets corporales base.")});
+  return()=>{alive=false};
+ },[legacyBodyCompatibility]);
  const preview=useMemo(()=>({hips:nearestAsset(assets.hips??[],body.hips/3),butt_size:nearestAsset(assets.butt_size??[],body.buttSize/7),breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),height:nearestAsset(assets.height??[],(body.height+5)/10),bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7),waist:nearestAsset(assets.waist??[],(body.waist+3)/6),complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)}),[assets,body]);
  const set=<K extends keyof BodyControlState>(k:K,v:BodyControlState[K])=>setBody(s=>({...s,[k]:v}));
- async function confirm(){if(!bodyVariants.length){toast.error("No hay presets corporales base disponibles.");return}setSaving(true);try{const hipsVals=[...new Set(bodyVariants.map(x=>x.hips_size))].sort((a,b)=>a-b);const breastVals=[...new Set(bodyVariants.map(x=>x.breasts_size))].sort((a,b)=>a-b);const targetHip=hipsVals[Math.round((body.hips/3)*Math.max(hipsVals.length-1,0))]??hipsVals[0];const targetBreast=breastVals[Math.round(((body.breasts+5)/10)*Math.max(breastVals.length-1,0))]??breastVals[0];const preset=[...bodyVariants].sort((a,b)=>Math.abs(a.hips_size-targetHip)+Math.abs(a.breasts_size-targetBreast))[0];if(!preset)throw new Error("No se pudo resolver el preset corporal base.");const bubbles=await listBubbleButtVariants(preset.id);const bubble=bubbles.items[Math.round((body.bubbleButt/.7)*Math.max(bubbles.items.length-1,0))]??bubbles.items[0];if(!bubble)throw new Error("Este cuerpo no tiene Butt Elevation disponible.");const m=await getAiModel(modelId);const current=(m.draft_json&&typeof m.draft_json==="object")?m.draft_json:{};await saveAiModelDraft(modelId,{...current,bodyProportions:body,bodyProportionsMeta:{...(current as any).bodyProportionsMeta,heightTouched,hipsTouched,breastsTouched},bodyMode:"fit"},m.name);await setAiModelBody(modelId,preset.id,bubble.id);onComplete()}catch(e){toast.error(e instanceof Error?e.message:"No se pudieron guardar las proporciones")}finally{setSaving(false)}}
+ async function confirm(){
+  setSaving(true);
+  try{
+   const m=await getAiModel(modelId);
+   const current=(m.draft_json&&typeof m.draft_json==="object")?m.draft_json:{};
+   await saveAiModelDraft(modelId,{
+    ...current,
+    bodyProportions:body,
+    bodyProportionsMeta:{heightTouched,hipsTouched,breastsTouched},
+    bodyMode:"fit",
+   },m.name);
+
+   // Historical compatibility only. Current Create/From Head contracts consume
+   // the raw draft values directly and must not resolve or persist legacy presets.
+   if(legacyBodyCompatibility){
+    if(!bodyVariants.length)throw new Error("No hay presets corporales base disponibles.");
+    const hipsVals=[...new Set(bodyVariants.map(x=>x.hips_size))].sort((a,b)=>a-b);
+    const breastVals=[...new Set(bodyVariants.map(x=>x.breasts_size))].sort((a,b)=>a-b);
+    const targetHip=hipsVals[Math.round((body.hips/3)*Math.max(hipsVals.length-1,0))]??hipsVals[0];
+    const targetBreast=breastVals[Math.round(((body.breasts+5)/10)*Math.max(breastVals.length-1,0))]??breastVals[0];
+    const preset=[...bodyVariants].sort((a,b)=>Math.abs(a.hips_size-targetHip)+Math.abs(a.breasts_size-targetBreast))[0];
+    if(!preset)throw new Error("No se pudo resolver el preset corporal base.");
+    const bubbles=await listBubbleButtVariants(preset.id);
+    const bubble=bubbles.items[Math.round((body.bubbleButt/.7)*Math.max(bubbles.items.length-1,0))]??bubbles.items[0];
+    if(!bubble)throw new Error("Este cuerpo no tiene Butt Elevation disponible.");
+    await setAiModelBody(modelId,preset.id,bubble.id);
+   }
+
+   onComplete();
+  }catch(e){
+   toast.error(e instanceof Error?e.message:"No se pudieron guardar las proporciones");
+  }finally{
+   setSaving(false);
+  }
+ }
  const complexionAsset=(value:"slim"|"thick")=>(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(value))??nearestAsset(assets.complexion??[],value==="slim"?0:1);
  const valueLabel=(value:number)=>Number(value.toFixed(1)).toFixed(1);
  return <div className="modelEmbeddedBodyStep">
@@ -129,7 +169,7 @@ export function BodyProportionsStep({modelId,onComplete,onDraftChange}:{modelId:
    <Control loading={catalogLoading} label="Bubble Butt" value={body.bubbleButt} display={valueLabel(body.bubbleButt)} min={0} max={.7} step={.2} left="Low lift" right="High lift" asset={preview.bubble_butt} onChange={v=>set("bubbleButt",Number(v.toFixed(1)))}/>
    <Control loading={catalogLoading} label="Waist" value={body.waist} display={valueLabel(body.waist)} min={-3} max={3} step={0.2} left="Very narrow" right="Very wide" asset={preview.waist} onChange={v=>set("waist",v)}/>
   </div>
-  <div className="faceStepConfirmRow"><button type="button" className="faceChooseButton" onClick={confirm} disabled={saving||catalogLoading}><Check size={17}/>{saving?"Guardando…":"Confirmar"}</button></div>
+  <div className="faceStepConfirmRow"><button type="button" className="faceChooseButton" onClick={confirm} disabled={saving}><Check size={17}/>{saving?"Guardando…":"Confirmar"}</button></div>
  </div>
 }
 function PreviewSkeleton({portrait=false}:{portrait?:boolean}){return <span className={`modelV2AssetPreview modelV2AssetSkeleton${portrait?" modelV2AssetPreviewPortrait":""}`} aria-hidden="true"/>}
