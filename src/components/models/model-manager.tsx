@@ -46,7 +46,7 @@ export function ModelManager(){
       ?<div className="modelCards">{models.map(m=><Link href={m.stage==="studio"?`/models/${m.id}/studio`:`/models/${m.id}`} className="modelCard" key={m.id}>
         <div className="modelCardVisual">
           {(m.generated_image_url&&m.selected_generation_file_id)
-            ?<ModelImage src={m.generated_image_url} alt={m.name} adaptiveAspect/>
+            ?<ModelImage src={m.generated_image_url} alt={m.name}/>
             :<div className="modelBlank"><UserRound/><span>Sin cuerpo seleccionado</span></div>}
           <span className="modelStage">{m.stage==="studio"?"MODELO LISTO":m.stage==="body_selected"?"CUERPO LISTO":"EN CREACIÓN"}</span>
         </div>

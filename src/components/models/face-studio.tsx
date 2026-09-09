@@ -1717,7 +1717,7 @@ useEffect(() => {
               <div className="modelSculptWidgetCopy">
                 <h2>Crea un cuerpo</h2>
                 <p>
-                  Define el cuerpo y sus rasgos paso a paso. Confirma cada selección con Elegir.
+                  Define el cuerpo y sus rasgos paso a paso. Confirma cada selección con Confirmar.
                 </p>
               </div>
               <button type="button" className="modelDraftSaveButton" onClick={saveDraft} disabled={draftSaving}>
@@ -1856,7 +1856,27 @@ useEffect(() => {
               <button
                 className="faceGenerateModelButton faceGenerateRetryButton"
                 type="button"
-                onClick={() => setEditingGeneratedResult(true)}
+                onClick={() => {
+                  setEditingGeneratedResult(true);
+                  const editableIndexes = identitySteps
+                    .map((step, index) => ({ step, index }))
+                    .filter(({ step }) => step.kind !== "summary");
+                  const allRequiredComplete = editableIndexes
+                    .filter(({ step }) => !step.optional)
+                    .every(({ step }) => completedSteps.includes(step.id));
+
+                  if (allRequiredComplete) {
+                    const lastCompleted = [...editableIndexes]
+                      .reverse()
+                      .find(({ step }) => completedSteps.includes(step.id));
+                    if (lastCompleted) setActiveStep(lastCompleted.index);
+                  } else {
+                    const firstIncomplete = editableIndexes.find(
+                      ({ step }) => !step.optional && !completedSteps.includes(step.id),
+                    );
+                    if (firstIncomplete) setActiveStep(firstIncomplete.index);
+                  }
+                }}
               >
                 <WandSparkles size={19} />
                 <span><strong>Modificar</strong></span>
@@ -2389,7 +2409,7 @@ useEffect(() => {
                     <Check size={17} />
                     {currentStep.optional && !(customValues.extraDetails || "").trim()
                       ? "Continuar sin detalle"
-                      : "Elegir"}
+                      : "Confirmar"}
                   </button>
                 </div>
               )}

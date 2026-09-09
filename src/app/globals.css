@@ -4892,3 +4892,11 @@ output.modelSliderValue{
 @media(max-width:620px){.faceSeedReuseActions{grid-template-columns:1fr}.faceSeedReuseModal{padding:18px}}
 
 @media(max-width:620px){.modelCardVisual:has(.modelImageShellAdaptive){height:auto}.modelCardVisual .modelImageShellAdaptive{min-height:220px}}
+
+/* R30 — Model list preview geometry is stable before and after generation.
+   Generated body previews are always 1248x1824, so reserve that exact ratio
+   even while the card is still empty. */
+.modelCards .modelCardVisual{height:auto;aspect-ratio:1248/1824;min-height:0}
+.modelCards .modelCardVisual .modelImageShell{width:100%;height:100%}
+.modelCards .modelCardVisual .modelImageShell img{object-fit:contain;background:#0b0b0c}
+@media(max-width:620px){.modelCards .modelCardVisual{height:auto;aspect-ratio:1248/1824}}
