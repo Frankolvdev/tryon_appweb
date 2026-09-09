@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/auth/login-form";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 
 export const metadata: Metadata = { title: "Acceso de usuario" };
 
@@ -28,10 +29,7 @@ export default function LoginPage() {
       <div className="exactAuthLayout">
         <section className="exactHero">
           <div>
-            <div className="exactBrand">
-              <div className="luxia-red-glow exactBrandIcon"><Icon name="sparkles" size={24} /></div>
-              <div><p className="exactBrandName">LUXIA</p><p className="exactBrandSubtitle">AI Fashion Studio</p></div>
-            </div>
+            <div className="exactBrand"><PlatformLogo height={48} /></div>
             <div className="exactHeroCopy">
               <p className="exactKicker">Estudio creativo</p>
               <h1 className="luxia-text-gradient">Inteligencia,<br />estilo y creatividad.</h1>
@@ -44,10 +42,7 @@ export default function LoginPage() {
         </section>
         <section className="exactFormSection">
           <div className="exactFormColumn">
-            <div className="exactMobileBrand">
-              <div className="luxia-red-glow exactMobileBrandIcon"><Icon name="sparkles" size={22} /></div>
-              <div><p>LUXIA</p><small>AI Fashion Studio</small></div>
-            </div>
+            <div className="exactMobileBrand"><PlatformLogo height={40} /></div>
             <div className="luxia-panel exactCard">
               <div className="exactLockIcon"><Icon name="lock" size={23} /></div>
               <p className="exactAccessLabel">Acceso de usuario</p>

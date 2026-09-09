@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteAiModel, getAiModel } from "@/lib/ai-model-api";
@@ -74,10 +74,32 @@ export function FinalModelStudio({ modelId }: { modelId: number }) {
 
         <button
           type="button"
+          onClick={() => router.push(`/models/${model.id}/face?edit=1`)}
+          style={{
+            marginTop: 18,
+            width: "100%",
+            minHeight: 46,
+            borderRadius: 14,
+            border: "1px solid rgba(225,29,53,.28)",
+            background: "rgba(225,29,53,.12)",
+            color: "#fecdd3",
+            fontWeight: 700,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Pencil size={17}/>
+          Editar modelo
+        </button>
+
+        <button
+          type="button"
           onClick={() => void removeModel()}
           disabled={deleting}
           style={{
-            marginTop: 18,
+            marginTop: 10,
             width: "100%",
             minHeight: 46,
             borderRadius: 14,

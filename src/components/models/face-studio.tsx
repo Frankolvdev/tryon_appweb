@@ -41,7 +41,7 @@ import { ModelImage } from "./model-image";
 import { ModelGlobalTimeline } from "./model-global-timeline";
 import { BodyProportionsStep, preloadBodyProportionsStep } from "./body-proportions-step";
 import { AncestryExperience } from "./ancestry-experience";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 import { downloadLibraryFile } from "@/lib/user-library-api";
 
@@ -469,6 +469,8 @@ function FaceDiscreteSlider({
 export function FaceStudio({ modelId }: { modelId: number }) {
   const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingFinalModel = searchParams.get("edit") === "1";
   const { track, subscribe } = useGenerationJobs();
   const { user } = useAppSession();
   const owner = isOwnerAccount(user);
@@ -491,7 +493,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [restoredResultReady, setRestoredResultReady] = useState(false);
   const generationIsBusy = isGenerationProviderPending(generatedExecution);
   const [usingGeneratedModel, setUsingGeneratedModel] = useState(false);
-  const [editingGeneratedResult, setEditingGeneratedResult] = useState(false);
+  const [editingGeneratedResult, setEditingGeneratedResult] = useState(editingFinalModel);
    const [selections, setSelections] =
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
@@ -559,7 +561,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     getAiModel(modelId)
       .then((result) => {
         if (cancelled) return;
-        if (result.stage === "studio") {
+        if (result.stage === "studio" && !editingFinalModel) {
           router.replace(`/models/${modelId}/studio`);
           return;
         }
@@ -722,7 +724,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         generationRecoveryRetryRef.current = null;
       }
     };
-  }, [modelId, router, track]);
+  }, [editingFinalModel, modelId, router, track]);
 
   useEffect(() => {
     // The current Create/From Head contracts (8/9) persist body controls directly

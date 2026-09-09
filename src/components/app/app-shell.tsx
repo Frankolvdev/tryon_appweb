@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, UserRound, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Coins, GalleryVerticalEnd, History, Home, LogOut, Menu, Settings, Sparkles, X } from "lucide-react";
 import { useAppSession } from "@/components/app/app-session";
 import { clearSession } from "@/lib/auth-storage";
 import { GenerationJobsProvider } from "@/components/generation/generation-jobs-provider";
@@ -12,6 +12,7 @@ import { isOwnerAccount } from "@/lib/owner-account";
 import { listGenerationModules } from "@/lib/generation-api";
 import { automaticGenerationModules, generationTabTitle } from "@/lib/generation-ui";
 import type { GenerationModule } from "@/types/generation";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 
 const items = [
   { href: "/dashboard", label: "Inicio", icon: Home },
@@ -28,9 +29,8 @@ function initials(name?: string | null) {
 
 function AppBrand({ collapsed = false }: { collapsed?: boolean }) {
   return (
-    <Link href="/dashboard" className={`appBrand${collapsed ? " appBrandCollapsed" : ""}`} aria-label="TryOn AI">
-      <span className="appBrandMark"><Sparkles size={20} strokeWidth={1.8}/></span>
-      {!collapsed && <span className="appBrandCopy"><strong>TRYON AI</strong><small>VIRTUAL STUDIO</small></span>}
+    <Link href="/dashboard" className={`appBrand${collapsed ? " appBrandCollapsed" : ""}`} aria-label="Inicio">
+      <PlatformLogo compact={collapsed} height={collapsed ? 38 : 42} />
     </Link>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RegisterForm } from "@/components/auth/register-form";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 
 export const metadata: Metadata = { title: "Crear cuenta" };
 
@@ -40,10 +41,7 @@ export default function RegisterPage() {
       <div className="exactAuthLayout">
         <section className="exactHero">
           <div>
-            <div className="exactBrand">
-              <div className="luxia-red-glow exactBrandIcon"><Icon name="sparkles" size={24} /></div>
-              <div><p className="exactBrandName">LUXIA</p><p className="exactBrandSubtitle">AI Fashion Studio</p></div>
-            </div>
+            <div className="exactBrand"><PlatformLogo height={48} /></div>
 
             <div className="exactHeroCopy">
               <p className="exactKicker">Estudio creativo</p>
@@ -59,10 +57,7 @@ export default function RegisterPage() {
 
         <section className="exactFormSection exactRegisterSection">
           <div className="exactFormColumn">
-            <div className="exactMobileBrand">
-              <div className="luxia-red-glow exactMobileBrandIcon"><Icon name="sparkles" size={22} /></div>
-              <div><p>LUXIA</p><small>AI Fashion Studio</small></div>
-            </div>
+            <div className="exactMobileBrand"><PlatformLogo height={40} /></div>
 
             <div className="luxia-panel exactCard exactRegisterCard">
               <div className="exactLockIcon"><Icon name="userPlus" size={23} /></div>

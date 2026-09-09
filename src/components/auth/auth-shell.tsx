@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 
 const securityItems = [
   { icon: "shield", label: "Privacidad protegida" },
@@ -25,10 +26,7 @@ export function AuthShell({ title, description, children }: { eyebrow?: string; 
       <div className="boAuthLayout">
         <section className="boAuthHero">
           <div>
-            <div className="boAuthBrand">
-              <div className="boAuthBrandMark"><Icon name="sparkles" size={24}/></div>
-              <div><p>LUXIA</p><span>AI Fashion Studio</span></div>
-            </div>
+            <div className="boAuthBrand"><PlatformLogo height={48} /></div>
             <div className="boAuthHeroCopy">
               <p className="boAuthEyebrow">ESTUDIO CREATIVO</p>
               <h1>Imagina,<br/>crea y transforma.</h1>
@@ -41,10 +39,7 @@ export function AuthShell({ title, description, children }: { eyebrow?: string; 
         </section>
         <section className="boAuthFormArea">
           <div className="boAuthFormWrap">
-            <div className="boAuthMobileBrand">
-              <div className="boAuthBrandMark"><Icon name="sparkles" size={22}/></div>
-              <div><p>LUXIA</p><span>AI FASHION STUDIO</span></div>
-            </div>
+            <div className="boAuthMobileBrand"><PlatformLogo height={40} /></div>
             <div className="boAuthCard">
               <div className="boAuthLock"><Icon name="lock" size={23}/></div>
               <p className="boAuthAccess">ACCESO DE USUARIO</p>
