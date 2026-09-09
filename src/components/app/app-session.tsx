@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-api";
 import { getAccessToken, getRefreshToken, subscribeToSessionChanges } from "@/lib/auth-storage";
@@ -17,6 +17,8 @@ export function AppSession({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [temporaryError, setTemporaryError] = useState<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const lastBackgroundRefreshAtRef = useRef(0);
 
   const redirectToLogin = useCallback(() => {
     setUser(null);
@@ -46,7 +48,26 @@ export function AppSession({ children }: { children: ReactNode }) {
   }, [redirectToLogin]);
 
   const restoreSession = useCallback(() => fetchUser(true), [fetchUser]);
-  const refreshUser = useCallback(() => fetchUser(false), [fetchUser]);
+  const refreshUser = useCallback(() => {
+    const now = Date.now();
+    const inFlight = refreshInFlightRef.current;
+    if (inFlight) return inFlight;
+
+    // Browsers commonly fire focus + visibilitychange together. One authoritative
+    // /users/me refresh is enough; coalesce the duplicate event burst.
+    if (now - lastBackgroundRefreshAtRef.current < 1_500) {
+      return Promise.resolve();
+    }
+
+    lastBackgroundRefreshAtRef.current = now;
+    const request = fetchUser(false).finally(() => {
+      if (refreshInFlightRef.current === request) {
+        refreshInFlightRef.current = null;
+      }
+    });
+    refreshInFlightRef.current = request;
+    return request;
+  }, [fetchUser]);
 
   useEffect(() => { void restoreSession(); }, [restoreSession]);
   useEffect(() => subscribeToSessionChanges(() => {
