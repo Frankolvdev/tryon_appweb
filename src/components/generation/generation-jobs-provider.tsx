@@ -122,6 +122,7 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
   const jobsRef = useRef<GenerationExecution[]>([]);
   const listenersRef = useRef(new Set<ExecutionListener>());
+  const transportReadyRef = useRef(false);
 
   const replaceJobs = useCallback((next: GenerationExecution[]) => {
     jobsRef.current = next;
@@ -240,15 +241,26 @@ export function GenerationJobsProvider({ children }: { children: ReactNode }) {
             onExecution: (event) => { void handleRealtimeEvent(event); },
             onTransport: (crossProcess) => {
               if (!stopped) {
+                const becameReady = crossProcess && !transportReadyRef.current;
+                transportReadyRef.current = crossProcess;
                 setRealtimeConnected(crossProcess);
                 if (crossProcess) backoffMs = 1000;
+                // Reconcile durable SQL state exactly once when realtime transport
+                // becomes available/reconnects. This is event-driven, not polling.
+                if (becameReady) void refresh();
               }
             },
           });
-          if (!stopped) setRealtimeConnected(false);
+          if (!stopped) {
+            transportReadyRef.current = false;
+            setRealtimeConnected(false);
+          }
         } catch (error) {
           if (controller.signal.aborted) break;
-          if (!stopped) setRealtimeConnected(false);
+          if (!stopped) {
+            transportReadyRef.current = false;
+            setRealtimeConnected(false);
+          }
         }
         if (stopped) break;
         void refresh();
