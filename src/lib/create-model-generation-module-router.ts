@@ -68,6 +68,7 @@ const LOCAL_CREATE_V5_INPUTS = [
   { key: "input_18", name: "clothes", type: "text", required: true },
   { key: "input_19", name: "extra_details", type: "text", required: true },
   { key: "input_20", name: "hips", type: "text", required: true },
+  { key: "input_21", name: "face_reference", type: "image", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
 const CREATE_MODEL_OUTPUTS = [

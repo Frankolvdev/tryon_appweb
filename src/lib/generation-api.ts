@@ -41,6 +41,14 @@ export const executeGenerationModule = (
   return apiFetch<GenerationExecution>(`/api/v1/generation-modules/${id}/executions`, { method: "POST", body: form });
 };
 const generationExecutionInflight = new Map<string, Promise<GenerationExecution>>();
+export const executeCreateModelWithPrivateFaceReference = (
+  id: number,
+  inputs: Record<string, unknown>,
+) => apiFetch<GenerationExecution>("/api/create-model/private-execute", {
+  method: "POST",
+  body: JSON.stringify({ module_id: id, inputs }),
+});
+
 export const getGenerationExecution = (id: string) => {
   const pending = generationExecutionInflight.get(id);
   if (pending) return pending;

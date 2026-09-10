@@ -14,7 +14,7 @@ import {
 import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
-import { cancelGenerationExecution, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
+import { cancelGenerationExecution, executeCreateModelWithPrivateFaceReference, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
 import { resolveCreateModelGenerationModule, tryResolveCreateModelGenerationModule } from "@/lib/create-model-generation-module-router";
 import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
@@ -1177,7 +1177,9 @@ useEffect(() => {
       console.log("Payload:", { inputs: payload });
       console.groupEnd();
 
-      const execution = await executeGenerationModule(generationModule.id, payload);
+      const execution = generationModule.id === 8 && identityMode === "create"
+        ? await executeCreateModelWithPrivateFaceReference(generationModule.id, payload)
+        : await executeGenerationModule(generationModule.id, payload);
       generationVisualClockRef.current = { id: execution.id, startedAtMs: Date.now() };
       setProgressClock(Date.now());
       setGeneratedExecution(execution);
