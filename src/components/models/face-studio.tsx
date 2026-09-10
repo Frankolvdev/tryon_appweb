@@ -27,7 +27,6 @@ import {
   colorCategories,
   colorOption,
   defaultIdentitySelections,
-  buildIdentityPrompt,
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
@@ -60,6 +59,7 @@ const MEDIA_TOOLS: {
 type StepId =
   | "bodyProportions"
   | "ancestry"
+  | "age"
   | "eyeColor"
   | "eyebrows"
   | "lips"
@@ -77,7 +77,7 @@ type StepDefinition = {
   label: string;
   shortLabel: string;
   hint: string;
-  kind: "body" | "intro" | "ancestry" | "color" | "media" | "range" | "occupation" | "extra" | "identityFace" | "summary";
+  kind: "body" | "intro" | "ancestry" | "age" | "color" | "media" | "range" | "occupation" | "extra" | "identityFace" | "summary";
   optional?: boolean;
 };
 
@@ -95,6 +95,13 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
     shortLabel: "Ascendencia",
     hint: "Elige arriba la ascendencia de tu modelo",
     kind: "ancestry",
+  },
+  {
+    id: "age",
+    label: "Edad",
+    shortLabel: "Edad",
+    hint: "Elige la edad de tu modelo",
+    kind: "age",
   },
   {
     id: "eyeColor",
@@ -225,7 +232,7 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
 function StepIcon({ id }: { id: StepId }) {
   return (
     <img
-      src={id === "bodyProportions" ? "/model-stage-icons/body.svg" : id === "hairLength" ? "/identity-icons/hairstyle.svg" : `/identity-icons/${id}.svg`}
+      src={id === "bodyProportions" ? "/model-stage-icons/body.svg" : id === "hairLength" ? "/identity-icons/hairstyle.svg" : id === "age" ? "/identity-icons/age.svg" : `/identity-icons/${id}.svg`}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -1002,13 +1009,6 @@ useEffect(() => {
         }
       }
 
-      const identity = buildIdentityPrompt({
-        ancestryLabel: ancestry?.display_name,
-        selections,
-        mediaValues,
-        customValues,
-      });
-
       // The workflow contract separates body controls, scene controls and the
       // identity/head prompt. Scene defaults stay deterministic so the same
       // identity settings produce a predictable first preview.
@@ -1016,23 +1016,38 @@ useEffect(() => {
         selections.occupation,
         customValues.occupation,
       );
-      // Every generation gets fresh independent 15-digit seeds. The previous
-      // seed-reuse UI is intentionally disabled so variants never carry a
-      // static body/head seed forward.
+      // Every generation gets fresh independent 15-digit seeds. Seed Head also
+      // selects the hidden server-side facial geometry deterministically.
       const bodySeed = generationSeed();
       const headSeed = generationSeed();
-      const promptHead = commaPrompt([
-        identity.prompt,
-        "fitted black top",
-        "frontal upper-chest beauty portrait",
-        "looking directly at camera",
-        "neutral-cool soft beauty lighting",
-        "realistic skin texture",
-        "highly detailed eyes",
-        "realistic hair strands",
-        "85mm beauty photography",
-        "clean white background",
-      ].join(", "));
+      const selectedPrompt = (categoryId: "eyeColor" | "skinTone" | "hairColor") => {
+        const selected = selections[categoryId];
+        if (selected === "custom") return (customValues[categoryId] || "").trim();
+        return colorOption(categoryId, selected)?.prompt || "";
+      };
+      let promptHead = "";
+      if (identityMode === "create") {
+        const promptResponse = await fetch("/api/model-head-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            seed: String(headSeed),
+            age: Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25)))),
+            ancestry: ancestry?.display_name || "",
+            iris: selectedPrompt("eyeColor"),
+            skin: selectedPrompt("skinTone"),
+            hairColor: selectedPrompt("hairColor"),
+            hairStyle: mediaValues.hairstyle || "",
+            eyebrow: mediaValues.eyebrows || "",
+            lips: mediaValues.lips || "",
+          }),
+        });
+        if (!promptResponse.ok) throw new Error("No se pudo construir el prompt de rostro.");
+        const promptPayload = await promptResponse.json() as { prompt?: string };
+        promptHead = commaPrompt(promptPayload.prompt || "");
+        if (!promptHead) throw new Error("El prompt de rostro llegó vacío.");
+      }
 
       const hairLength = round1(Number(customValues.hairLength ?? 0));
       const rawBody = bodyProportionsDraft || {};
@@ -1552,6 +1567,7 @@ useEffect(() => {
     if (pendingValues[step.id] !== undefined) return pendingValues[step.id];
     if (step.kind === "body") return completedSteps.includes(step.id) ? "done" : "";
     if (step.kind === "ancestry") return ancestry ? ancestry.ancestry_key || String(ancestry.id) : "";
+    if (step.kind === "age") return customValues.age ?? "25";
     if (step.kind === "media") return mediaSelected[step.id] || "";
     if (step.kind === "range") return customValues.hairLength ?? "0";
     if (step.kind === "color") return selections[step.id] || "";
@@ -1618,6 +1634,16 @@ useEffect(() => {
         ? completedSteps
         : [...completedSteps, step.id];
 
+      setCompletedSteps(completedAfter);
+      if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
+      return true;
+    }
+
+    if (step.kind === "age") {
+      clearValidation();
+      const age = Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))));
+      setCustomValues((current) => ({ ...current, age: String(age) }));
+      const completedAfter = completedSteps.includes(step.id) ? completedSteps : [...completedSteps, step.id];
       setCompletedSteps(completedAfter);
       if (advance) setActiveStep(stepAfterCommit(step.id, completedAfter));
       return true;
@@ -2009,6 +2035,31 @@ useEffect(() => {
                   ) : (
                     <div className="faceAncestrySelectedEmpty"><span>Selecciona arriba una ascendencia para ver aquí su preview.</span></div>
                   )}
+                </div>
+              )}
+
+              {currentStep.kind === "age" && (
+                <div className="modelV2Control faceAgeControl">
+                  <div className="modelV2ControlMain">
+                    <div className="modelV2ControlHead">
+                      <strong>Edad</strong>
+                      <output>{Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))))} años</output>
+                    </div>
+                    <FaceDiscreteSlider
+                      value={Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))))}
+                      min={18}
+                      max={60}
+                      step={1}
+                      onChange={(value) => {
+                        clearValidation();
+                        setCustomValues((current) => ({ ...current, age: String(Math.round(value)) }));
+                        if (completedSteps.includes("age")) {
+                          setCompletedSteps((current) => current.filter((id) => id !== "age"));
+                        }
+                      }}
+                    />
+                    <div className="modelAxisEnds"><span>18</span><span>60</span></div>
+                  </div>
                 </div>
               )}
 
