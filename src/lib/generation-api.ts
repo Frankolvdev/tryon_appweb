@@ -44,9 +44,14 @@ const generationExecutionInflight = new Map<string, Promise<GenerationExecution>
 export const executeCreateModelWithPrivateFaceReference = (
   id: number,
   inputs: Record<string, unknown>,
+  faceReferenceToken?: string,
 ) => apiFetch<GenerationExecution>("/api/create-model/private-execute", {
   method: "POST",
-  body: JSON.stringify({ module_id: id, inputs }),
+  body: JSON.stringify({
+    module_id: id,
+    inputs,
+    ...(faceReferenceToken ? { face_reference_token: faceReferenceToken } : {}),
+  }),
 });
 
 export const getGenerationExecution = (id: string) => {

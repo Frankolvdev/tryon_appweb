@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -17,6 +17,37 @@ async function backendError(response: Response, fallback: string) {
   return fallback;
 }
 
+function faceReferenceToken(firstIndex: number, secondIndex: number, secret: string) {
+  const payload = `v1.${firstIndex}.${secondIndex}`;
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function faceReferencePairFromToken(token: unknown, secret: string, total: number) {
+  if (typeof token !== "string" || !token) return null;
+  const match = /^v1\.(\d+)\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(token);
+  if (!match) throw new Error("La base facial anterior no es válida.");
+  const firstIndex = Number(match[1]);
+  const secondIndex = Number(match[2]);
+  const payload = `v1.${firstIndex}.${secondIndex}`;
+  const expected = Buffer.from(createHmac("sha256", secret).update(payload).digest("base64url"));
+  const received = Buffer.from(match[3]);
+  if (
+    expected.length !== received.length ||
+    !timingSafeEqual(expected, received) ||
+    !Number.isInteger(firstIndex) ||
+    !Number.isInteger(secondIndex) ||
+    firstIndex < 0 ||
+    secondIndex < 0 ||
+    firstIndex >= total ||
+    secondIndex >= total ||
+    firstIndex === secondIndex
+  ) {
+    throw new Error("La base facial anterior no es válida.");
+  }
+  return { firstIndex, secondIndex };
+}
+
 export async function POST(request: Request) {
   const internalKey = (process.env.APPWEB_INTERNAL_KEY ?? "").trim();
   if (!internalKey) {
@@ -25,7 +56,7 @@ export async function POST(request: Request) {
   const authorization = request.headers.get("authorization");
   if (!authorization) return NextResponse.json({ detail: "Sesión requerida." }, { status: 401 });
 
-  let body: { module_id?: unknown; inputs?: unknown };
+  let body: { module_id?: unknown; inputs?: unknown; face_reference_token?: unknown };
   try { body = await request.json(); }
   catch { return NextResponse.json({ detail: "Solicitud inválida." }, { status: 400 }); }
 
@@ -52,13 +83,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Se requieren al menos dos estructuras faciales activas para Create Model." }, { status: 409 });
   }
 
-  // Cryptographically-random pair without replacement. The second index is
-  // guaranteed to be different from the first, while every ordered pair has
-  // the same probability. With a large bank this makes exact pair repetition
-  // naturally very unlikely without keeping client-visible selection state.
-  const firstIndex = randomInt(total);
-  let secondIndex = randomInt(total - 1);
-  if (secondIndex >= firstIndex) secondIndex += 1;
+  let firstIndex: number;
+  let secondIndex: number;
+  try {
+    const reusedPair = faceReferencePairFromToken(body.face_reference_token, internalKey, total);
+    if (reusedPair) {
+      ({ firstIndex, secondIndex } = reusedPair);
+    } else {
+      // Cryptographically-random pair without replacement.
+      firstIndex = randomInt(total);
+      secondIndex = randomInt(total - 1);
+      if (secondIndex >= firstIndex) secondIndex += 1;
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { detail: error instanceof Error ? error.message : "La base facial anterior no es válida." },
+      { status: 400 },
+    );
+  }
 
   const fetchPrivateFace = async (index: number) => {
     const response = await fetch(
@@ -108,5 +150,11 @@ export async function POST(request: Request) {
     );
   }
   const execution = await executionResponse.json();
-  return NextResponse.json(execution, { headers: { "Cache-Control": "no-store, private" } });
+  return NextResponse.json(
+    {
+      ...execution,
+      private_face_reference_token: faceReferenceToken(firstIndex, secondIndex, internalKey),
+    },
+    { headers: { "Cache-Control": "no-store, private" } },
+  );
 }

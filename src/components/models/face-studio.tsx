@@ -45,6 +45,12 @@ import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode
 import { downloadLibraryFile } from "@/lib/user-library-api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
+type LastGenerationSeeds = {
+  body: number;
+  head: number;
+  executionId?: string;
+  faceReferenceToken?: string;
+};
 const MIN_MODEL_AGE = 18;
 const MAX_MODEL_AGE = 70;
 const MIN_AGE_LORA = -1;
@@ -575,6 +581,10 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [pendingValues, setPendingValues] = useState<Record<string, string>>({});
   const [validationMessage, setValidationMessage] = useState("");
   const [occupationModalOpen, setOccupationModalOpen] = useState(false);
+  const [generationReuseModalOpen, setGenerationReuseModalOpen] = useState(false);
+  const [reusePreviousBodySeed, setReusePreviousBodySeed] = useState(false);
+  const [reusePreviousHeadSeed, setReusePreviousHeadSeed] = useState(false);
+  const [lastGenerationSeeds, setLastGenerationSeeds] = useState<LastGenerationSeeds | null>(null);
   const [occupationSearch, setOccupationSearch] = useState("");
   const [occupationLocale] = useState<OccupationLocale>("es");
   const [bodyBase, setBodyBase] = useState({ ass: 0, fat: 0, breasts: 0, skin_tone: 0, hair_length: 0, butt_elevation: 0 });
@@ -651,6 +661,19 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             if (!savedHairLengthTouched) restoredCustomValues.hairLength = "0";
             setHairLengthTouched(savedHairLengthTouched);
             setCustomValues(restoredCustomValues);
+            if (data.last_generation_seeds && typeof data.last_generation_seeds === "object") {
+              const savedSeeds = data.last_generation_seeds as Record<string, unknown>;
+              const bodySeed = Number(savedSeeds.body);
+              const headSeed = Number(savedSeeds.head);
+              if (Number.isInteger(bodySeed) && Number.isInteger(headSeed)) {
+                setLastGenerationSeeds({
+                  body: bodySeed,
+                  head: headSeed,
+                  executionId: typeof savedSeeds.execution_id === "string" ? savedSeeds.execution_id : undefined,
+                  faceReferenceToken: typeof savedSeeds.face_reference_token === "string" ? savedSeeds.face_reference_token : undefined,
+                });
+              }
+            }
             const modelSetup = data.modelSetup && typeof data.modelSetup === "object" ? data.modelSetup : null;
             const restoredIdentityMode: IdentitySourceMode =
               data.identityMode === "existing" || modelSetup?.identityMode === "existing" ? "existing" : "create";
@@ -991,7 +1014,7 @@ useEffect(() => {
     } finally { setDraftSaving(false); }
   }
 
-  async function generateModel() {
+  async function generateModel(options?: { reuseBodySeed?: boolean; reuseHeadSeed?: boolean }) {
     // queued/running remains exclusive even while cancellation is pending.
     // Do not allow a second execution until Backend reaches a terminal state.
     if (!model || generationRecoveryPending || generatingModel || isGenerationProviderPending(generatedExecution)) return;
@@ -1076,10 +1099,16 @@ useEffect(() => {
         selections.occupation,
         customValues.occupation,
       );
-      // Every generation gets fresh independent 15-digit seeds. Seed Head also
-      // selects the hidden server-side facial geometry deterministically.
-      const bodySeed = generationSeed();
-      const headSeed = generationSeed();
+      // A reused base keeps its previous seed. Otherwise every generation gets
+      // fresh independent 15-digit seeds.
+      const previousBodySeed = Number(lastGenerationSeeds?.body ?? generatedExecution?.inputs?.input_4);
+      const previousHeadSeed = Number(lastGenerationSeeds?.head ?? generatedExecution?.inputs?.input_5);
+      const bodySeed = options?.reuseBodySeed && Number.isInteger(previousBodySeed)
+        ? previousBodySeed
+        : generationSeed();
+      const headSeed = options?.reuseHeadSeed && Number.isInteger(previousHeadSeed)
+        ? previousHeadSeed
+        : generationSeed();
       const selectedPrompt = (categoryId: "eyeColor" | "skinTone" | "hairColor") => {
         const selected = selections[categoryId];
         if (selected === "custom") return (customValues[categoryId] || "").trim();
@@ -1263,8 +1292,16 @@ useEffect(() => {
       console.groupEnd();
 
       const execution = generationModule.id === 8 && identityMode === "create"
-        ? await executeCreateModelWithPrivateFaceReference(generationModule.id, payload)
+        ? await executeCreateModelWithPrivateFaceReference(
+            generationModule.id,
+            payload,
+            options?.reuseHeadSeed ? lastGenerationSeeds?.faceReferenceToken : undefined,
+          )
         : await executeGenerationModule(generationModule.id, payload);
+      const faceReferenceToken = typeof (execution as GenerationExecution & { private_face_reference_token?: unknown }).private_face_reference_token === "string"
+        ? (execution as GenerationExecution & { private_face_reference_token: string }).private_face_reference_token
+        : undefined;
+      setLastGenerationSeeds({ body: bodySeed, head: headSeed, executionId: execution.id, faceReferenceToken });
       generationVisualClockRef.current = { id: execution.id, startedAtMs: Date.now() };
       setProgressClock(Date.now());
       setGeneratedExecution(execution);
@@ -1307,6 +1344,7 @@ useEffect(() => {
               body: bodySeed,
               head: headSeed,
               execution_id: execution.id,
+              ...(faceReferenceToken ? { face_reference_token: faceReferenceToken } : {}),
             },
           },
           displayName.trim() || model.name,
@@ -2501,7 +2539,17 @@ useEffect(() => {
                     <button
                       className="faceGenerateModelButton faceGenerateModelButtonDone"
                       type="button"
-                      onClick={() => { void generateModel(); }}
+                      onClick={() => {
+                        const hasPreviousResult = generatedExecution?.status === "completed" && Boolean(generatedPreviewUrl);
+                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9;
+                        if (hasPreviousResult && seedReuseSupported) {
+                          setReusePreviousBodySeed(false);
+                          setReusePreviousHeadSeed(false);
+                          setGenerationReuseModalOpen(true);
+                          return;
+                        }
+                        void generateModel();
+                      }}
                       disabled={generationRecoveryPending || generatingModel}
                     >
                       <WandSparkles size={19} />
@@ -2580,6 +2628,72 @@ useEffect(() => {
           </div>
         </motion.section>
       </motion.div>
+      {generationReuseModalOpen && (
+        <div className="faceSeedReuseBackdrop" role="presentation" onMouseDown={() => setGenerationReuseModalOpen(false)}>
+          <section
+            className="faceSeedReuseModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="face-seed-reuse-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="faceSeedReuseModalHead">
+              <div>
+                <span>NUEVA VARIANTE</span>
+                <h3 id="face-seed-reuse-title">¿Qué quieres conservar?</h3>
+              </div>
+              <button type="button" onClick={() => setGenerationReuseModalOpen(false)} aria-label="Cerrar">×</button>
+            </div>
+
+            <div className="faceSeedReuseOptions">
+              {identityMode === "create" && lastGenerationSeeds?.faceReferenceToken && (
+                <label>
+                  <span>
+                    <strong>Rostro base</strong>
+                    <small>Conserva el rostro, aplicando tus nuevos cambios.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={reusePreviousHeadSeed}
+                    onChange={(event) => setReusePreviousHeadSeed(event.target.checked)}
+                  />
+                  <i aria-hidden="true" />
+                </label>
+              )}
+              <label>
+                <span>
+                  <strong>Cuerpo base</strong>
+                  <small>Conserva el cuerpo, aplicando tus nuevos cambios.</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={reusePreviousBodySeed}
+                  onChange={(event) => setReusePreviousBodySeed(event.target.checked)}
+                />
+                <i aria-hidden="true" />
+              </label>
+            </div>
+
+            <small className="faceSeedReuseNote">El resultado puede variar ligeramente.</small>
+
+            <div className="faceSeedReuseActions">
+              <button type="button" onClick={() => setGenerationReuseModalOpen(false)}>Cancelar</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGenerationReuseModalOpen(false);
+                  void generateModel({
+                    reuseBodySeed: reusePreviousBodySeed,
+                    reuseHeadSeed: identityMode === "create" && Boolean(lastGenerationSeeds?.faceReferenceToken) && reusePreviousHeadSeed,
+                  });
+                }}
+              >
+                Generar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <IdentitySourceModal
         open={identitySourceOpen}
         initialMode={identityMode}
