@@ -7,12 +7,12 @@ export const FACE_TRIGGER="angel face";
 
 export const colorCategories:ColorCategory[]=[
  {id:"eyeColor",label:"Eye color",hint:"Color de iris",options:[
-  {id:"blue",label:"Blue",tone:"#6ca9d9",prompt:"clear light blue irises, matching blue eye color in both eyes"},
-  {id:"green",label:"Green",tone:"#6d996b",prompt:"clear natural green irises, matching green eye color in both eyes"},
-  {id:"hazel",label:"Hazel",tone:"#8f7a45",prompt:"warm hazel irises with subtle green and amber variation"},
-  {id:"brown",label:"Brown",tone:"#704633",prompt:"rich natural brown irises, matching brown eye color in both eyes"},
-  {id:"dark-brown",label:"Dark brown",tone:"#3f2a24",prompt:"deep dark-brown irises, matching dark eye color in both eyes"},
-  {id:"gray",label:"Gray",tone:"#9299a1",prompt:"clear cool gray irises, matching gray eye color in both eyes"},
+  {id:"blue",label:"Blue",tone:"#6ca9d9",prompt:"light blue irises, matching blue eye color in both eyes"},
+  {id:"green",label:"Green",tone:"#6d996b",prompt:"light green irises, matching green eye color in both eyes"},
+  {id:"hazel",label:"Hazel",tone:"#8f7a45",prompt:"light hazel irises, matching hazel eye color in both eyes"},
+  {id:"brown",label:"Brown",tone:"#704633",prompt:"light brown irises, matching brown eye color in both eyes"},
+  {id:"dark-brown",label:"Dark brown",tone:"#3f2a24",prompt:"light dark-brown irises, matching dark-brown eye color in both eyes"},
+  {id:"gray",label:"Gray",tone:"#9299a1",prompt:"light gray irises, matching gray eye color in both eyes"},
  ]},
  {id:"skinTone",label:"Skin tone",hint:"Tono de piel",options:[
   {id:"porcelain",label:"Porcelain",tone:"#ead4c9",prompt:"porcelain skin tone"},

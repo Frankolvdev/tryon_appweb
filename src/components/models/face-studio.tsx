@@ -45,6 +45,21 @@ import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode
 import { downloadLibraryFile } from "@/lib/user-library-api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
+const MIN_MODEL_AGE = 18;
+const MAX_MODEL_AGE = 70;
+const MIN_AGE_LORA = -1;
+const MAX_AGE_LORA = 6;
+
+function clampModelAge(value: unknown) {
+  return Math.max(MIN_MODEL_AGE, Math.min(MAX_MODEL_AGE, Math.round(Number(value) || 25)));
+}
+
+function modelAgeToLora(age: number) {
+  const normalized = MIN_AGE_LORA
+    + ((clampModelAge(age) - MIN_MODEL_AGE) * (MAX_AGE_LORA - MIN_AGE_LORA))
+      / (MAX_MODEL_AGE - MIN_MODEL_AGE);
+  return Number(normalized.toFixed(6));
+}
 
 const MEDIA_TOOLS: {
   id: ModelGenerationToolKey;
@@ -190,6 +205,13 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
     shortLabel: "Ascendencia",
     hint: "Elige arriba la ascendencia de tu modelo",
     kind: "ancestry",
+  },
+  {
+    id: "age",
+    label: "Edad",
+    shortLabel: "Edad",
+    hint: "Elige la edad de tu modelo",
+    kind: "age",
   },
   {
     id: "skinTone",
@@ -1071,7 +1093,7 @@ useEffect(() => {
           cache: "no-store",
           body: JSON.stringify({
             seed: String(headSeed),
-            age: Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25)))),
+            age: clampModelAge(customValues.age),
             ancestry: ancestry?.display_name || "",
             iris: selectedPrompt("eyeColor"),
             skin: selectedPrompt("skinTone"),
@@ -1096,6 +1118,8 @@ useEffect(() => {
       const hipsIndex = Math.max(0, Math.min(3, Math.round(bodyNumber("hips", 0))));
       const hipsText = HIP_GENERATION_VALUES[hipsIndex];
       const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
+      const realAge = clampModelAge(customValues.age);
+      const ageLoraValue = modelAgeToLora(realAge);
 
       let payload: Record<string, unknown>;
       if (generationModule.id === 8 && identityMode === "create") {
@@ -1136,6 +1160,7 @@ useEffect(() => {
             .toLowerCase()
             .replace(/\s+hair\s*style$/i, "")
             .trim(),
+          input_25: ageLoraValue,
         };
       } else if (generationModule.id === 9 && identityMode === "existing") {
         // Local From Head V6 contract. It mirrors the local body/scene inputs
@@ -1168,6 +1193,17 @@ useEffect(() => {
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
           input_21: headFile,
+          input_22: (ancestry?.display_name || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+ancestry$/i, "")
+            .trim(),
+          input_23: ageLoraValue,
+          input_24: (mediaValues.hairstyle || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+hair\s*style$/i, "")
+            .trim() || "same hairstyle as reference image",
         };
       } else {
         // Historical remote contracts stay untouched.
@@ -1692,7 +1728,7 @@ useEffect(() => {
 
     if (step.kind === "age") {
       clearValidation();
-      const age = Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))));
+      const age = clampModelAge(customValues.age);
       setCustomValues((current) => ({ ...current, age: String(age) }));
       const completedAfter = completedSteps.includes(step.id) ? completedSteps : [...completedSteps, step.id];
       setCompletedSteps(completedAfter);
@@ -2094,12 +2130,12 @@ useEffect(() => {
                   <div className="modelV2ControlMain">
                     <div className="modelV2ControlHead">
                       <strong>Edad</strong>
-                      <output>{Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))))} años</output>
+                      <output>{clampModelAge(customValues.age)} años</output>
                     </div>
                     <FaceDiscreteSlider
-                      value={Math.max(18, Math.min(60, Math.round(Number(customValues.age ?? 25))))}
-                      min={18}
-                      max={60}
+                      value={clampModelAge(customValues.age)}
+                      min={MIN_MODEL_AGE}
+                      max={MAX_MODEL_AGE}
                       step={1}
                       onChange={(value) => {
                         clearValidation();
@@ -2109,7 +2145,7 @@ useEffect(() => {
                         }
                       }}
                     />
-                    <div className="modelAxisEnds"><span>18</span><span>60</span></div>
+                    <div className="modelAxisEnds"><span>18</span><span>70</span></div>
                   </div>
                 </div>
               )}

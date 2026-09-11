@@ -72,6 +72,7 @@ const LOCAL_CREATE_V5_INPUTS = [
   { key: "input_22", name: "ancestry", type: "text", required: true },
   { key: "input_23", name: "hair style", type: "text", required: true },
   { key: "input_24", name: "face_reference2", type: "image", required: true },
+  { key: "input_25", name: "age", type: "float", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
 const CREATE_MODEL_OUTPUTS = [
@@ -138,6 +139,9 @@ const LOCAL_EXISTING_V6_INPUTS = [
   { key: "input_19", name: "extra_details", type: "text", required: true },
   { key: "input_20", name: "hips", type: "text", required: true },
   { key: "input_21", name: "head", type: "image", required: true },
+  { key: "input_22", name: "ancestry", type: "text", required: true },
+  { key: "input_23", name: "age", type: "float", required: true },
+  { key: "input_24", name: "hair_style", type: "text", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
 const LOCAL_EXISTING_BASE = {

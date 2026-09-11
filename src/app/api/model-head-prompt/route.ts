@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!/^\d{15}$/.test(seed) || !Number.isSafeInteger(numericSeed)) {
       return NextResponse.json({ detail: "Invalid Seed Head." }, { status: 400 });
     }
-    const age = Math.max(18, Math.min(60, Math.round(Number(body.age) || 25)));
+    const age = Math.max(18, Math.min(70, Math.round(Number(body.age) || 25)));
     const ancestry = clean(body.ancestry, 80) || "unspecified";
     const iris = clean(body.iris);
     const skin = clean(body.skin);
