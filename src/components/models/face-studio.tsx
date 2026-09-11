@@ -1087,6 +1087,17 @@ useEffect(() => {
           // into an empty optional detail.
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
+          // Workflow-only identity labels: lowercase and without descriptive suffixes.
+          input_22: (ancestry?.display_name || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+ancestry$/i, "")
+            .trim(),
+          input_23: (mediaValues.hairstyle || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+hair\s*style$/i, "")
+            .trim(),
         };
       } else if (generationModule.id === 9 && identityMode === "existing") {
         // Local From Head V6 contract. It mirrors the local body/scene inputs

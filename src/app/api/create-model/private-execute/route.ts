@@ -48,21 +48,51 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "No hay estructuras faciales activas configuradas." }, { status: 409 });
   }
 
-  // Fresh independent selection for every execution. Only one reference is read.
-  const index = randomInt(total);
-  const faceResponse = await fetch(`${backendBaseUrl}/api/v1/model-generation-assets/private/facial-structures/reference?index=${index}`, {
-    headers: privateHeaders,
-    cache: "no-store",
-  });
-  if (!faceResponse.ok) {
-    return NextResponse.json({ detail: await backendError(faceResponse, "No se pudo obtener la estructura facial privada.") }, { status: 502 });
+  if (total < 2) {
+    return NextResponse.json({ detail: "Se requieren al menos dos estructuras faciales activas para Create Model." }, { status: 409 });
   }
-  const faceBytes = await faceResponse.arrayBuffer();
-  const faceType = faceResponse.headers.get("content-type") || "image/webp";
+
+  // Cryptographically-random pair without replacement. The second index is
+  // guaranteed to be different from the first, while every ordered pair has
+  // the same probability. With a large bank this makes exact pair repetition
+  // naturally very unlikely without keeping client-visible selection state.
+  const firstIndex = randomInt(total);
+  let secondIndex = randomInt(total - 1);
+  if (secondIndex >= firstIndex) secondIndex += 1;
+
+  const fetchPrivateFace = async (index: number) => {
+    const response = await fetch(
+      `${backendBaseUrl}/api/v1/model-generation-assets/private/facial-structures/reference?index=${index}`,
+      { headers: privateHeaders, cache: "no-store" },
+    );
+    if (!response.ok) {
+      throw new Error(await backendError(response, "No se pudo obtener la estructura facial privada."));
+    }
+    return {
+      bytes: await response.arrayBuffer(),
+      type: response.headers.get("content-type") || "image/webp",
+    };
+  };
+
+  let firstFace: { bytes: ArrayBuffer; type: string };
+  let secondFace: { bytes: ArrayBuffer; type: string };
+  try {
+    [firstFace, secondFace] = await Promise.all([
+      fetchPrivateFace(firstIndex),
+      fetchPrivateFace(secondIndex),
+    ]);
+  } catch (error) {
+    return NextResponse.json(
+      { detail: error instanceof Error ? error.message : "No se pudieron obtener las estructuras faciales privadas." },
+      { status: 502 },
+    );
+  }
 
   const form = new FormData();
   form.append("file_keys", "input_21");
-  form.append("files", new Blob([faceBytes], { type: faceType }), "face-reference.webp");
+  form.append("files", new Blob([firstFace.bytes], { type: firstFace.type }), "face-reference.webp");
+  form.append("file_keys", "input_24");
+  form.append("files", new Blob([secondFace.bytes], { type: secondFace.type }), "face-reference2.webp");
   form.append("payload", JSON.stringify({ inputs: body.inputs }));
 
   const executionResponse = await fetch(`${backendBaseUrl}/api/v1/generation-modules/${moduleId}/executions`, {
