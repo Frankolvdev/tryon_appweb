@@ -256,6 +256,44 @@ function generationSeed() {
 }
 const HIP_GENERATION_VALUES = ["small hips", "medium hips", "big hips", "huge hips"] as const;
 
+// Create Model only: intentionally simple frontal standing-pose variations.
+// Keep punctuation out of each fragment because the workflow composes:
+// "standing sexy pose {fragment} from front view".
+const CREATE_MODEL_POSE_VARIANTS = [
+  "one hand resting on her waist legs apart",
+  "one hand resting on her waist",
+  "both hands resting on her waist legs apart",
+  "both hands resting on her waist",
+  "one hand resting on her hip other arm relaxed legs apart",
+  "one hand resting on her hip other arm relaxed",
+  "both arms relaxed at her sides legs apart",
+  "both arms relaxed at her sides",
+  "one hand gently holding her hair other arm relaxed legs apart",
+  "one hand gently holding her hair other arm relaxed",
+  "one hand touching her hair other hand resting on her waist legs apart",
+  "one hand touching her hair other hand resting on her waist",
+  "one arm relaxed at her side other hand resting on her waist legs apart",
+  "one arm relaxed at her side other hand resting on her waist",
+  "both hands resting lightly on her upper thighs legs apart",
+  "both hands resting lightly on her upper thighs",
+  "one hand behind her back other arm relaxed at her side legs apart",
+  "one hand behind her back other arm relaxed at her side",
+  "one hand resting on her waist other hand gently holding her hair legs apart",
+  "one hand resting on her waist other hand gently holding her hair",
+] as const;
+
+function randomCreateModelPoseVariant() {
+  const words = new Uint32Array(1);
+  const size = CREATE_MODEL_POSE_VARIANTS.length;
+  const acceptanceLimit = Math.floor(2 ** 32 / size) * size;
+  let candidate = acceptanceLimit;
+  while (candidate >= acceptanceLimit) {
+    crypto.getRandomValues(words);
+    candidate = words[0];
+  }
+  return CREATE_MODEL_POSE_VARIANTS[candidate % size];
+}
+
 function skinToneGenerationValue(selectionId: string | undefined): number {
   const options = colorCategories.find((category) => category.id === "skinTone")?.options ?? [];
   const selectedIndex = options.findIndex((option) => option.id === selectionId);
@@ -1076,7 +1114,7 @@ useEffect(() => {
           input_10: bodyNumber("height", 0),
           input_11: bodyNumber("bubbleButt", 0),
           input_12: hairLength,
-          input_13: "standing sexy pose",
+          input_13: `standing sexy pose ${randomCreateModelPoseVariant()}`,
           input_14: "front view, full body",
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
