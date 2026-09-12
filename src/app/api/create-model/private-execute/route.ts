@@ -1,4 +1,4 @@
-import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -48,6 +48,19 @@ function faceReferencePairFromToken(token: unknown, secret: string, total: numbe
   return { firstIndex, secondIndex };
 }
 
+function shuffledIndexes(total: number) {
+  const indexes = Array.from({ length: total }, (_, index) => index);
+  for (let index = indexes.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1);
+    [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
+  }
+  return indexes;
+}
+
+function fileDigest(bytes: ArrayBuffer) {
+  return createHash("sha256").update(Buffer.from(bytes)).digest("hex");
+}
+
 export async function POST(request: Request) {
   const internalKey = (process.env.APPWEB_INTERNAL_KEY ?? "").trim();
   if (!internalKey) {
@@ -56,7 +69,12 @@ export async function POST(request: Request) {
   const authorization = request.headers.get("authorization");
   if (!authorization) return NextResponse.json({ detail: "Sesión requerida." }, { status: 401 });
 
-  let body: { module_id?: unknown; inputs?: unknown; face_reference_token?: unknown };
+  let body: {
+    module_id?: unknown;
+    inputs?: unknown;
+    face_reference_token?: unknown;
+    previous_face_reference_token?: unknown;
+  };
   try { body = await request.json(); }
   catch { return NextResponse.json({ detail: "Solicitud inválida." }, { status: 400 }); }
 
@@ -83,17 +101,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Se requieren al menos dos estructuras faciales activas para Create Model." }, { status: 409 });
   }
 
-  let firstIndex: number;
-  let secondIndex: number;
+  let reusedPair: { firstIndex: number; secondIndex: number } | null;
+  let previousPair: { firstIndex: number; secondIndex: number } | null = null;
   try {
-    const reusedPair = faceReferencePairFromToken(body.face_reference_token, internalKey, total);
-    if (reusedPair) {
-      ({ firstIndex, secondIndex } = reusedPair);
-    } else {
-      // Cryptographically-random pair without replacement.
-      firstIndex = randomInt(total);
-      secondIndex = randomInt(total - 1);
-      if (secondIndex >= firstIndex) secondIndex += 1;
+    reusedPair = faceReferencePairFromToken(body.face_reference_token, internalKey, total);
+    if (!reusedPair && body.previous_face_reference_token) {
+      previousPair = faceReferencePairFromToken(body.previous_face_reference_token, internalKey, total);
     }
   } catch (error) {
     return NextResponse.json(
@@ -116,13 +129,49 @@ export async function POST(request: Request) {
     };
   };
 
+  const randomized = shuffledIndexes(total);
+  let candidateIndexes: number[];
+  if (reusedPair) {
+    candidateIndexes = [
+      reusedPair.firstIndex,
+      reusedPair.secondIndex,
+      ...randomized.filter((index) => index !== reusedPair.firstIndex && index !== reusedPair.secondIndex),
+    ];
+  } else if (previousPair && total >= 4) {
+    const previousIndexes = new Set([previousPair.firstIndex, previousPair.secondIndex]);
+    candidateIndexes = [
+      ...randomized.filter((index) => !previousIndexes.has(index)),
+      ...randomized.filter((index) => previousIndexes.has(index)),
+    ];
+  } else if (previousPair && total === 3) {
+    const previousIndexes = new Set([previousPair.firstIndex, previousPair.secondIndex]);
+    candidateIndexes = [
+      ...randomized.filter((index) => !previousIndexes.has(index)),
+      ...randomized.filter((index) => previousIndexes.has(index)),
+    ];
+  } else {
+    candidateIndexes = randomized;
+  }
+
+  const firstIndex = candidateIndexes[0];
   let firstFace: { bytes: ArrayBuffer; type: string };
   let secondFace: { bytes: ArrayBuffer; type: string };
+  let secondIndex = -1;
   try {
-    [firstFace, secondFace] = await Promise.all([
-      fetchPrivateFace(firstIndex),
-      fetchPrivateFace(secondIndex),
-    ]);
+    firstFace = await fetchPrivateFace(firstIndex);
+    const firstDigest = fileDigest(firstFace.bytes);
+    let distinctFace: { bytes: ArrayBuffer; type: string } | null = null;
+    for (const candidateIndex of candidateIndexes.slice(1)) {
+      const candidateFace = await fetchPrivateFace(candidateIndex);
+      if (fileDigest(candidateFace.bytes) === firstDigest) continue;
+      secondIndex = candidateIndex;
+      distinctFace = candidateFace;
+      break;
+    }
+    if (!distinctFace || secondIndex < 0) {
+      throw new Error("El banco facial no contiene dos imágenes de referencia distintas.");
+    }
+    secondFace = distinctFace;
   } catch (error) {
     return NextResponse.json(
       { detail: error instanceof Error ? error.message : "No se pudieron obtener las estructuras faciales privadas." },

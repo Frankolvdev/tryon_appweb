@@ -45,12 +45,14 @@ export const executeCreateModelWithPrivateFaceReference = (
   id: number,
   inputs: Record<string, unknown>,
   faceReferenceToken?: string,
+  previousFaceReferenceToken?: string,
 ) => apiFetch<GenerationExecution>("/api/create-model/private-execute", {
   method: "POST",
   body: JSON.stringify({
     module_id: id,
     inputs,
     ...(faceReferenceToken ? { face_reference_token: faceReferenceToken } : {}),
+    ...(previousFaceReferenceToken ? { previous_face_reference_token: previousFaceReferenceToken } : {}),
   }),
 });
 

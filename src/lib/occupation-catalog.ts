@@ -163,6 +163,7 @@ export type OccupationGenerationContext = {
 
 // Keep outfit prompting local and deterministic. Each catalog occupation gets a
 // concrete wardrobe direction instead of vague style labels.
+const USE_EXPLICIT_OCCUPATION_CLOTHES = false;
 const OCCUPATION_CLOTHES: Record<string, string> = {
  doctor: "wear a crisp white medical coat over a fitted pale-blue blouse, tailored navy trousers, clean black leather pumps, a stethoscope and subtle accessories, doctor outfit",
  nurse: "wear a light-blue fitted nurse scrub top, matching tapered scrub pants, a classic white nurse cap, white clinical sneakers, a simple nurse badge and practical watch, clean nurse uniform",
@@ -385,13 +386,22 @@ export function getOccupationGenerationContext(
  if (id === "custom") return getCustomOccupationContext(customValue);
 
  const group = OCCUPATION_CONTEXT_GROUPS.find((item) => item.ids.includes(id || ""));
- const clothes = id ? OCCUPATION_CLOTHES[id] : undefined;
+ const occupation = getOccupationPromptValue(id, customValue);
+ const explicitClothes = id ? OCCUPATION_CLOTHES[id] : undefined;
+
+ // Temporary switch: keep the curated wardrobe catalog intact, but let the
+ // selected occupation choose its own outfit just like a custom occupation.
+ if (USE_EXPLICIT_OCCUPATION_CLOTHES && explicitClothes) {
+ return {
+ place: group?.place || "inside a modern environment naturally suited to the occupation",
+ clothes: clothesWithoutWearPrefix(explicitClothes),
+ };
+ }
 
  return {
  place: group?.place || "inside a modern environment naturally suited to the occupation",
- clothes: clothesWithoutWearPrefix(
- clothes ||
- "wear a sexy outfit associated with the occupation, with recognizable role-specific garments, explicit footwear and subtle accessories",
- ),
+ clothes: occupation
+ ? `sexy outfit associated with the occupation: ${occupation}; use recognizable role-specific garments, explicit footwear and subtle accessories`
+ : "sexy outfit associated with the occupation, with recognizable role-specific garments, explicit footwear and subtle accessories",
  };
 }

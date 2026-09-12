@@ -1296,6 +1296,7 @@ useEffect(() => {
             generationModule.id,
             payload,
             options?.reuseHeadSeed ? lastGenerationSeeds?.faceReferenceToken : undefined,
+            lastGenerationSeeds?.faceReferenceToken,
           )
         : await executeGenerationModule(generationModule.id, payload);
       const faceReferenceToken = typeof (execution as GenerationExecution & { private_face_reference_token?: unknown }).private_face_reference_token === "string"
