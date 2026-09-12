@@ -163,7 +163,7 @@ export type OccupationGenerationContext = {
 
 // Keep outfit prompting local and deterministic. Each catalog occupation gets a
 // concrete wardrobe direction instead of vague style labels.
-const USE_EXPLICIT_OCCUPATION_CLOTHES = false;
+const USE_EXPLICIT_OCCUPATION_CLOTHES = true;
 const OCCUPATION_CLOTHES: Record<string, string> = {
  doctor: "wear a crisp white medical coat over a fitted pale-blue blouse, tailored navy trousers, clean black leather pumps, a stethoscope and subtle accessories, doctor outfit",
  nurse: "wear a light-blue fitted nurse scrub top, matching tapered scrub pants, a classic white nurse cap, white clinical sneakers, a simple nurse badge and practical watch, clean nurse uniform",
