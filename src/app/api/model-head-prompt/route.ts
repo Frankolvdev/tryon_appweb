@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     const age = Math.max(18, Math.min(70, Math.round(Number(body.age) || 25)));
     const ancestry = clean(body.ancestry, 80) || "unspecified";
     const iris = clean(body.iris);
-    const skin = clean(body.skin);
     const hairColor = clean(body.hairColor);
     const hairStyle = clean(body.hairStyle);
     const eyebrow = clean(body.eyebrow);
@@ -28,12 +27,10 @@ export async function POST(request: Request) {
     const pieces = [
       `random beautiful attractive ${age}-year-old woman of ${ancestry} ancestry`,
       iris,
-      skin,
       hairColor,
       hairStyle ? `${hairStyle} hair style` : "",
       eyebrow ? `${eyebrow} eyebrow shape` : "",
       lips ? `${lips} lip shape` : "",
-      "fresh healthy appearance",
       "clear healthy skin",
       "subtle natural makeup",
       "realistic skin texture",

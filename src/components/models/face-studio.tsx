@@ -27,6 +27,7 @@ import {
   colorCategories,
   colorOption,
   defaultIdentitySelections,
+  SKIN_TONE_GENERATION_VALUES,
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
 import { listModelGenerationAssets } from "@/lib/model-generation-assets-api";
@@ -55,6 +56,10 @@ const MIN_MODEL_AGE = 18;
 const MAX_MODEL_AGE = 70;
 const MIN_AGE_LORA = -1;
 const MAX_AGE_LORA = 6;
+const MIN_SKIN_TONE = -2;
+const MAX_SKIN_TONE = 6;
+const MIN_HAIR_VOLUME = -4;
+const MAX_HAIR_VOLUME = 4;
 
 function clampModelAge(value: unknown) {
   return Math.max(MIN_MODEL_AGE, Math.min(MAX_MODEL_AGE, Math.round(Number(value) || 25)));
@@ -322,21 +327,33 @@ function randomCreateModelPoseVariant() {
   return CREATE_MODEL_POSE_VARIANTS[candidate % size];
 }
 
-function skinToneGenerationValue(selectionId: string | undefined): number {
-  const options = colorCategories.find((category) => category.id === "skinTone")?.options ?? [];
-  const selectedIndex = options.findIndex((option) => option.id === selectionId);
-  const neutralIndex = options.findIndex((option) => option.id === "medium");
+function snapToStep(value: unknown, min: number, max: number, step = 0.2): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  const clamped = Math.max(min, Math.min(max, numeric));
+  return Number((Math.round((clamped - min) / step) * step + min).toFixed(1));
+}
 
-  if (selectedIndex < 0 || neutralIndex < 0) return 0;
-  if (selectedIndex === neutralIndex) return 0;
+function skinToneGenerationValue(selectionId: string | undefined, customValue: unknown): number {
+  if (selectionId === "custom") return snapToStep(customValue, MIN_SKIN_TONE, MAX_SKIN_TONE);
+  return SKIN_TONE_GENERATION_VALUES[selectionId || ""] ?? 0;
+}
 
-  if (selectedIndex < neutralIndex) {
-    return round1(-4 * ((neutralIndex - selectedIndex) / neutralIndex));
-  }
+function normalizeHairStyle(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+hair\s*style$/i, "")
+    .trim();
+  return /^(?:2|two)?\s*pigtails?$/.test(normalized) ? "two pigtails" : normalized;
+}
 
-  const darkerSteps = options.length - 1 - neutralIndex;
-  if (darkerSteps <= 0) return 0;
-  return round1(4 * ((selectedIndex - neutralIndex) / darkerSteps));
+function hairVolumePreset(value: string): { value: number; locked: boolean } {
+  const normalized = normalizeHairStyle(value);
+  if (/\bstraight\b/.test(normalized)) return { value: -4, locked: true };
+  if (/\bcurly\b/.test(normalized)) return { value: 3.8, locked: true };
+  if (/\bafro\b/.test(normalized)) return { value: 4, locked: true };
+  return { value: 0, locked: false };
 }
 
 function backendTimestampMs(value: string | null | undefined): number {
@@ -477,12 +494,16 @@ function FaceDiscreteSlider({
   max,
   step,
   onChange,
+  disabled = false,
+  label = "Control",
 }: {
   value: number;
   min: number;
   max: number;
   step: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
+  label?: string;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const dragging = useRef(false);
@@ -497,6 +518,7 @@ function FaceDiscreteSlider({
   }, [min, max, step]);
 
   const update = (clientX: number) => {
+    if (disabled) return;
     const element = ref.current;
     if (!element) return;
     const rect = element.getBoundingClientRect();
@@ -512,14 +534,16 @@ function FaceDiscreteSlider({
   return (
     <div
       ref={ref}
-      className="modelDiscreteSlider"
+      className={`modelDiscreteSlider${disabled ? " isDisabled" : ""}`}
       role="slider"
-      tabIndex={0}
-      aria-label="Hair Length"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      aria-label={label}
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={value}
       onPointerDown={(event) => {
+        if (disabled) return;
         dragging.current = true;
         event.currentTarget.setPointerCapture(event.pointerId);
         update(event.clientX);
@@ -573,7 +597,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     Record<string, ModelGenerationAsset[]>
   >({ eyebrows: [], lips: [], hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
-  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [customValues, setCustomValues] = useState<Record<string, string>>({ skinToneValue: "0", hairVolume: "0" });
   const [hairLengthTouched, setHairLengthTouched] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
@@ -651,13 +675,22 @@ export function FaceStudio({ modelId }: { modelId: number }) {
           const saved = localStorage.getItem(`${STORAGE_PREFIX}${modelId}`);
           const data = result.draft_json && Object.keys(result.draft_json).length ? result.draft_json : (saved ? JSON.parse(saved) : null);
           if (data) {
-            setSelections({
+            const restoredSelections = {
               ...defaultIdentitySelections,
               ...(data.selections || {}),
-            });
+            };
+            // Migrate removed choices without invalidating existing drafts.
+            if (restoredSelections.eyeColor === "dark-brown") restoredSelections.eyeColor = "brown";
+            if (restoredSelections.eyeColor === "custom") restoredSelections.eyeColor = "brown";
+            if (restoredSelections.skinTone === "deep") restoredSelections.skinTone = "black";
+            setSelections(restoredSelections);
             setMediaSelected(data.mediaSelected || {});
             const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
-            const restoredCustomValues = { ...(data.customValues || {}) };
+            const restoredCustomValues = {
+              skinToneValue: "0",
+              hairVolume: "0",
+              ...(data.customValues || {}),
+            };
             if (!savedHairLengthTouched) restoredCustomValues.hairLength = "0";
             setHairLengthTouched(savedHairLengthTouched);
             setCustomValues(restoredCustomValues);
@@ -1091,6 +1124,21 @@ useEffect(() => {
             mediaAssets[key]?.find((asset) => asset.asset_key === selectedKey)?.value?.trim() || "";
         }
       }
+      const normalizedHairStyle = normalizeHairStyle(mediaValues.hairstyle || "");
+      const selectedHairstyleKey = mediaSelected.hairstyle || "";
+      const selectedHairstyleDescriptor = selectedHairstyleKey === "custom"
+        ? "custom"
+        : [
+            selectedHairstyleKey,
+            mediaAssets.hairstyle?.find((asset) => asset.asset_key === selectedHairstyleKey)?.title || "",
+            mediaValues.hairstyle || "",
+          ].join(" ");
+      const volumePreset = selectedHairstyleKey === "custom"
+        ? { value: 0, locked: false }
+        : hairVolumePreset(selectedHairstyleDescriptor);
+      const hairVolume = volumePreset.locked
+        ? volumePreset.value
+        : snapToStep(customValues.hairVolume, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME);
 
       // The workflow contract separates body controls, scene controls and the
       // identity/head prompt. Scene defaults stay deterministic so the same
@@ -1125,9 +1173,8 @@ useEffect(() => {
             age: clampModelAge(customValues.age),
             ancestry: ancestry?.display_name || "",
             iris: selectedPrompt("eyeColor"),
-            skin: selectedPrompt("skinTone"),
             hairColor: selectedPrompt("hairColor"),
-            hairStyle: mediaValues.hairstyle || "",
+            hairStyle: normalizedHairStyle,
             eyebrow: mediaValues.eyebrows || "",
             lips: mediaValues.lips || "",
           }),
@@ -1149,6 +1196,22 @@ useEffect(() => {
       const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
+      const selectedHairColor = selections.hairColor === "custom"
+        ? (customValues.hairColor || "").trim()
+        : (colorOption("hairColor", selections.hairColor)?.label || selections.hairColor || "").trim();
+      const simpleHairColor = selectedHairColor
+        .toLowerCase()
+        .replace(/\s+hair\s*color$/i, "")
+        .trim();
+      const headPromptSuffix = [
+        simpleHairColor ? `${simpleHairColor} hair color` : "",
+        normalizedHairStyle ? `${normalizedHairStyle} hair style` : "",
+      ].filter(Boolean).join(", ");
+      const extraWithHead = [
+        customValues.extraDetails?.trim().replace(/[.\s]+$/g, ""),
+        headPromptSuffix ? `Head: ${headPromptSuffix}.` : "",
+      ].filter(Boolean).join(".\n\n");
+      const clothesWithPeriod = occupationContext.clothes.trim().replace(/[.\s]+$/g, "") + ".";
 
       let payload: Record<string, unknown>;
       if (generationModule.id === 8 && identityMode === "create") {
@@ -1163,7 +1226,7 @@ useEffect(() => {
           input_6: bodyNumber("buttSize", 0),
           input_7: bodyNumber("breasts", 0),
           input_8: bodyNumber("waist", 0),
-          input_9: skinToneGenerationValue(selections.skinTone),
+          input_9: skinToneGenerationValue(selections.skinTone, customValues.skinToneValue),
           input_10: bodyNumber("height", 0),
           input_11: bodyNumber("bubbleButt", 0),
           input_12: hairLength,
@@ -1172,11 +1235,11 @@ useEffect(() => {
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
           input_17: " ",
-          input_18: occupationContext.clothes,
+          input_18: clothesWithPeriod,
           // input_19 is required in V5. A single space satisfies the transport
           // contract while the pipeline's clean()/strip() correctly turns it
           // into an empty optional detail.
-          input_19: customValues.extraDetails?.trim() || " ",
+          input_19: extraWithHead || " ",
           input_20: hipsText,
           // Workflow-only identity labels: lowercase and without descriptive suffixes.
           input_22: (ancestry?.display_name || "")
@@ -1184,12 +1247,9 @@ useEffect(() => {
             .toLowerCase()
             .replace(/\s+ancestry$/i, "")
             .trim(),
-          input_23: (mediaValues.hairstyle || "")
-            .trim()
-            .toLowerCase()
-            .replace(/\s+hair\s*style$/i, "")
-            .trim(),
+          input_23: normalizedHairStyle,
           input_25: ageLoraValue,
+          input_26: hairVolume,
         };
       } else if (generationModule.id === 9 && identityMode === "existing") {
         // Local From Head V6 contract. It mirrors the local body/scene inputs
@@ -1209,7 +1269,7 @@ useEffect(() => {
           input_6: bodyNumber("buttSize", 0),
           input_7: bodyNumber("breasts", 0),
           input_8: bodyNumber("waist", 0),
-          input_9: skinToneGenerationValue(selections.skinTone),
+          input_9: skinToneGenerationValue(selections.skinTone, customValues.skinToneValue),
           input_10: bodyNumber("height", 0),
           input_11: bodyNumber("bubbleButt", 0),
           input_12: hairLength,
@@ -1228,11 +1288,8 @@ useEffect(() => {
             .replace(/\s+ancestry$/i, "")
             .trim(),
           input_23: ageLoraValue,
-          input_24: (mediaValues.hairstyle || "")
-            .trim()
-            .toLowerCase()
-            .replace(/\s+hair\s*style$/i, "")
-            .trim() || "same hairstyle as reference image",
+          input_24: normalizedHairStyle || "same hairstyle as reference image",
+          input_25: hairVolume,
         };
       } else {
         // Historical remote contracts stay untouched.
@@ -1240,7 +1297,7 @@ useEffect(() => {
           input_1: round1(bodyBase.ass + bodyAdjustments.ass),
           input_2: round1(bodyBase.fat + bodyAdjustments.fat),
           input_3: round1(bodyBase.breasts + bodyAdjustments.breasts),
-          input_4: skinToneGenerationValue(selections.skinTone),
+          input_4: skinToneGenerationValue(selections.skinTone, customValues.skinToneValue),
           input_5: hairLength,
           input_6: round1(bodyBase.butt_elevation + bodyAdjustments.butt_elevation),
           input_7: "standing full-body confident feminine pose, natural posture",
@@ -1790,7 +1847,7 @@ useEffect(() => {
       showValidation(`Debes elegir una opción en ${step.label}.`);
       return false;
     }
-    if (value === "custom" && !(customValues[step.id] || "").trim()) {
+    if (value === "custom" && step.id !== "skinTone" && !(customValues[step.id] || "").trim()) {
       showValidation("Completa el campo Custom antes de continuar.");
       return false;
     }
@@ -1837,6 +1894,9 @@ useEffect(() => {
     }
     if (step.kind === "color") {
       const key = selections[step.id];
+      if (step.id === "skinTone" && key === "custom") {
+        return `Custom (${skinToneGenerationValue(key, customValues.skinToneValue).toFixed(1)})`;
+      }
       if (key === "custom") return customValues[step.id] || "Custom";
       return colorOption(step.id, key)?.label || "Sin elegir";
     }
@@ -2192,6 +2252,19 @@ useEffect(() => {
               {currentStep.kind === "media" && (() => {
                 const stepId = currentStep.id as ModelGenerationToolKey;
                 const pending = pendingFor(currentStep);
+                const pendingHairstyle = stepId === "hairstyle" && pending !== "custom"
+                  ? [
+                      pending,
+                      mediaAssets.hairstyle?.find((asset) => asset.asset_key === pending)?.title || "",
+                      mediaAssets.hairstyle?.find((asset) => asset.asset_key === pending)?.value || "",
+                    ].join(" ")
+                  : "";
+                const pendingHairVolumePreset = stepId === "hairstyle" && pending !== "custom"
+                  ? hairVolumePreset(pendingHairstyle)
+                  : { value: 0, locked: false };
+                const displayedHairVolume = pendingHairVolumePreset.locked
+                  ? pendingHairVolumePreset.value
+                  : snapToStep(customValues.hairVolume, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME);
                 return (
                   <>
                     <div className="faceMediaOptionGrid faceStepMediaGrid">
@@ -2202,9 +2275,13 @@ useEffect(() => {
                             type="button"
                             className={`faceMediaOption${previewing ? " selected previewing" : ""}`}
                             key={option.id}
-                            onClick={() =>
-                              choosePending(currentStep.id, option.asset_key)
-                            }
+                            onClick={() => {
+                              choosePending(currentStep.id, option.asset_key);
+                              if (stepId === "hairstyle") {
+                                const preset = hairVolumePreset(`${option.asset_key} ${option.title} ${option.value || ""}`);
+                                setCustomValues((current) => ({ ...current, hairVolume: String(preset.value) }));
+                              }
+                            }}
                           >
                             {previewing && option.video_url ? (
                               <video
@@ -2246,9 +2323,12 @@ useEffect(() => {
                       <button
                         type="button"
                         className={`faceCustomTile${pending === "custom" ? " selected" : ""}`}
-                        onClick={() =>
-                          choosePending(currentStep.id, "custom")
-                        }
+                        onClick={() => {
+                          choosePending(currentStep.id, "custom");
+                          if (stepId === "hairstyle" && customValues.hairVolume === undefined) {
+                            setCustomValues((current) => ({ ...current, hairVolume: "0" }));
+                          }
+                        }}
                       >
                         <b>+</b>
                         <span>Custom</span>
@@ -2268,6 +2348,35 @@ useEffect(() => {
                         <span>
                           {(customValues[currentStep.id] || "").length}/25
                         </span>
+                      </div>
+                    )}
+                    {stepId === "hairstyle" && (
+                      <div className="modelV2Control faceHairVolumeControl">
+                        <div className="modelV2ControlMain">
+                          <div className="modelV2ControlHead">
+                            <strong>Hair Volume</strong>
+                            <output>{displayedHairVolume.toFixed(1)}</output>
+                          </div>
+                          <FaceDiscreteSlider
+                            value={displayedHairVolume}
+                            min={MIN_HAIR_VOLUME}
+                            max={MAX_HAIR_VOLUME}
+                            step={0.2}
+                            disabled={pendingHairVolumePreset.locked}
+                            label="Hair Volume"
+                            onChange={(value) => {
+                              clearValidation();
+                              setCustomValues((current) => ({
+                                ...current,
+                                hairVolume: String(snapToStep(value, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME)),
+                              }));
+                              if (completedSteps.includes("hairstyle")) {
+                                setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
+                              }
+                            }}
+                          />
+                          <div className="modelAxisEnds"><span>-4</span><span>4</span></div>
+                        </div>
                       </div>
                     )}
                   </>
@@ -2290,9 +2399,15 @@ useEffect(() => {
                             type="button"
                             key={option.id}
                             className={`faceColorOption${previewing ? " selected previewing" : ""}`}
-                            onClick={() =>
-                              choosePending(currentStep.id, option.id)
-                            }
+                            onClick={() => {
+                              choosePending(currentStep.id, option.id);
+                              if (currentStep.id === "skinTone") {
+                                setCustomValues((current) => ({
+                                  ...current,
+                                  skinToneValue: String(SKIN_TONE_GENERATION_VALUES[option.id] ?? 0),
+                                }));
+                              }
+                            }}
                           >
                             <span
                               className="faceColorSwatch"
@@ -2307,18 +2422,54 @@ useEffect(() => {
                           </button>
                         );
                       })}
-                      <button
-                        type="button"
-                        className={`faceColorOption faceColorCustom${pending === "custom" ? " selected" : ""}`}
-                        onClick={() =>
-                          choosePending(currentStep.id, "custom")
-                        }
-                      >
-                        <span className="faceColorSwatch custom">+</span>
-                        <b>Custom</b>
-                      </button>
+                      {currentStep.id !== "eyeColor" && (
+                        <button
+                          type="button"
+                          className={`faceColorOption faceColorCustom${pending === "custom" ? " selected" : ""}`}
+                          onClick={() => {
+                            if (currentStep.id === "skinTone" && pending !== "custom") {
+                              setCustomValues((current) => ({
+                                ...current,
+                                skinToneValue: String(SKIN_TONE_GENERATION_VALUES[pending] ?? 0),
+                              }));
+                            }
+                            choosePending(currentStep.id, "custom");
+                          }}
+                        >
+                          <span className="faceColorSwatch custom">+</span>
+                          <b>Custom</b>
+                        </button>
+                      )}
                     </div>
-                    {pending === "custom" && (
+                    {pending === "custom" && currentStep.id === "skinTone" && (
+                      <div className="modelV2Control faceSkinToneControl">
+                        <div className="modelV2ControlMain">
+                          <div className="modelV2ControlHead">
+                            <strong>Skin Tone</strong>
+                            <output>{skinToneGenerationValue("custom", customValues.skinToneValue).toFixed(1)}</output>
+                          </div>
+                          <FaceDiscreteSlider
+                            value={skinToneGenerationValue("custom", customValues.skinToneValue)}
+                            min={MIN_SKIN_TONE}
+                            max={MAX_SKIN_TONE}
+                            step={0.2}
+                            label="Skin Tone"
+                            onChange={(value) => {
+                              clearValidation();
+                              setCustomValues((current) => ({
+                                ...current,
+                                skinToneValue: String(snapToStep(value, MIN_SKIN_TONE, MAX_SKIN_TONE)),
+                              }));
+                              if (completedSteps.includes("skinTone")) {
+                                setCompletedSteps((current) => current.filter((id) => id !== "skinTone"));
+                              }
+                            }}
+                          />
+                          <div className="modelAxisEnds"><span>-2</span><span>6</span></div>
+                        </div>
+                      </div>
+                    )}
+                    {pending === "custom" && currentStep.id !== "skinTone" && currentStep.id !== "eyeColor" && (
                       <div className="faceCustomField faceStepCustomField">
                         <input
                           autoFocus

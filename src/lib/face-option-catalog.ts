@@ -7,20 +7,24 @@ export const FACE_TRIGGER="angel face";
 
 export const colorCategories:ColorCategory[]=[
  {id:"eyeColor",label:"Eye color",hint:"Color de iris",options:[
-  {id:"blue",label:"Blue",tone:"#6ca9d9",prompt:"light blue irises, matching blue eye color in both eyes"},
-  {id:"green",label:"Green",tone:"#6d996b",prompt:"light green irises, matching green eye color in both eyes"},
-  {id:"hazel",label:"Hazel",tone:"#8f7a45",prompt:"light hazel irises, matching hazel eye color in both eyes"},
-  {id:"brown",label:"Brown",tone:"#704633",prompt:"light brown irises, matching brown eye color in both eyes"},
-  {id:"dark-brown",label:"Dark brown",tone:"#3f2a24",prompt:"light dark-brown irises, matching dark-brown eye color in both eyes"},
-  {id:"gray",label:"Gray",tone:"#9299a1",prompt:"light gray irises, matching gray eye color in both eyes"},
+  {id:"blue",label:"Blue",tone:"#48a8ff",prompt:"neon blue eyes color"},
+  {id:"green",label:"Green",tone:"#60e879",prompt:"neon green eyes color"},
+  {id:"hazel",label:"Hazel",tone:"#a78643",prompt:"bright azel eyes color"},
+  {id:"brown",label:"Brown",tone:"#704633",prompt:"bright brown eyes color"},
+  {id:"gray",label:"Gray",tone:"#aeb6c2",prompt:"bright grey eyes color"},
+  {id:"purple",label:"Purple",tone:"#9258e8",prompt:"bright purple eyes color"},
+  {id:"red",label:"Red",tone:"#ee3f4f",prompt:"bright red eyes color"},
+  {id:"pink",label:"Pink",tone:"#ff65b3",prompt:"bright pink eyes color"},
  ]},
  {id:"skinTone",label:"Skin tone",hint:"Tono de piel",options:[
+  {id:"albine",label:"Albine",tone:"#f5e8e1",prompt:"albine skin tone"},
   {id:"porcelain",label:"Porcelain",tone:"#ead4c9",prompt:"porcelain skin tone"},
   {id:"fair",label:"Fair",tone:"#d9b8a7",prompt:"fair skin tone"},
   {id:"light",label:"Light",tone:"#cda18c",prompt:"light skin tone"},
   {id:"medium",label:"Medium",tone:"#a9765d",prompt:"medium skin tone"},
   {id:"tan",label:"Tan",tone:"#8e5f49",prompt:"tan skin tone"},
-  {id:"deep",label:"Deep",tone:"#55362d",prompt:"deep skin tone"},
+  {id:"black",label:"Black",tone:"#4a3028",prompt:"black skin tone"},
+  {id:"black-dark",label:"Black dark",tone:"#211a18",prompt:"black dark skin tone"},
  ]},
  {id:"hairColor",label:"Hair color",hint:"Color de cabello",options:[
   {id:"black",label:"Black",tone:"#111214",prompt:"pure jet-black hair color from roots to ends"},
@@ -38,6 +42,17 @@ export const colorCategories:ColorCategory[]=[
   {id:"silver",label:"Silver",tone:"#aaaeb8",prompt:"cool metallic silver hair color"},
  ]},
 ];
+
+export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
+ albine:-2,
+ porcelain:-0.8,
+ fair:0.2,
+ light:1.4,
+ medium:2.6,
+ tan:3.8,
+ black:4.8,
+ "black-dark":6,
+};
 
 export const defaultIdentitySelections:IdentitySelections={eyeColor:"brown",skinTone:"fair",hairColor:"dark-brown"};
 export function colorOption(categoryId:string,optionId:string){return colorCategories.find(c=>c.id===categoryId)?.options.find(o=>o.id===optionId)}
