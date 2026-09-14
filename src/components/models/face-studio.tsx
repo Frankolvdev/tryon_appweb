@@ -68,7 +68,7 @@ const HAIR_EFFECT_IDS = new Set(["split", "balayage", "highlights"]);
 const HAIR_EFFECT_DEFAULTS: Record<string, string> = {
   hairSplitLeft: "white",
   hairSplitRight: "black",
-  hairBalayageBase: "dark-brown",
+  hairBalayageBase: "brown",
   hairBalayageHighlight: "blonde",
   hairHighlightsBase: "black",
   hairHighlightsColor: "pink",
@@ -394,26 +394,38 @@ function hairEffectColor(value: unknown, fallback: string): string {
   return selected?.prompt || HAIR_EFFECT_COLORS.find((color) => color.id === fallback)?.prompt || fallback;
 }
 
+function selectedHairEffectColor(values: Record<string, string>, key: string, fallback: string): string {
+  const selected = values[key] || fallback;
+  if (selected === "custom") return values[`${key}Custom`]?.trim() || fallback;
+  return hairEffectColor(selected, fallback);
+}
+
 function hairEffectTone(value: unknown, fallback: string): string {
   return HAIR_EFFECT_COLORS.find((color) => color.id === value)?.tone
     || HAIR_EFFECT_COLORS.find((color) => color.id === fallback)?.tone
     || "#777";
 }
 
+function selectedHairEffectTone(values: Record<string, string>, key: string, fallback: string): string {
+  const selected = values[key] || fallback;
+  if (selected === "custom") return "#a855f7";
+  return hairEffectTone(selected, fallback);
+}
+
 function hairEffectSwatch(selectionId: string, values: Record<string, string>, fallback: string): string {
   if (selectionId === "split") {
-    const left = hairEffectTone(values.hairSplitLeft, "white");
-    const right = hairEffectTone(values.hairSplitRight, "black");
+    const left = selectedHairEffectTone(values, "hairSplitLeft", "white");
+    const right = selectedHairEffectTone(values, "hairSplitRight", "black");
     return `linear-gradient(90deg,${left} 0 50%,${right} 50% 100%)`;
   }
   if (selectionId === "balayage") {
-    const base = hairEffectTone(values.hairBalayageBase, "dark-brown");
-    const highlight = hairEffectTone(values.hairBalayageHighlight, "blonde");
+    const base = selectedHairEffectTone(values, "hairBalayageBase", "brown");
+    const highlight = selectedHairEffectTone(values, "hairBalayageHighlight", "blonde");
     return `linear-gradient(135deg,${base} 0 38%,color-mix(in srgb,${base} 55%,${highlight}) 58%,${highlight} 100%)`;
   }
   if (selectionId === "highlights") {
-    const base = hairEffectTone(values.hairHighlightsBase, "black");
-    const highlight = hairEffectTone(values.hairHighlightsColor, "pink");
+    const base = selectedHairEffectTone(values, "hairHighlightsBase", "black");
+    const highlight = selectedHairEffectTone(values, "hairHighlightsColor", "pink");
     return `repeating-linear-gradient(115deg,${base} 0 8px,${highlight} 8px 12px,${base} 12px 20px)`;
   }
   return fallback;
@@ -421,18 +433,18 @@ function hairEffectSwatch(selectionId: string, values: Record<string, string>, f
 
 function hairEffectPrompt(selectionId: string | undefined, values: Record<string, string>): string {
   if (selectionId === "split") {
-    const left = hairEffectColor(values.hairSplitLeft, "white");
-    const right = hairEffectColor(values.hairSplitRight, "black");
+    const left = selectedHairEffectColor(values, "hairSplitLeft", "white");
+    const right = selectedHairEffectColor(values, "hairSplitRight", "black");
     return `center-split hair color, left half ${left} and right half ${right}`;
   }
   if (selectionId === "balayage") {
-    const base = hairEffectColor(values.hairBalayageBase, "dark-brown");
-    const highlight = hairEffectColor(values.hairBalayageHighlight, "blonde");
+    const base = selectedHairEffectColor(values, "hairBalayageBase", "brown");
+    const highlight = selectedHairEffectColor(values, "hairBalayageHighlight", "blonde");
     return `${base} hair with ${highlight} balayage highlights`;
   }
   if (selectionId === "highlights") {
-    const base = hairEffectColor(values.hairHighlightsBase, "black");
-    const highlight = hairEffectColor(values.hairHighlightsColor, "pink");
+    const base = selectedHairEffectColor(values, "hairHighlightsBase", "black");
+    const highlight = selectedHairEffectColor(values, "hairHighlightsColor", "pink");
     return `${base} hair with ${highlight} colored highlights`;
   }
   return "";
@@ -784,6 +796,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               ...HAIR_EFFECT_DEFAULTS,
               ...(data.customValues || {}),
             };
+            for (const control of Object.values(HAIR_EFFECT_CONTROLS).flat()) {
+              if (restoredCustomValues[control.key] === "dark-brown") restoredCustomValues[control.key] = "brown";
+              if (restoredCustomValues[control.key] === "silver") restoredCustomValues[control.key] = "gray";
+              if (restoredCustomValues[control.key] === "auburn") restoredCustomValues[control.key] = "orange";
+            }
             restoredCustomValues.hairLength = savedHairLengthTouched
               ? String(clampHairLength(restoredCustomValues.hairLength))
               : "0";
@@ -1868,6 +1885,14 @@ useEffect(() => {
     }
   }
 
+  function setHairEffectCustomValue(key: string, value: string) {
+    clearValidation();
+    setCustomValues((current) => ({ ...current, [`${key}Custom`]: value.slice(0, 25) }));
+    if (completedSteps.includes("hairColor")) {
+      setCompletedSteps((current) => current.filter((id) => id !== "hairColor"));
+    }
+  }
+
   function pendingFor(step: StepDefinition) {
     if (pendingValues[step.id] !== undefined) return pendingValues[step.id];
     if (step.kind === "body") return completedSteps.includes(step.id) ? "done" : "";
@@ -1972,6 +1997,16 @@ useEffect(() => {
     if (value === "custom" && step.id !== "skinTone" && !(customValues[step.id] || "").trim()) {
       showValidation("Completa el campo Custom antes de continuar.");
       return false;
+    }
+    if (step.id === "hairColor" && HAIR_EFFECT_IDS.has(value)) {
+      const incompleteCustom = (HAIR_EFFECT_CONTROLS[value] || []).some(
+        (control) => customValues[control.key] === "custom"
+          && !(customValues[`${control.key}Custom`] || "").trim(),
+      );
+      if (incompleteCustom) {
+        showValidation("Escribe el color Custom antes de continuar.");
+        return false;
+      }
     }
 
     clearValidation();
@@ -2641,7 +2676,30 @@ useEffect(() => {
                                   </button>
                                 );
                               })}
+                              <button
+                                type="button"
+                                className={(customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === "custom" ? "selected custom" : "custom"}
+                                title="Custom"
+                                aria-label={`${control.label}: Custom`}
+                                aria-pressed={(customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === "custom"}
+                                onClick={() => setHairEffectChoice(control.key, "custom")}
+                              >
+                                <span className="custom" />
+                                <small>Custom</small>
+                              </button>
                             </div>
+                            {(customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === "custom" && (
+                              <div className="faceHairEffectCustomField">
+                                <input
+                                  value={customValues[`${control.key}Custom`] || ""}
+                                  onChange={(event) => setHairEffectCustomValue(control.key, event.target.value)}
+                                  maxLength={25}
+                                  placeholder="Escribe el color en inglés"
+                                  aria-label={`${control.label}: color Custom`}
+                                />
+                                <span>{(customValues[`${control.key}Custom`] || "").length}/25</span>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

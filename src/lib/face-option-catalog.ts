@@ -47,17 +47,17 @@ export const colorCategories:ColorCategory[]=[
 ];
 
 export const HAIR_EFFECT_COLORS=[
- {id:"black",label:"Black",tone:"#111214",prompt:"black"},
- {id:"dark-brown",label:"Dark brown",tone:"#3a251f",prompt:"dark brown"},
- {id:"brown",label:"Brown",tone:"#654434",prompt:"brown"},
- {id:"blonde",label:"Blonde",tone:"#cbb47c",prompt:"blonde"},
- {id:"white",label:"White",tone:"#f0efea",prompt:"white"},
- {id:"silver",label:"Silver",tone:"#aaaeb8",prompt:"silver"},
- {id:"auburn",label:"Auburn",tone:"#7a3529",prompt:"auburn"},
- {id:"red",label:"Red",tone:"#b82f34",prompt:"red"},
- {id:"blue",label:"Blue",tone:"#315f9f",prompt:"blue"},
- {id:"purple",label:"Purple",tone:"#6f4aa8",prompt:"purple"},
- {id:"pink",label:"Pink",tone:"#d97c9f",prompt:"pink"},
+ {id:"black",label:"Black",tone:"#101114",prompt:"black"},
+ {id:"white",label:"White",tone:"#f4f3ef",prompt:"white"},
+ {id:"gray",label:"Gray",tone:"#858b94",prompt:"gray"},
+ {id:"brown",label:"Brown",tone:"#70452f",prompt:"brown"},
+ {id:"blonde",label:"Blonde",tone:"#dfbf55",prompt:"blonde"},
+ {id:"red",label:"Red",tone:"#df2e38",prompt:"red"},
+ {id:"orange",label:"Orange",tone:"#f47721",prompt:"orange"},
+ {id:"green",label:"Green",tone:"#22a85a",prompt:"green"},
+ {id:"blue",label:"Blue",tone:"#2774d8",prompt:"blue"},
+ {id:"purple",label:"Purple",tone:"#7d45c8",prompt:"purple"},
+ {id:"pink",label:"Pink",tone:"#ed5da8",prompt:"pink"},
 ] as const;
 
 export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
