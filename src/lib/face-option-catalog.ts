@@ -32,7 +32,7 @@ export const colorCategories:ColorCategory[]=[
   {id:"brown",label:"Brown",tone:"#654434",prompt:"natural medium brown hair color"},
   {id:"light-brown",label:"Light brown",tone:"#94705a",prompt:"soft light-brown hair color"},
   {id:"blonde",label:"Blonde",tone:"#cbb47c",prompt:"natural neutral blonde hair color"},
-  {id:"platinum",label:"Platinum",tone:"#dedbd2",prompt:"cool pale platinum-blonde hair color"},
+  {id:"white",label:"White",tone:"#f0efea",prompt:"soft fashion white hair color"},
   {id:"auburn",label:"Auburn",tone:"#7a3529",prompt:"rich natural auburn hair color"},
   {id:"red",label:"Red",tone:"#9d272b",prompt:"vivid fashion red hair color"},
   {id:"blue",label:"Blue",tone:"#315f9f",prompt:"vivid fashion blue hair color"},

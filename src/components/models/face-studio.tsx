@@ -695,6 +695,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             if (restoredSelections.eyeColor === "dark-brown") restoredSelections.eyeColor = "brown";
             if (restoredSelections.eyeColor === "custom") restoredSelections.eyeColor = "brown";
             if (restoredSelections.skinTone === "deep") restoredSelections.skinTone = "black";
+            if (restoredSelections.hairColor === "platinum") restoredSelections.hairColor = "white";
             setSelections(restoredSelections);
             setMediaSelected(data.mediaSelected || {});
             const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
