@@ -40,8 +40,25 @@ export const colorCategories:ColorCategory[]=[
   {id:"pink",label:"Pink",tone:"#d97c9f",prompt:"soft fashion pink hair color"},
   {id:"rose-gold",label:"Rose gold",tone:"#c98e85",prompt:"soft rose-gold fashion hair color"},
   {id:"silver",label:"Silver",tone:"#aaaeb8",prompt:"cool metallic silver hair color"},
+  {id:"split",label:"Split",tone:"linear-gradient(90deg,#f0efea 0 50%,#111214 50% 100%)",prompt:"center-split hair, left half white and right half black"},
+  {id:"balayage",label:"Balayage",tone:"linear-gradient(135deg,#3a251f 0 38%,#765743 58%,#cbb47c 82%,#eadba9 100%)",prompt:"dark brown hair with blonde balayage highlights"},
+  {id:"highlights",label:"Highlights",tone:"repeating-linear-gradient(115deg,#111214 0 8px,#d97c9f 8px 12px,#111214 12px 20px)",prompt:"black hair with pink colored highlights"},
  ]},
 ];
+
+export const HAIR_EFFECT_COLORS=[
+ {id:"black",label:"Black",tone:"#111214",prompt:"black"},
+ {id:"dark-brown",label:"Dark brown",tone:"#3a251f",prompt:"dark brown"},
+ {id:"brown",label:"Brown",tone:"#654434",prompt:"brown"},
+ {id:"blonde",label:"Blonde",tone:"#cbb47c",prompt:"blonde"},
+ {id:"white",label:"White",tone:"#f0efea",prompt:"white"},
+ {id:"silver",label:"Silver",tone:"#aaaeb8",prompt:"silver"},
+ {id:"auburn",label:"Auburn",tone:"#7a3529",prompt:"auburn"},
+ {id:"red",label:"Red",tone:"#b82f34",prompt:"red"},
+ {id:"blue",label:"Blue",tone:"#315f9f",prompt:"blue"},
+ {id:"purple",label:"Purple",tone:"#6f4aa8",prompt:"purple"},
+ {id:"pink",label:"Pink",tone:"#d97c9f",prompt:"pink"},
+] as const;
 
 export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
  albine:-2,

@@ -27,6 +27,7 @@ import {
   colorCategories,
   colorOption,
   defaultIdentitySelections,
+  HAIR_EFFECT_COLORS,
   SKIN_TONE_GENERATION_VALUES,
   type IdentitySelections,
 } from "@/lib/face-option-catalog";
@@ -62,6 +63,30 @@ const MIN_HAIR_VOLUME = -4;
 const MAX_HAIR_VOLUME = 4;
 const MIN_HAIR_LENGTH = -6;
 const MAX_HAIR_LENGTH = 4.5;
+const HAIR_EFFECT_IDS = new Set(["split", "balayage", "highlights"]);
+
+const HAIR_EFFECT_DEFAULTS: Record<string, string> = {
+  hairSplitLeft: "white",
+  hairSplitRight: "black",
+  hairBalayageBase: "dark-brown",
+  hairBalayageHighlight: "blonde",
+  hairHighlightsBase: "black",
+  hairHighlightsColor: "pink",
+};
+const HAIR_EFFECT_CONTROLS: Record<string, { label: string; key: string }[]> = {
+  split: [
+    { label: "Lado izquierdo", key: "hairSplitLeft" },
+    { label: "Lado derecho", key: "hairSplitRight" },
+  ],
+  balayage: [
+    { label: "Color base", key: "hairBalayageBase" },
+    { label: "Balayage", key: "hairBalayageHighlight" },
+  ],
+  highlights: [
+    { label: "Color base", key: "hairHighlightsBase" },
+    { label: "Mechas", key: "hairHighlightsColor" },
+  ],
+};
 
 function clampModelAge(value: unknown) {
   return Math.max(MIN_MODEL_AGE, Math.min(MAX_MODEL_AGE, Math.round(Number(value) || 25)));
@@ -364,6 +389,55 @@ function hairLengthPreset(value: string): { value: number; locked: boolean } {
   return { value: 0, locked: false };
 }
 
+function hairEffectColor(value: unknown, fallback: string): string {
+  const selected = HAIR_EFFECT_COLORS.find((color) => color.id === value);
+  return selected?.prompt || HAIR_EFFECT_COLORS.find((color) => color.id === fallback)?.prompt || fallback;
+}
+
+function hairEffectTone(value: unknown, fallback: string): string {
+  return HAIR_EFFECT_COLORS.find((color) => color.id === value)?.tone
+    || HAIR_EFFECT_COLORS.find((color) => color.id === fallback)?.tone
+    || "#777";
+}
+
+function hairEffectSwatch(selectionId: string, values: Record<string, string>, fallback: string): string {
+  if (selectionId === "split") {
+    const left = hairEffectTone(values.hairSplitLeft, "white");
+    const right = hairEffectTone(values.hairSplitRight, "black");
+    return `linear-gradient(90deg,${left} 0 50%,${right} 50% 100%)`;
+  }
+  if (selectionId === "balayage") {
+    const base = hairEffectTone(values.hairBalayageBase, "dark-brown");
+    const highlight = hairEffectTone(values.hairBalayageHighlight, "blonde");
+    return `linear-gradient(135deg,${base} 0 38%,color-mix(in srgb,${base} 55%,${highlight}) 58%,${highlight} 100%)`;
+  }
+  if (selectionId === "highlights") {
+    const base = hairEffectTone(values.hairHighlightsBase, "black");
+    const highlight = hairEffectTone(values.hairHighlightsColor, "pink");
+    return `repeating-linear-gradient(115deg,${base} 0 8px,${highlight} 8px 12px,${base} 12px 20px)`;
+  }
+  return fallback;
+}
+
+function hairEffectPrompt(selectionId: string | undefined, values: Record<string, string>): string {
+  if (selectionId === "split") {
+    const left = hairEffectColor(values.hairSplitLeft, "white");
+    const right = hairEffectColor(values.hairSplitRight, "black");
+    return `center-split hair color, left half ${left} and right half ${right}`;
+  }
+  if (selectionId === "balayage") {
+    const base = hairEffectColor(values.hairBalayageBase, "dark-brown");
+    const highlight = hairEffectColor(values.hairBalayageHighlight, "blonde");
+    return `${base} hair with ${highlight} balayage highlights`;
+  }
+  if (selectionId === "highlights") {
+    const base = hairEffectColor(values.hairHighlightsBase, "black");
+    const highlight = hairEffectColor(values.hairHighlightsColor, "pink");
+    return `${base} hair with ${highlight} colored highlights`;
+  }
+  return "";
+}
+
 function backendTimestampMs(value: string | null | undefined): number {
   if (!value) return Number.NaN;
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
@@ -609,7 +683,11 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     Record<string, ModelGenerationAsset[]>
   >({ eyebrows: [], lips: [], hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
-  const [customValues, setCustomValues] = useState<Record<string, string>>({ skinToneValue: "0", hairVolume: "0" });
+  const [customValues, setCustomValues] = useState<Record<string, string>>({
+    skinToneValue: "0",
+    hairVolume: "0",
+    ...HAIR_EFFECT_DEFAULTS,
+  });
   const [hairLengthTouched, setHairLengthTouched] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
@@ -703,6 +781,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const restoredCustomValues = {
               skinToneValue: "0",
               hairVolume: "0",
+              ...HAIR_EFFECT_DEFAULTS,
               ...(data.customValues || {}),
             };
             restoredCustomValues.hairLength = savedHairLengthTouched
@@ -1188,6 +1267,9 @@ useEffect(() => {
         : generationSeed();
       const selectedPrompt = (categoryId: "eyeColor" | "skinTone" | "hairColor") => {
         const selected = selections[categoryId];
+        if (categoryId === "hairColor" && HAIR_EFFECT_IDS.has(selected || "")) {
+          return hairEffectPrompt(selected, customValues);
+        }
         if (selected === "custom") return (customValues[categoryId] || "").trim();
         return colorOption(categoryId, selected)?.prompt || "";
       };
@@ -1227,6 +1309,7 @@ useEffect(() => {
       const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
+      const selectedHairEffect = hairEffectPrompt(selections.hairColor, customValues);
       const selectedHairColor = selections.hairColor === "custom"
         ? (customValues.hairColor || "").trim()
         : (colorOption("hairColor", selections.hairColor)?.label || selections.hairColor || "").trim();
@@ -1235,7 +1318,7 @@ useEffect(() => {
         .replace(/\s+hair\s*color$/i, "")
         .trim();
       const headPromptSuffix = [
-        simpleHairColor ? `${simpleHairColor} hair color` : "",
+        selectedHairEffect || (simpleHairColor ? `${simpleHairColor} hair color` : ""),
         normalizedHairStyle ? `${normalizedHairStyle} hair style` : "",
       ].filter(Boolean).join(", ");
       const extraWithHead = [
@@ -1774,6 +1857,14 @@ useEffect(() => {
     }));
     if (completedSteps.includes(key)) {
       setCompletedSteps((current) => current.filter((id) => id !== key));
+    }
+  }
+
+  function setHairEffectChoice(key: string, value: string) {
+    clearValidation();
+    setCustomValues((current) => ({ ...current, [key]: value }));
+    if (completedSteps.includes("hairColor")) {
+      setCompletedSteps((current) => current.filter((id) => id !== "hairColor"));
     }
   }
 
@@ -2468,6 +2559,9 @@ useEffect(() => {
                 );
                 if (!category) return null;
                 const pending = pendingFor(currentStep);
+                const hairEffectControls = currentStep.id === "hairColor"
+                  ? HAIR_EFFECT_CONTROLS[pending]
+                  : undefined;
                 return (
                   <>
                     <div className="faceColorGrid faceStepColorGrid">
@@ -2490,7 +2584,11 @@ useEffect(() => {
                           >
                             <span
                               className="faceColorSwatch"
-                              style={{ background: option.tone }}
+                              style={{
+                                background: currentStep.id === "hairColor"
+                                  ? hairEffectSwatch(option.id, customValues, option.tone)
+                                  : option.tone,
+                              }}
                             />
                             <b>{option.label}</b>
                             {previewing && (
@@ -2520,6 +2618,34 @@ useEffect(() => {
                         </button>
                       )}
                     </div>
+                    {hairEffectControls && (
+                      <div className="faceHairEffectPanel">
+                        {hairEffectControls.map((control) => (
+                          <div className="faceHairEffectGroup" key={control.key}>
+                            <strong>{control.label}</strong>
+                            <div className="faceHairEffectChoices">
+                              {HAIR_EFFECT_COLORS.map((color) => {
+                                const active = (customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === color.id;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={color.id}
+                                    className={active ? "selected" : ""}
+                                    title={color.label}
+                                    aria-label={`${control.label}: ${color.label}`}
+                                    aria-pressed={active}
+                                    onClick={() => setHairEffectChoice(control.key, color.id)}
+                                  >
+                                    <span style={{ background: color.tone }} />
+                                    <small>{color.label}</small>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {pending === "custom" && currentStep.id === "skinTone" && (
                       <div className="modelV2Control faceSkinToneControl">
                         <div className="modelV2ControlMain">
