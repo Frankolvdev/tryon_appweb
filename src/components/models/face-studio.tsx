@@ -167,13 +167,6 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
     kind: "media",
   },
   {
-    id: "hairLength",
-    label: "Hair Length",
-    shortLabel: "Largo",
-    hint: "Ajusta el largo del cabello",
-    kind: "range",
-  },
-  {
     id: "hairColor",
     label: "Color de cabello",
     shortLabel: "Color",
@@ -364,6 +357,13 @@ function hairVolumePreset(value: string): { value: number; locked: boolean } {
   return { value: 0, locked: false };
 }
 
+function hairLengthPreset(value: string): { value: number; locked: boolean } {
+  const normalized = normalizeHairStyle(value);
+  if (/\bpixie\b/.test(normalized)) return { value: -3, locked: true };
+  if (/\bbob\b/.test(normalized)) return { value: -1, locked: true };
+  return { value: 0, locked: false };
+}
+
 function backendTimestampMs(value: string | null | undefined): number {
   if (!value) return Number.NaN;
   const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
@@ -480,7 +480,7 @@ function identityDraftSnapshot({
     selections,
     mediaSelected,
     customValues,
-    identityControlMeta: { hairLengthTouched },
+    identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true },
     completedSteps,
     activeStep,
     bodyAdjustments,
@@ -699,6 +699,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             setSelections(restoredSelections);
             setMediaSelected(data.mediaSelected || {});
             const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
+            const savedHairLengthEmbedded = data?.identityControlMeta?.hairLengthEmbedded === true;
             const restoredCustomValues = {
               skinToneValue: "0",
               hairVolume: "0",
@@ -760,7 +761,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             }
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
-              ? data.completedSteps
+              ? data.completedSteps.filter((stepId: unknown) => stepId !== "hairLength")
               : [];
             setCompletedSteps(restoredCompletedSteps);
             if (data.bodyAdjustments) {
@@ -777,11 +778,21 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const restoredCompletable = restoredSteps.filter((step) => step.kind !== "summary").map((step) => step.id);
             const restoredDoneIndex = restoredSteps.findIndex((step) => step.kind === "summary");
             const restoredIsComplete = restoredCompletable.every((stepId) => restoredCompletedSteps.includes(stepId));
+            const storedActiveStep = Number.isInteger(data.activeStep)
+              ? Math.max(data.activeStep, 0)
+              : 0;
+            // AppWeb 93 and older stored Hair Length as its own node at index 8.
+            // Translate that old index once; new drafts declare it embedded.
+            const migratedActiveStep = restoredMode === "create" && !savedHairLengthEmbedded
+              ? storedActiveStep === 8
+                ? 7
+                : storedActiveStep > 8
+                  ? storedActiveStep - 1
+                  : storedActiveStep
+              : storedActiveStep;
             const restoredStep = restoredIsComplete
               ? restoredDoneIndex
-              : Number.isInteger(data.activeStep)
-                ? Math.min(Math.max(data.activeStep, 0), restoredSteps.length - 1)
-                : 0;
+              : Math.min(migratedActiveStep, restoredSteps.length - 1);
             setActiveStep(restoredStep);
 
             const lastExecutionId =
@@ -935,7 +946,7 @@ useEffect(() => {
           selections,
           mediaSelected,
           customValues,
-          identityControlMeta: { hairLengthTouched },
+          identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true },
           completedSteps,
           activeStep,
           bodyAdjustments,
@@ -1154,6 +1165,9 @@ useEffect(() => {
       const hairVolume = volumePreset.locked
         ? volumePreset.value
         : snapToStep(customValues.hairVolume, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME);
+      const lengthPreset = selectedHairstyleKey === "custom"
+        ? { value: 0, locked: false }
+        : hairLengthPreset(selectedHairstyleDescriptor);
 
       // The workflow contract separates body controls, scene controls and the
       // identity/head prompt. Scene defaults stay deterministic so the same
@@ -1200,7 +1214,9 @@ useEffect(() => {
         if (!promptHead) throw new Error("El prompt de rostro llegó vacío.");
       }
 
-      const hairLength = clampHairLength(customValues.hairLength);
+      const hairLength = lengthPreset.locked
+        ? lengthPreset.value
+        : clampHairLength(customValues.hairLength);
       const rawBody = bodyProportionsDraft || {};
       const bodyNumber = (key: string, fallback = 0) => {
         const value = Number(rawBody[key]);
@@ -2280,6 +2296,12 @@ useEffect(() => {
                 const displayedHairVolume = pendingHairVolumePreset.locked
                   ? pendingHairVolumePreset.value
                   : snapToStep(customValues.hairVolume, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME);
+                const pendingHairLengthPreset = stepId === "hairstyle" && pending !== "custom"
+                  ? hairLengthPreset(pendingHairstyle)
+                  : { value: 0, locked: false };
+                const displayedHairLength = pendingHairLengthPreset.locked
+                  ? pendingHairLengthPreset.value
+                  : clampHairLength(customValues.hairLength);
                 return (
                   <>
                     <div className="faceMediaOptionGrid faceStepMediaGrid">
@@ -2293,8 +2315,15 @@ useEffect(() => {
                             onClick={() => {
                               choosePending(currentStep.id, option.asset_key);
                               if (stepId === "hairstyle") {
-                                const preset = hairVolumePreset(`${option.asset_key} ${option.title} ${option.value || ""}`);
-                                setCustomValues((current) => ({ ...current, hairVolume: String(preset.value) }));
+                                const descriptor = `${option.asset_key} ${option.title} ${option.value || ""}`;
+                                const volume = hairVolumePreset(descriptor);
+                                const length = hairLengthPreset(descriptor);
+                                setHairLengthTouched(false);
+                                setCustomValues((current) => ({
+                                  ...current,
+                                  hairVolume: String(volume.value),
+                                  hairLength: String(length.value),
+                                }));
                               }
                             }}
                           >
@@ -2340,8 +2369,13 @@ useEffect(() => {
                         className={`faceCustomTile${pending === "custom" ? " selected" : ""}`}
                         onClick={() => {
                           choosePending(currentStep.id, "custom");
-                          if (stepId === "hairstyle" && customValues.hairVolume === undefined) {
-                            setCustomValues((current) => ({ ...current, hairVolume: "0" }));
+                          if (stepId === "hairstyle") {
+                            setHairLengthTouched(false);
+                            setCustomValues((current) => ({
+                              ...current,
+                              hairVolume: current.hairVolume ?? "0",
+                              hairLength: "0",
+                            }));
                           }
                         }}
                       >
@@ -2366,33 +2400,63 @@ useEffect(() => {
                       </div>
                     )}
                     {stepId === "hairstyle" && (
-                      <div className="modelV2Control faceHairVolumeControl">
-                        <div className="modelV2ControlMain">
-                          <div className="modelV2ControlHead">
-                            <strong>Hair Volume</strong>
-                            <output>{displayedHairVolume.toFixed(1)}</output>
+                      <>
+                        <div className="modelV2Control faceHairVolumeControl">
+                          <div className="modelV2ControlMain">
+                            <div className="modelV2ControlHead">
+                              <strong>Hair Volume</strong>
+                              <output>{displayedHairVolume.toFixed(1)}</output>
+                            </div>
+                            <FaceDiscreteSlider
+                              value={displayedHairVolume}
+                              min={MIN_HAIR_VOLUME}
+                              max={MAX_HAIR_VOLUME}
+                              step={0.2}
+                              disabled={pendingHairVolumePreset.locked}
+                              label="Hair Volume"
+                              onChange={(value) => {
+                                clearValidation();
+                                setCustomValues((current) => ({
+                                  ...current,
+                                  hairVolume: String(snapToStep(value, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME)),
+                                }));
+                                if (completedSteps.includes("hairstyle")) {
+                                  setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
+                                }
+                              }}
+                            />
+                            <div className="modelAxisEnds"><span>-4</span><span>4</span></div>
                           </div>
-                          <FaceDiscreteSlider
-                            value={displayedHairVolume}
-                            min={MIN_HAIR_VOLUME}
-                            max={MAX_HAIR_VOLUME}
-                            step={0.2}
-                            disabled={pendingHairVolumePreset.locked}
-                            label="Hair Volume"
-                            onChange={(value) => {
-                              clearValidation();
-                              setCustomValues((current) => ({
-                                ...current,
-                                hairVolume: String(snapToStep(value, MIN_HAIR_VOLUME, MAX_HAIR_VOLUME)),
-                              }));
-                              if (completedSteps.includes("hairstyle")) {
-                                setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
-                              }
-                            }}
-                          />
-                          <div className="modelAxisEnds"><span>-4</span><span>4</span></div>
                         </div>
-                      </div>
+                        <div className="modelV2Control faceHairLengthControl">
+                          <div className="modelV2ControlMain">
+                            <div className="modelV2ControlHead">
+                              <strong>Hair Length</strong>
+                              <output>{displayedHairLength.toFixed(1)}</output>
+                            </div>
+                            <FaceDiscreteSlider
+                              value={displayedHairLength}
+                              min={MIN_HAIR_LENGTH}
+                              max={MAX_HAIR_LENGTH}
+                              step={0.2}
+                              disabled={pendingHairLengthPreset.locked}
+                              label="Hair Length"
+                              onChange={(value) => {
+                                clearValidation();
+                                setHairLengthTouched(true);
+                                setCustomValues((current) => ({
+                                  ...current,
+                                  hairLength: String(clampHairLength(value)),
+                                }));
+                                if (completedSteps.includes("hairstyle")) {
+                                  setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
+                                }
+                              }}
+                            />
+                            <div className="modelAxisEnds"><span>-6</span><span>4.5</span></div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </>
                 );
@@ -2503,33 +2567,6 @@ useEffect(() => {
                   </>
                 );
               })()}
-
-              {currentStep.kind === "range" && currentStep.id === "hairLength" && (
-                <div className="modelV2Control faceHairLengthControl">
-                  <div className="modelV2ControlMain">
-                    <div className="modelV2ControlHead">
-                      <strong>Hair Length</strong>
-                      <output>{clampHairLength(customValues.hairLength).toFixed(1)}</output>
-                    </div>
-                    <FaceDiscreteSlider
-                      value={clampHairLength(customValues.hairLength)}
-                      min={MIN_HAIR_LENGTH}
-                      max={MAX_HAIR_LENGTH}
-                      step={0.2}
-                      onChange={(value) => {
-                        clearValidation();
-                        setHairLengthTouched(true);
-                        const nextValue = round1(value);
-                        setCustomValues((current) => ({ ...current, hairLength: String(nextValue) }));
-                        if (completedSteps.includes("hairLength")) {
-                          setCompletedSteps((current) => current.filter((id) => id !== "hairLength"));
-                        }
-                      }}
-                    />
-                    <div className="modelAxisEnds"><span>-6</span><span>4.5</span></div>
-                  </div>
-                </div>
-              )}
 
               {currentStep.kind === "occupation" && (() => {
                 const pending = pendingFor(currentStep);
