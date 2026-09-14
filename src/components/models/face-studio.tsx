@@ -87,6 +87,65 @@ const HAIR_EFFECT_CONTROLS: Record<string, { label: string; key: string }[]> = {
     { label: "Mechas", key: "hairHighlightsColor" },
   ],
 };
+const COLOR_TOKEN_ALIASES: Record<string, string> = {
+  black: "black", negro: "black",
+  white: "white", blanco: "white",
+  gray: "gray", grey: "gray", gris: "gray",
+  brown: "brown", cafe: "brown",
+  blonde: "blonde", blond: "blonde", rubio: "blonde",
+  red: "red", rojo: "red",
+  orange: "orange", naranja: "orange",
+  green: "green", verde: "green",
+  blue: "blue", azul: "blue",
+  purple: "purple", violet: "purple", violeta: "purple", morado: "purple",
+  pink: "pink", rosa: "pink",
+};
+const COLOR_MODIFIER_TOKENS = new Set([
+  "hair", "color", "colour", "tone", "shade", "bright", "dark", "light", "deep",
+  "soft", "vivid", "neon", "electric", "pastel", "metallic", "natural", "warm",
+  "cool", "intense", "intenso", "claro", "oscuro", "brillante", "cabello", "pelo",
+]);
+function normalizedColorTokens(selection: string, customValue = ""): Set<string> {
+  if (selection !== "custom") return new Set([COLOR_TOKEN_ALIASES[selection] || selection]);
+  const normalized = customValue
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+  const tokens = normalized
+    .split(/\s+/)
+    .filter((token) => token.length >= 3 && !COLOR_MODIFIER_TOKENS.has(token))
+    .map((token) => COLOR_TOKEN_ALIASES[token] || token);
+  return new Set(tokens);
+}
+
+function hairColorsConflict(
+  firstSelection: string,
+  firstCustom: string,
+  secondSelection: string,
+  secondCustom: string,
+): boolean {
+  const first = normalizedColorTokens(firstSelection, firstCustom);
+  const second = normalizedColorTokens(secondSelection, secondCustom);
+  if (!first.size || !second.size) return false;
+  return [...first].some((token) => second.has(token));
+}
+
+function hairEffectPairConflict(effectId: string, values: Record<string, string>): boolean {
+  if (effectId !== "split" && effectId !== "balayage") return false;
+  const controls = HAIR_EFFECT_CONTROLS[effectId];
+  if (!controls || controls.length !== 2) return false;
+  const [first, second] = controls;
+  const firstSelection = values[first.key] || HAIR_EFFECT_DEFAULTS[first.key];
+  const secondSelection = values[second.key] || HAIR_EFFECT_DEFAULTS[second.key];
+  return hairColorsConflict(
+    firstSelection,
+    values[`${first.key}Custom`] || "",
+    secondSelection,
+    values[`${second.key}Custom`] || "",
+  );
+}
 
 function clampModelAge(value: unknown) {
   return Math.max(MIN_MODEL_AGE, Math.min(MAX_MODEL_AGE, Math.round(Number(value) || 25)));
@@ -1878,6 +1937,12 @@ useEffect(() => {
   }
 
   function setHairEffectChoice(key: string, value: string) {
+    const activeEffect = currentStep.id === "hairColor" ? pendingFor(currentStep) : "";
+    if ((activeEffect === "split" || activeEffect === "balayage")
+      && hairEffectPairConflict(activeEffect, { ...customValues, [key]: value })) {
+      showValidation("Los dos colores deben ser diferentes.");
+      return;
+    }
     clearValidation();
     setCustomValues((current) => ({ ...current, [key]: value }));
     if (completedSteps.includes("hairColor")) {
@@ -2005,6 +2070,10 @@ useEffect(() => {
       );
       if (incompleteCustom) {
         showValidation("Escribe el color Custom antes de continuar.");
+        return false;
+      }
+      if (hairEffectPairConflict(value, customValues)) {
+        showValidation("Los dos colores deben ser diferentes.");
         return false;
       }
     }
@@ -2655,20 +2724,35 @@ useEffect(() => {
                     </div>
                     {hairEffectControls && (
                       <div className="faceHairEffectPanel">
-                        {hairEffectControls.map((control) => (
-                          <div className="faceHairEffectGroup" key={control.key}>
+                        {hairEffectControls.map((control, controlIndex) => {
+                          const enforceDifferentColors = pending === "split" || pending === "balayage";
+                          const otherControl = hairEffectControls[controlIndex === 0 ? 1 : 0];
+                          const otherSelection = otherControl
+                            ? customValues[otherControl.key] || HAIR_EFFECT_DEFAULTS[otherControl.key]
+                            : "";
+                          const otherCustom = otherControl ? customValues[`${otherControl.key}Custom`] || "" : "";
+                          const customConflict = enforceDifferentColors && hairEffectPairConflict(pending, customValues);
+                          return (
+                          <div className={`faceHairEffectGroup${customConflict ? " hasConflict" : ""}`} key={control.key}>
                             <strong>{control.label}</strong>
                             <div className="faceHairEffectChoices">
                               {HAIR_EFFECT_COLORS.map((color) => {
                                 const active = (customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === color.id;
+                                const blocked = enforceDifferentColors && hairColorsConflict(
+                                  color.id,
+                                  "",
+                                  otherSelection,
+                                  otherCustom,
+                                );
                                 return (
                                   <button
                                     type="button"
                                     key={color.id}
-                                    className={active ? "selected" : ""}
-                                    title={color.label}
+                                    className={`${active ? "selected" : ""}${blocked ? " blocked" : ""}`.trim()}
+                                    title={blocked ? `${color.label} ya está seleccionado` : color.label}
                                     aria-label={`${control.label}: ${color.label}`}
                                     aria-pressed={active}
+                                    disabled={blocked}
                                     onClick={() => setHairEffectChoice(control.key, color.id)}
                                   >
                                     <span style={{ background: color.tone }} />
@@ -2689,7 +2773,7 @@ useEffect(() => {
                               </button>
                             </div>
                             {(customValues[control.key] || HAIR_EFFECT_DEFAULTS[control.key]) === "custom" && (
-                              <div className="faceHairEffectCustomField">
+                              <div className={`faceHairEffectCustomField${customConflict ? " hasConflict" : ""}`}>
                                 <input
                                   value={customValues[`${control.key}Custom`] || ""}
                                   onChange={(event) => setHairEffectCustomValue(control.key, event.target.value)}
@@ -2698,10 +2782,12 @@ useEffect(() => {
                                   aria-label={`${control.label}: color Custom`}
                                 />
                                 <span>{(customValues[`${control.key}Custom`] || "").length}/25</span>
+                                {customConflict && <small>Debe ser diferente al otro color.</small>}
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                     {pending === "custom" && currentStep.id === "skinTone" && (
