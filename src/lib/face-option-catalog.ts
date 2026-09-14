@@ -51,7 +51,7 @@ export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
  medium:2.6,
  tan:3.8,
  black:4.8,
- "black-dark":6,
+ "black-dark":6.8,
 };
 
 export const defaultIdentitySelections:IdentitySelections={eyeColor:"brown",skinTone:"fair",hairColor:"dark-brown"};

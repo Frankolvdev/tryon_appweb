@@ -57,9 +57,11 @@ const MAX_MODEL_AGE = 70;
 const MIN_AGE_LORA = -1;
 const MAX_AGE_LORA = 6;
 const MIN_SKIN_TONE = -2;
-const MAX_SKIN_TONE = 6;
+const MAX_SKIN_TONE = 6.8;
 const MIN_HAIR_VOLUME = -4;
 const MAX_HAIR_VOLUME = 4;
+const MIN_HAIR_LENGTH = -6;
+const MAX_HAIR_LENGTH = 4.5;
 
 function clampModelAge(value: unknown) {
   return Math.max(MIN_MODEL_AGE, Math.min(MAX_MODEL_AGE, Math.round(Number(value) || 25)));
@@ -334,6 +336,12 @@ function snapToStep(value: unknown, min: number, max: number, step = 0.2): numbe
   return Number((Math.round((clamped - min) / step) * step + min).toFixed(1));
 }
 
+function clampHairLength(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return round1(Math.max(MIN_HAIR_LENGTH, Math.min(MAX_HAIR_LENGTH, numeric)));
+}
+
 function skinToneGenerationValue(selectionId: string | undefined, customValue: unknown): number {
   if (selectionId === "custom") return snapToStep(customValue, MIN_SKIN_TONE, MAX_SKIN_TONE);
   return SKIN_TONE_GENERATION_VALUES[selectionId || ""] ?? 0;
@@ -553,8 +561,12 @@ function FaceDiscreteSlider({
       }}
       onPointerUp={(event) => {
         dragging.current = false;
-        event.currentTarget.releasePointerCapture(event.pointerId);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
       }}
+      onPointerCancel={() => { dragging.current = false; }}
+      onLostPointerCapture={() => { dragging.current = false; }}
     >
       <div className="modelDiscreteRail" />
       <div className="modelDiscreteFill" style={{ width: `${percent}%` }} />
@@ -691,7 +703,9 @@ export function FaceStudio({ modelId }: { modelId: number }) {
               hairVolume: "0",
               ...(data.customValues || {}),
             };
-            if (!savedHairLengthTouched) restoredCustomValues.hairLength = "0";
+            restoredCustomValues.hairLength = savedHairLengthTouched
+              ? String(clampHairLength(restoredCustomValues.hairLength))
+              : "0";
             setHairLengthTouched(savedHairLengthTouched);
             setCustomValues(restoredCustomValues);
             if (data.last_generation_seeds && typeof data.last_generation_seeds === "object") {
@@ -1185,7 +1199,7 @@ useEffect(() => {
         if (!promptHead) throw new Error("El prompt de rostro llegó vacío.");
       }
 
-      const hairLength = round1(Number(customValues.hairLength ?? 0));
+      const hairLength = clampHairLength(customValues.hairLength);
       const rawBody = bodyProportionsDraft || {};
       const bodyNumber = (key: string, fallback = 0) => {
         const value = Number(rawBody[key]);
@@ -2465,7 +2479,7 @@ useEffect(() => {
                               }
                             }}
                           />
-                          <div className="modelAxisEnds"><span>-2</span><span>6</span></div>
+                          <div className="modelAxisEnds"><span>-2</span><span>6.8</span></div>
                         </div>
                       </div>
                     )}
@@ -2494,12 +2508,12 @@ useEffect(() => {
                   <div className="modelV2ControlMain">
                     <div className="modelV2ControlHead">
                       <strong>Hair Length</strong>
-                      <output>{Number(customValues.hairLength ?? 0).toFixed(1)}</output>
+                      <output>{clampHairLength(customValues.hairLength).toFixed(1)}</output>
                     </div>
                     <FaceDiscreteSlider
-                      value={Number(customValues.hairLength ?? 0)}
-                      min={-6}
-                      max={6}
+                      value={clampHairLength(customValues.hairLength)}
+                      min={MIN_HAIR_LENGTH}
+                      max={MAX_HAIR_LENGTH}
                       step={0.2}
                       onChange={(value) => {
                         clearValidation();
@@ -2511,7 +2525,7 @@ useEffect(() => {
                         }
                       }}
                     />
-                    <div className="modelAxisEnds"><span>-6</span><span>6</span></div>
+                    <div className="modelAxisEnds"><span>-6</span><span>4.5</span></div>
                   </div>
                 </div>
               )}
