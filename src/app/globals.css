@@ -56,6 +56,32 @@
 .exactAuthRoot input {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.faceHairFringeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 14px;
+  background: rgba(0,0,0,.2);
+}
+.faceHairFringeOptions button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: rgba(255,255,255,.58);
+  background: transparent;
+  font: inherit;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.faceHairFringeOptions button.selected {
+  border-color: rgba(239,35,64,.38);
+  color: #fff;
+  background: rgba(239,35,64,.13);
+}
 .exactBrandIcon,
 .exactMobileBrandIcon {
   width: 48px;

@@ -34,7 +34,7 @@ export const colorCategories:ColorCategory[]=[
   {id:"blonde",label:"Blonde",tone:"#cbb47c",prompt:"natural neutral blonde hair color"},
   {id:"white",label:"White",tone:"#f0efea",prompt:"soft fashion white hair color"},
   {id:"auburn",label:"Auburn",tone:"#7a3529",prompt:"rich natural auburn hair color"},
-  {id:"red",label:"Red",tone:"#9d272b",prompt:"vivid fashion red hair color"},
+  {id:"red",label:"Red",tone:"#9d272b",prompt:"vivid cool-toned cherry red"},
   {id:"blue",label:"Blue",tone:"#315f9f",prompt:"vivid fashion blue hair color"},
   {id:"purple",label:"Purple",tone:"#6f4aa8",prompt:"vivid fashion purple hair color"},
   {id:"pink",label:"Pink",tone:"#d97c9f",prompt:"soft fashion pink hair color"},

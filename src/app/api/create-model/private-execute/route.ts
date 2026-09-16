@@ -1,4 +1,3 @@
-import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -15,50 +14,6 @@ async function backendError(response: Response, fallback: string) {
     if (typeof payload.message === "string") return payload.message;
   } catch {}
   return fallback;
-}
-
-function faceReferenceToken(firstIndex: number, secondIndex: number, secret: string) {
-  const payload = `v1.${firstIndex}.${secondIndex}`;
-  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
-  return `${payload}.${signature}`;
-}
-
-function faceReferencePairFromToken(token: unknown, secret: string, total: number) {
-  if (typeof token !== "string" || !token) return null;
-  const match = /^v1\.(\d+)\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(token);
-  if (!match) throw new Error("La base facial anterior no es válida.");
-  const firstIndex = Number(match[1]);
-  const secondIndex = Number(match[2]);
-  const payload = `v1.${firstIndex}.${secondIndex}`;
-  const expected = Buffer.from(createHmac("sha256", secret).update(payload).digest("base64url"));
-  const received = Buffer.from(match[3]);
-  if (
-    expected.length !== received.length ||
-    !timingSafeEqual(expected, received) ||
-    !Number.isInteger(firstIndex) ||
-    !Number.isInteger(secondIndex) ||
-    firstIndex < 0 ||
-    secondIndex < 0 ||
-    firstIndex >= total ||
-    secondIndex >= total ||
-    firstIndex === secondIndex
-  ) {
-    throw new Error("La base facial anterior no es válida.");
-  }
-  return { firstIndex, secondIndex };
-}
-
-function shuffledIndexes(total: number) {
-  const indexes = Array.from({ length: total }, (_, index) => index);
-  for (let index = indexes.length - 1; index > 0; index -= 1) {
-    const swapIndex = randomInt(index + 1);
-    [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
-  }
-  return indexes;
-}
-
-function fileDigest(bytes: ArrayBuffer) {
-  return createHash("sha256").update(Buffer.from(bytes)).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -83,127 +38,68 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Contrato Create Model inválido." }, { status: 400 });
   }
 
-  const privateHeaders = { "X-AppWeb-Internal-Key": internalKey, "Cache-Control": "no-store" };
-  const countResponse = await fetch(`${backendBaseUrl}/api/v1/model-generation-assets/private/facial-structures/count`, {
-    headers: privateHeaders,
+  const historyToken = typeof body.face_reference_token === "string"
+    ? body.face_reference_token
+    : typeof body.previous_face_reference_token === "string"
+      ? body.previous_face_reference_token
+      : undefined;
+  const pairResponse = await fetch(`${backendBaseUrl}/api/v1/model-generation-assets/private/facial-structures/select`, {
+    method: "POST",
+    headers: {
+      "X-AppWeb-Internal-Key": internalKey,
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ...(historyToken ? { history_token: historyToken } : {}),
+      reuse_current_pair: typeof body.face_reference_token === "string",
+    }),
     cache: "no-store",
   });
-  if (!countResponse.ok) {
-    return NextResponse.json({ detail: await backendError(countResponse, "No se pudo consultar el banco facial.") }, { status: 502 });
-  }
-  const countPayload = await countResponse.json() as { total?: number };
-  const total = Math.max(0, Math.trunc(Number(countPayload.total) || 0));
-  if (total < 1) {
-    return NextResponse.json({ detail: "No hay estructuras faciales activas configuradas." }, { status: 409 });
-  }
-
-  if (total < 2) {
-    return NextResponse.json({ detail: "Se requieren al menos dos estructuras faciales activas para Create Model." }, { status: 409 });
-  }
-
-  let reusedPair: { firstIndex: number; secondIndex: number } | null;
-  let previousPair: { firstIndex: number; secondIndex: number } | null = null;
-  try {
-    reusedPair = faceReferencePairFromToken(body.face_reference_token, internalKey, total);
-    if (!reusedPair && body.previous_face_reference_token) {
-      previousPair = faceReferencePairFromToken(body.previous_face_reference_token, internalKey, total);
-    }
-  } catch (error) {
+  if (!pairResponse.ok) {
     return NextResponse.json(
-      { detail: error instanceof Error ? error.message : "La base facial anterior no es válida." },
-      { status: 400 },
+      { detail: await backendError(pairResponse, "No se pudieron seleccionar las referencias faciales.") },
+      { status: pairResponse.status },
     );
   }
 
-  const fetchPrivateFace = async (index: number) => {
-    const response = await fetch(
-      `${backendBaseUrl}/api/v1/model-generation-assets/private/facial-structures/reference?index=${index}`,
-      { headers: privateHeaders, cache: "no-store" },
-    );
-    if (!response.ok) {
-      throw new Error(await backendError(response, "No se pudo obtener la estructura facial privada."));
-    }
-    return {
-      bytes: await response.arrayBuffer(),
-      type: response.headers.get("content-type") || "image/webp",
-    };
-  };
-
-  const randomized = shuffledIndexes(total);
-  let candidateIndexes: number[];
-  if (reusedPair) {
-    candidateIndexes = [
-      reusedPair.firstIndex,
-      reusedPair.secondIndex,
-      ...randomized.filter((index) => index !== reusedPair.firstIndex && index !== reusedPair.secondIndex),
-    ];
-  } else if (previousPair && total >= 4) {
-    const previousIndexes = new Set([previousPair.firstIndex, previousPair.secondIndex]);
-    candidateIndexes = [
-      ...randomized.filter((index) => !previousIndexes.has(index)),
-      ...randomized.filter((index) => previousIndexes.has(index)),
-    ];
-  } else if (previousPair && total === 3) {
-    const previousIndexes = new Set([previousPair.firstIndex, previousPair.secondIndex]);
-    candidateIndexes = [
-      ...randomized.filter((index) => !previousIndexes.has(index)),
-      ...randomized.filter((index) => previousIndexes.has(index)),
-    ];
-  } else {
-    candidateIndexes = randomized;
-  }
-
-  const firstIndex = candidateIndexes[0];
-  let firstFace: { bytes: ArrayBuffer; type: string };
-  let secondFace: { bytes: ArrayBuffer; type: string };
-  let secondIndex = -1;
   try {
-    firstFace = await fetchPrivateFace(firstIndex);
-    const firstDigest = fileDigest(firstFace.bytes);
-    let distinctFace: { bytes: ArrayBuffer; type: string } | null = null;
-    for (const candidateIndex of candidateIndexes.slice(1)) {
-      const candidateFace = await fetchPrivateFace(candidateIndex);
-      if (fileDigest(candidateFace.bytes) === firstDigest) continue;
-      secondIndex = candidateIndex;
-      distinctFace = candidateFace;
-      break;
+    const pairForm = await pairResponse.formData();
+    const firstFace = pairForm.get("face_reference");
+    const secondFace = pairForm.get("face_reference2");
+    const nextHistoryToken = pairForm.get("history_token");
+    if (!(firstFace instanceof Blob) || !(secondFace instanceof Blob) || typeof nextHistoryToken !== "string") {
+      throw new Error("El backend devolvió un par facial incompleto.");
     }
-    if (!distinctFace || secondIndex < 0) {
-      throw new Error("El banco facial no contiene dos imágenes de referencia distintas.");
+
+    const form = new FormData();
+    form.append("file_keys", "input_21");
+    form.append("files", firstFace, "face-reference.webp");
+    form.append("file_keys", "input_24");
+    form.append("files", secondFace, "face-reference2.webp");
+    form.append("payload", JSON.stringify({ inputs: body.inputs }));
+
+    const executionResponse = await fetch(`${backendBaseUrl}/api/v1/generation-modules/${moduleId}/executions`, {
+      method: "POST",
+      headers: { Authorization: authorization },
+      body: form,
+      cache: "no-store",
+    });
+    if (!executionResponse.ok) {
+      return NextResponse.json(
+        { detail: await backendError(executionResponse, `Error ${executionResponse.status}`) },
+        { status: executionResponse.status },
+      );
     }
-    secondFace = distinctFace;
+    const execution = await executionResponse.json();
+    return NextResponse.json(
+      { ...execution, private_face_reference_token: nextHistoryToken },
+      { headers: { "Cache-Control": "no-store, private" } },
+    );
   } catch (error) {
     return NextResponse.json(
-      { detail: error instanceof Error ? error.message : "No se pudieron obtener las estructuras faciales privadas." },
+      { detail: error instanceof Error ? error.message : "No se pudo procesar el par facial privado." },
       { status: 502 },
     );
   }
-
-  const form = new FormData();
-  form.append("file_keys", "input_21");
-  form.append("files", new Blob([firstFace.bytes], { type: firstFace.type }), "face-reference.webp");
-  form.append("file_keys", "input_24");
-  form.append("files", new Blob([secondFace.bytes], { type: secondFace.type }), "face-reference2.webp");
-  form.append("payload", JSON.stringify({ inputs: body.inputs }));
-
-  const executionResponse = await fetch(`${backendBaseUrl}/api/v1/generation-modules/${moduleId}/executions`, {
-    method: "POST",
-    headers: { Authorization: authorization },
-    body: form,
-    cache: "no-store",
-  });
-  if (!executionResponse.ok) {
-    return NextResponse.json(
-      { detail: await backendError(executionResponse, `Error ${executionResponse.status}`) },
-      { status: executionResponse.status },
-    );
-  }
-  const execution = await executionResponse.json();
-  return NextResponse.json(
-    {
-      ...execution,
-      private_face_reference_token: faceReferenceToken(firstIndex, secondIndex, internalKey),
-    },
-    { headers: { "Cache-Control": "no-store, private" } },
-  );
 }

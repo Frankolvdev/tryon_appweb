@@ -757,6 +757,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
   const [customValues, setCustomValues] = useState<Record<string, string>>({
     skinToneValue: "0",
     hairVolume: "0",
+    hairFringe: "without",
     ...HAIR_EFFECT_DEFAULTS,
   });
   const [hairLengthTouched, setHairLengthTouched] = useState(false);
@@ -852,6 +853,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const restoredCustomValues = {
               skinToneValue: "0",
               hairVolume: "0",
+              hairFringe: "without",
               ...HAIR_EFFECT_DEFAULTS,
               ...(data.customValues || {}),
             };
@@ -1388,20 +1390,25 @@ useEffect(() => {
       const selectedHairEffect = hairEffectPrompt(selections.hairColor, customValues);
       const selectedHairColor = selections.hairColor === "custom"
         ? (customValues.hairColor || "").trim()
-        : (colorOption("hairColor", selections.hairColor)?.label || selections.hairColor || "").trim();
+        : selections.hairColor === "red"
+          ? colorOption("hairColor", "red")?.prompt || "vivid cool-toned cherry red"
+          : (colorOption("hairColor", selections.hairColor)?.label || selections.hairColor || "").trim();
       const simpleHairColor = selectedHairColor
         .toLowerCase()
         .replace(/\s+hair\s*color$/i, "")
         .trim();
       const headPromptSuffix = [
         selectedHairEffect || (simpleHairColor ? `${simpleHairColor} hair color` : ""),
-        normalizedHairStyle ? `${normalizedHairStyle} hair style` : "",
+        normalizedHairStyle
+          ? customValues.hairFringe === "with"
+            ? `${normalizedHairStyle} hair style with fringe`
+            : `${normalizedHairStyle} hair style, clean center part, hair pulled away from the forehead, fully visible forehead, no fringe`
+          : "",
       ].filter(Boolean).join(", ");
-      const extraWithHead = [
-        customValues.extraDetails?.trim().replace(/[.\s]+$/g, ""),
-        headPromptSuffix ? `Head: ${headPromptSuffix}.` : "",
-      ].filter(Boolean).join(".\n\n");
       const clothesWithPeriod = occupationContext.clothes.trim().replace(/[.\s]+$/g, "") + ".";
+      const clothesWithHead = headPromptSuffix
+        ? `${clothesWithPeriod}\nHead: ${headPromptSuffix}.`
+        : clothesWithPeriod;
 
       let payload: Record<string, unknown>;
       if (generationModule.id === 8 && identityMode === "create") {
@@ -1425,11 +1432,11 @@ useEffect(() => {
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
           input_17: " ",
-          input_18: clothesWithPeriod,
+          input_18: clothesWithHead,
           // input_19 is required in V5. A single space satisfies the transport
           // contract while the pipeline's clean()/strip() correctly turns it
           // into an empty optional detail.
-          input_19: extraWithHead || " ",
+          input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
           // Workflow-only identity labels: lowercase and without descriptive suffixes.
           input_22: (ancestry?.display_name || "")
@@ -2649,6 +2656,39 @@ useEffect(() => {
                               }}
                             />
                             <div className="modelAxisEnds"><span>-6</span><span>4.5</span></div>
+                          </div>
+                        </div>
+                        <div className="modelV2Control faceHairFringeControl">
+                          <div className="modelV2ControlMain">
+                            <div className="modelV2ControlHead">
+                              <strong>Flequillo</strong>
+                            </div>
+                            <div className="faceHairFringeOptions" role="group" aria-label="Flequillo">
+                              <button
+                                type="button"
+                                className={customValues.hairFringe !== "with" ? "selected" : ""}
+                                aria-pressed={customValues.hairFringe !== "with"}
+                                onClick={() => {
+                                  clearValidation();
+                                  setCustomValues((current) => ({ ...current, hairFringe: "without" }));
+                                  setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
+                                }}
+                              >
+                                Sin flequillo
+                              </button>
+                              <button
+                                type="button"
+                                className={customValues.hairFringe === "with" ? "selected" : ""}
+                                aria-pressed={customValues.hairFringe === "with"}
+                                onClick={() => {
+                                  clearValidation();
+                                  setCustomValues((current) => ({ ...current, hairFringe: "with" }));
+                                  setCompletedSteps((current) => current.filter((id) => id !== "hairstyle"));
+                                }}
+                              >
+                                Con flequillo
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </>
