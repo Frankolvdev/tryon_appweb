@@ -74,6 +74,7 @@ const LOCAL_CREATE_V5_INPUTS = [
   { key: "input_24", name: "face_reference2", type: "image", required: true },
   { key: "input_25", name: "age", type: "float", required: true },
   { key: "input_26", name: "hair_volumen", type: "float", required: true },
+  { key: "input_27", name: "prompt_face_swap", type: "text", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
 const CREATE_MODEL_OUTPUTS = [

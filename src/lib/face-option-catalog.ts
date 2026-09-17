@@ -1,20 +1,20 @@
 "use client";
 
-export type ColorOption={id:string;label:string;tone:string;prompt:string;negative?:string};
+export type ColorOption={id:string;label:string;tone:string;prompt:string;faceSwapColor?:string;negative?:string};
 export type ColorCategory={id:"eyeColor"|"skinTone"|"hairColor";label:string;hint:string;options:ColorOption[]};
 export type IdentitySelections=Record<string,string>;
 export const FACE_TRIGGER="angel face";
 
 export const colorCategories:ColorCategory[]=[
  {id:"eyeColor",label:"Eye color",hint:"Color de iris",options:[
-  {id:"blue",label:"Blue",tone:"#48a8ff",prompt:"neon blue eyes color"},
-  {id:"green",label:"Green",tone:"#60e879",prompt:"neon green eyes color"},
-  {id:"hazel",label:"Hazel",tone:"#a78643",prompt:"bright azel eyes color"},
-  {id:"brown",label:"Brown",tone:"#704633",prompt:"bright brown eyes color"},
-  {id:"gray",label:"Gray",tone:"#aeb6c2",prompt:"bright grey eyes color"},
-  {id:"purple",label:"Purple",tone:"#9258e8",prompt:"bright purple eyes color"},
-  {id:"red",label:"Red",tone:"#ee3f4f",prompt:"bright red eyes color"},
-  {id:"pink",label:"Pink",tone:"#ff65b3",prompt:"bright pink eyes color"},
+  {id:"blue",label:"Blue",tone:"#48a8ff",prompt:"neon blue eyes color",faceSwapColor:"blue"},
+  {id:"green",label:"Green",tone:"#60e879",prompt:"neon green eyes color",faceSwapColor:"green"},
+  {id:"hazel",label:"Hazel",tone:"#a78643",prompt:"bright azel eyes color",faceSwapColor:"yellow"},
+  {id:"brown",label:"Brown",tone:"#704633",prompt:"bright brown eyes color",faceSwapColor:"brown"},
+  {id:"gray",label:"Gray",tone:"#aeb6c2",prompt:"bright grey eyes color",faceSwapColor:"grey"},
+  {id:"purple",label:"Purple",tone:"#9258e8",prompt:"bright purple eyes color",faceSwapColor:"purple"},
+  {id:"red",label:"Red",tone:"#ee3f4f",prompt:"bright red eyes color",faceSwapColor:"red"},
+  {id:"pink",label:"Pink",tone:"#ff65b3",prompt:"bright pink eyes color",faceSwapColor:"pink"},
  ]},
  {id:"skinTone",label:"Skin tone",hint:"Tono de piel",options:[
   {id:"albine",label:"Albine",tone:"#f5e8e1",prompt:"albine skin tone"},

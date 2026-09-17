@@ -1387,6 +1387,8 @@ useEffect(() => {
       const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
+      const faceSwapEyeColor = colorOption("eyeColor", selections.eyeColor)?.faceSwapColor || "brown";
+      const promptFaceSwap = `same woman only replace face and change color of eyes to ${faceSwapEyeColor} while preserve the original face direction.`;
       const selectedHairEffect = hairEffectPrompt(selections.hairColor, customValues);
       const selectedHairColor = selections.hairColor === "custom"
         ? (customValues.hairColor || "").trim()
@@ -1447,6 +1449,7 @@ useEffect(() => {
           input_23: normalizedHairStyle,
           input_25: ageLoraValue,
           input_26: hairVolume,
+          input_27: promptFaceSwap,
         };
       } else if (generationModule.id === 9 && identityMode === "existing") {
         // Local From Head V6 contract. It mirrors the local body/scene inputs
