@@ -8,7 +8,7 @@ export const FACE_TRIGGER="angel face";
 export const colorCategories:ColorCategory[]=[
  {id:"eyeColor",label:"Eye color",hint:"Color de iris",options:[
   {id:"blue",label:"Blue",tone:"#48a8ff",prompt:"neon blue eyes color",faceSwapColor:"blue"},
-  {id:"green",label:"Green",tone:"#60e879",prompt:"neon green eyes color",faceSwapColor:"green"},
+  {id:"green",label:"Green",tone:"#60e879",prompt:"neon green eyes color",faceSwapColor:"intense green"},
   {id:"hazel",label:"Hazel",tone:"#a78643",prompt:"bright azel eyes color",faceSwapColor:"yellow"},
   {id:"brown",label:"Brown",tone:"#704633",prompt:"bright brown eyes color",faceSwapColor:"brown"},
   {id:"gray",label:"Gray",tone:"#aeb6c2",prompt:"bright grey eyes color",faceSwapColor:"grey"},
