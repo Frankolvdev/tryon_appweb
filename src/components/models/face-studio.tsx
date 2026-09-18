@@ -1389,7 +1389,11 @@ useEffect(() => {
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
       const faceSwapEyeColor = colorOption("eyeColor", selections.eyeColor)?.faceSwapColor || "brown";
-      const promptFaceSwap = `same woman only replace face and change color of eyes to ${faceSwapEyeColor} while preserve the original face direction.`;
+      const faceSwapAncestry = (ancestry?.display_name || "")
+        .trim()
+        .replace(/\s+ancestry$/i, "")
+        .trim();
+      const promptFaceSwap = `same woman${faceSwapAncestry ? ` ${faceSwapAncestry}` : ""} only replace face and change color of eyes to ${faceSwapEyeColor} while preserve the original face direction.`;
       const selectedHairEffect = hairEffectPrompt(selections.hairColor, customValues);
       const selectedHairColor = selections.hairColor === "custom"
         ? (customValues.hairColor || "").trim()
