@@ -15,6 +15,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeCreateModelWithPrivateFaceReference, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
+import { resolveFaceReferenceGroup } from "@/lib/face-reference-groups";
 import { resolveCreateModelGenerationModule, tryResolveCreateModelGenerationModule } from "@/lib/create-model-generation-module-router";
 import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
@@ -1554,6 +1555,7 @@ useEffect(() => {
             payload,
             options?.reuseHeadSeed ? lastGenerationSeeds?.faceReferenceToken : undefined,
             lastGenerationSeeds?.faceReferenceToken,
+            resolveFaceReferenceGroup(ancestry?.country_code, ancestry?.display_name),
           )
         : await executeGenerationModule(generationModule.id, payload);
       const faceReferenceToken = typeof (execution as GenerationExecution & { private_face_reference_token?: unknown }).private_face_reference_token === "string"

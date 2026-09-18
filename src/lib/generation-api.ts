@@ -1,5 +1,6 @@
 import { apiFetch, apiStream } from "@/lib/api";
 import type { GenerationExecution, GenerationModule, GenerationModuleList } from "@/types/generation";
+import type { FaceReferenceGroup } from "@/lib/face-reference-groups";
 
 const generationModulesCache = new Map<string, { at: number; value: GenerationModuleList }>();
 const generationModulesInflight = new Map<string, Promise<GenerationModuleList>>();
@@ -46,6 +47,7 @@ export const executeCreateModelWithPrivateFaceReference = (
   inputs: Record<string, unknown>,
   faceReferenceToken?: string,
   previousFaceReferenceToken?: string,
+  faceGroup?: FaceReferenceGroup,
 ) => apiFetch<GenerationExecution>("/api/create-model/private-execute", {
   method: "POST",
   body: JSON.stringify({
@@ -53,6 +55,7 @@ export const executeCreateModelWithPrivateFaceReference = (
     inputs,
     ...(faceReferenceToken ? { face_reference_token: faceReferenceToken } : {}),
     ...(previousFaceReferenceToken ? { previous_face_reference_token: previousFaceReferenceToken } : {}),
+    ...(faceGroup ? { face_group: faceGroup } : {}),
   }),
 });
 

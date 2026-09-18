@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     inputs?: unknown;
     face_reference_token?: unknown;
     previous_face_reference_token?: unknown;
+    face_group?: unknown;
   };
   try { body = await request.json(); }
   catch { return NextResponse.json({ detail: "Solicitud inválida." }, { status: 400 }); }
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       ...(historyToken ? { history_token: historyToken } : {}),
       reuse_current_pair: typeof body.face_reference_token === "string",
+      face_group: typeof body.face_group === "string" ? body.face_group : "mixed_pacific",
     }),
     cache: "no-store",
   });
