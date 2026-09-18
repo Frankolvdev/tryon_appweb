@@ -53,13 +53,17 @@ const COUNTRY_GROUP = new Map<string, FaceReferenceGroup>(
 
 export function resolveFaceReferenceGroup(countryCode?: string | null, displayName?: string | null): FaceReferenceGroup {
   const code = (countryCode || "").trim().toUpperCase();
-  if (code) return COUNTRY_GROUP.get(code) || "mixed_pacific";
-  const name = (displayName || "").trim().toLowerCase();
+  const countryGroup = code.length === 2 ? COUNTRY_GROUP.get(code) : undefined;
+  if (countryGroup) return countryGroup;
+  const name = `${displayName || ""} ${code.length > 2 ? countryCode || "" : ""}`.trim().toLowerCase();
+  if (/middle[\s_-]*east|north[\s_-]*afric|\bmena\b|arab|persian|iran|turk|morocc|egypt|alger|tunis|libya|palestin|israel/i.test(name)) return "middle_eastern_north_african";
   if (/afric|afro|congo|hait/i.test(name)) return "african_afrodescendant";
+  if (/south[\s_-]*east[\s_-]*asian/i.test(name)) return "southeast_asian";
+  if (/(?:^|\b)east[\s_-]*asian/i.test(name)) return "east_asian";
+  if (/(?:south|central)[\s_/-]*asian/i.test(name)) return "south_central_asian";
   if (/korea|japan|china|taiwan|mongol|hong kong|macao|macau/i.test(name)) return "east_asian";
   if (/thai|vietnam|filip|indones|malay|cambod|lao|myanmar|singapore|brunei|timor/i.test(name)) return "southeast_asian";
   if (/india|pakistan|bangladesh|sri lanka|nepal|bhutan|maldiv|afghan|kazakh|kyrgyz|tajik|turkmen|uzbek/i.test(name)) return "south_central_asian";
-  if (/arab|middle east|persian|iran|turk|morocc|egypt|alger|tunis|libya|palestin|israel/i.test(name)) return "middle_eastern_north_african";
   if (/latin|mexic|brazil|venezuel|colombi|argentin|caribbean/i.test(name)) return "latin_caribbean";
   if (/europe|russian|ukrain|italian|spanish|french|german|british/i.test(name)) return "european";
   return "mixed_pacific";
