@@ -17,7 +17,7 @@ const GROUP_COUNTRY_CODES: Record<Exclude<FaceReferenceGroup, "mixed_pacific">, 
   african_afrodescendant: [
     "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "ER", "ET",
     "GA", "GH", "GM", "GN", "GQ", "GW", "HT", "KE", "KM", "LR", "LS", "MG", "ML", "MU",
-    "MW", "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SH", "SL", "SN", "SO", "SS", "ST",
+    "MW", "MZ", "NA", "NE", "NG", "RE", "RW", "SC", "SD", "SH", "SL", "SN", "SO", "SS", "ST",
     "SZ", "TD", "TG", "TZ", "UG", "YT", "ZA", "ZM", "ZW",
   ],
   european: [
@@ -29,7 +29,7 @@ const GROUP_COUNTRY_CODES: Record<Exclude<FaceReferenceGroup, "mixed_pacific">, 
   latin_caribbean: [
     "AG", "AI", "AR", "AW", "BB", "BL", "BO", "BQ", "BR", "BS", "BZ", "CL", "CO", "CR",
     "CU", "CW", "DM", "DO", "EC", "FK", "GF", "GD", "GP", "GT", "GY", "HN", "JM", "KN",
-    "KY", "LC", "MF", "MQ", "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SX",
+    "KY", "LC", "MF", "MQ", "MS", "MX", "NI", "PA", "PE", "PM", "PR", "PY", "SR", "SV", "SX",
     "TC", "TT", "UY", "VC", "VE", "VG", "VI",
   ],
 };
