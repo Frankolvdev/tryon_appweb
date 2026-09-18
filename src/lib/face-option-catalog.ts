@@ -17,7 +17,7 @@ export const colorCategories:ColorCategory[]=[
   {id:"pink",label:"Pink",tone:"#ff65b3",prompt:"bright pink eyes color",faceSwapColor:"pink"},
  ]},
  {id:"skinTone",label:"Skin tone",hint:"Tono de piel",options:[
-  {id:"albine",label:"Albine",tone:"#f5e8e1",prompt:"albine skin tone"},
+  {id:"albine",label:"White",tone:"#f5e8e1",prompt:"albine skin tone"},
   {id:"porcelain",label:"Porcelain",tone:"#ead4c9",prompt:"porcelain skin tone"},
   {id:"fair",label:"Fair",tone:"#d9b8a7",prompt:"fair skin tone"},
   {id:"light",label:"Light",tone:"#cda18c",prompt:"light skin tone"},

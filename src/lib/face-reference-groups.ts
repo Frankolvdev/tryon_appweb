@@ -6,6 +6,17 @@ export const FACE_REFERENCE_GROUPS = [
 
 export type FaceReferenceGroup = typeof FACE_REFERENCE_GROUPS[number];
 
+export const DEFAULT_SKIN_TONE_BY_FACE_GROUP = {
+  east_asian: "albine",
+  southeast_asian: "light",
+  south_central_asian: "medium",
+  middle_eastern_north_african: "tan",
+  african_afrodescendant: "black",
+  european: "fair",
+  latin_caribbean: "light",
+  mixed_pacific: "porcelain",
+} as const satisfies Record<FaceReferenceGroup, string>;
+
 const GROUP_COUNTRY_CODES: Record<Exclude<FaceReferenceGroup, "mixed_pacific">, readonly string[]> = {
   east_asian: ["CN", "HK", "JP", "KP", "KR", "MO", "MN", "TW"],
   southeast_asian: ["BN", "KH", "ID", "LA", "MY", "MM", "PH", "SG", "TH", "TL", "VN"],
@@ -52,4 +63,8 @@ export function resolveFaceReferenceGroup(countryCode?: string | null, displayNa
   if (/latin|mexic|brazil|venezuel|colombi|argentin|caribbean/i.test(name)) return "latin_caribbean";
   if (/europe|russian|ukrain|italian|spanish|french|german|british/i.test(name)) return "european";
   return "mixed_pacific";
+}
+
+export function resolveDefaultSkinTone(countryCode?: string | null, displayName?: string | null): string {
+  return DEFAULT_SKIN_TONE_BY_FACE_GROUP[resolveFaceReferenceGroup(countryCode, displayName)];
 }

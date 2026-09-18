@@ -15,7 +15,7 @@ import { notify } from "@/lib/notify";
 import { useModelDisplayName } from "@/lib/use-model-display-name";
 import { finalizeAiModel, getAiModel, listBodyVariants, listBubbleButtVariants, saveAiModelDraft } from "@/lib/ai-model-api";
 import { cancelGenerationExecution, executeCreateModelWithPrivateFaceReference, executeGenerationModule, getGenerationExecution, getGenerationLoadingProgressMode, listGenerationModules, type GenerationLoadingProgressMode } from "@/lib/generation-api";
-import { resolveFaceReferenceGroup } from "@/lib/face-reference-groups";
+import { resolveDefaultSkinTone, resolveFaceReferenceGroup } from "@/lib/face-reference-groups";
 import { resolveCreateModelGenerationModule, tryResolveCreateModelGenerationModule } from "@/lib/create-model-generation-module-router";
 import { canRequestGenerationCancellation, isGenerationActiveForUi, isGenerationCancellationPending, isGenerationFinalizing, isGenerationProviderPending, shouldPollGenerationExecution, isGenerationExecutionPollable } from "@/lib/generation-execution-contract";
 import { useGenerationJobs } from "@/components/generation/generation-jobs-provider";
@@ -1869,6 +1869,16 @@ useEffect(() => {
         setCompletedSteps((current) =>
           current.includes("ancestry") ? current.filter((id) => id !== "ancestry") : current,
         );
+      }
+      if (asset && previousKey !== nextKey) {
+        const skinTone = resolveDefaultSkinTone(asset.country_code, asset.display_name);
+        setSelections((current) => ({ ...current, skinTone }));
+        setCustomValues((current) => ({
+          ...current,
+          skinToneValue: String(SKIN_TONE_GENERATION_VALUES[skinTone] ?? 0),
+        }));
+        setPendingValues((current) => ({ ...current, skinTone }));
+        setCompletedSteps((current) => current.filter((id) => id !== "skinTone"));
       }
       return asset;
     });
