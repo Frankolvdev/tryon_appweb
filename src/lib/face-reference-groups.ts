@@ -70,5 +70,9 @@ export function resolveFaceReferenceGroup(countryCode?: string | null, displayNa
 }
 
 export function resolveDefaultSkinTone(countryCode?: string | null, displayName?: string | null): string {
+  const code = (countryCode || "").trim().toUpperCase();
+  const ancestry = `${displayName || ""} ${countryCode || ""}`.trim().toLowerCase();
+  if (code === "RU" || /\brussi(?:a|an)\b/i.test(ancestry)) return "porcelain";
+  if (/\barab(?:ic|ian)?\b/i.test(ancestry)) return "light";
   return DEFAULT_SKIN_TONE_BY_FACE_GROUP[resolveFaceReferenceGroup(countryCode, displayName)];
 }

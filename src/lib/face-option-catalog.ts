@@ -64,7 +64,7 @@ export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
  albine:-2,
  porcelain:-0.8,
  fair:0.2,
- light:1.4,
+ light:1.0,
  medium:2.6,
  tan:3.8,
  black:4.8,
