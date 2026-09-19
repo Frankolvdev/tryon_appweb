@@ -22,15 +22,11 @@ export async function POST(request: Request) {
     const iris = clean(body.iris);
     const hairColor = clean(body.hairColor);
     const hairStyle = clean(body.hairStyle);
-    const eyebrow = clean(body.eyebrow);
-    const lips = clean(body.lips);
     const pieces = [
       `random beautiful attractive ${age}-year-old woman of ${ancestry} ancestry`,
       iris,
       hairColor,
       hairStyle ? `${hairStyle} hair style` : "",
-      eyebrow ? `${eyebrow} eyebrow shape` : "",
-      lips ? `${lips} lip shape` : "",
       "clear healthy skin",
       "subtle natural makeup",
       "realistic skin texture",

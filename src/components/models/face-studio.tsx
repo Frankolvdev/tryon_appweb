@@ -164,8 +164,6 @@ const MEDIA_TOOLS: {
   label: string;
   hint: string;
 }[] = [
-  { id: "eyebrows", label: "Eyebrows", hint: "Forma de cejas" },
-  { id: "lips", label: "Lips", hint: "Forma de labios" },
   { id: "hairstyle", label: "Hairstyle", hint: "Estilo de cabello" },
 ];
 
@@ -174,8 +172,6 @@ type StepId =
   | "ancestry"
   | "age"
   | "eyeColor"
-  | "eyebrows"
-  | "lips"
   | "skinTone"
   | "hairstyle"
   | "hairLength"
@@ -222,20 +218,6 @@ const CREATE_IDENTITY_STEPS: StepDefinition[] = [
     shortLabel: "Ojos",
     hint: "Elige el tono del iris",
     kind: "color",
-  },
-  {
-    id: "eyebrows",
-    label: "Cejas",
-    shortLabel: "Cejas",
-    hint: "Elige la forma de ceja",
-    kind: "media",
-  },
-  {
-    id: "lips",
-    label: "Labios",
-    shortLabel: "Labios",
-    hint: "Elige la forma de labios",
-    kind: "media",
   },
   {
     id: "skinTone",
@@ -626,7 +608,7 @@ function identityDraftSnapshot({
     selections,
     mediaSelected,
     customValues,
-    identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true },
+    identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true, facialFeatureStepsRemoved: true },
     completedSteps,
     activeStep,
     bodyAdjustments,
@@ -753,7 +735,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
     useState<IdentitySelections>(defaultIdentitySelections);
   const [mediaAssets, setMediaAssets] = useState<
     Record<string, ModelGenerationAsset[]>
-  >({ eyebrows: [], lips: [], hairstyle: [] });
+  >({ hairstyle: [] });
   const [mediaSelected, setMediaSelected] = useState<Record<string, string>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({
     skinToneValue: "0",
@@ -851,6 +833,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             setMediaSelected(data.mediaSelected || {});
             const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
             const savedHairLengthEmbedded = data?.identityControlMeta?.hairLengthEmbedded === true;
+            const savedFacialFeatureStepsRemoved = data?.identityControlMeta?.facialFeatureStepsRemoved === true;
             const restoredCustomValues = {
               skinToneValue: "0",
               hairVolume: "0",
@@ -919,7 +902,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             }
             if (data.bodyMode === "fit" || data.bodyMode === "curvy") setBodyModeDraft(data.bodyMode);
             const restoredCompletedSteps: string[] = Array.isArray(data.completedSteps)
-              ? data.completedSteps.filter((stepId: unknown) => stepId !== "hairLength")
+              ? data.completedSteps.filter((stepId: unknown) => stepId !== "hairLength" && stepId !== "eyebrows" && stepId !== "lips")
               : [];
             setCompletedSteps(restoredCompletedSteps);
             if (data.bodyAdjustments) {
@@ -948,9 +931,16 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   ? storedActiveStep - 1
                   : storedActiveStep
               : storedActiveStep;
+            const migratedFacialFeatureStep = restoredMode === "create" && !savedFacialFeatureStepsRemoved
+              ? migratedActiveStep <= 3
+                ? migratedActiveStep
+                : migratedActiveStep <= 5
+                  ? 4
+                  : migratedActiveStep - 2
+              : migratedActiveStep;
             const restoredStep = restoredIsComplete
               ? restoredDoneIndex
-              : Math.min(migratedActiveStep, restoredSteps.length - 1);
+              : Math.min(migratedFacialFeatureStep, restoredSteps.length - 1);
             setActiveStep(restoredStep);
 
             const lastExecutionId =
@@ -1006,14 +996,14 @@ export function FaceStudio({ modelId }: { modelId: number }) {
         );
       });
 
-    // Identity previews are auxiliary UI. Load the three tool catalogs in one
-    // request so returning to an active execution is not competing with three
-    // independent HTTP/DB/storage-signing requests. A preview failure must not
+    // Hairstyle previews are auxiliary UI. Load only the active catalog so
+    // returning to an execution does not fetch disabled facial-feature assets.
+    // A preview failure must not
     // block generation recovery or surface a misleading global studio error.
     listModelGenerationAssets(MEDIA_TOOLS.map((tool) => tool.id))
       .then((result) => {
         if (cancelled) return;
-        const grouped: Record<string, ModelGenerationAsset[]> = { eyebrows: [], lips: [], hairstyle: [] };
+        const grouped: Record<string, ModelGenerationAsset[]> = { hairstyle: [] };
         for (const item of result.items) {
           if (item.tool_key in grouped) grouped[item.tool_key].push(item);
         }
@@ -1299,7 +1289,7 @@ useEffect(() => {
       setGenerationModuleInfo(generationModule);
 
       const mediaValues: Record<string, string> = {};
-      for (const key of ["eyebrows", "lips", "hairstyle"] as const) {
+      for (const key of ["hairstyle"] as const) {
         const selectedKey = mediaSelected[key];
         if (selectedKey === "custom") {
           mediaValues[key] = (customValues[key] || "").trim();
@@ -1365,8 +1355,6 @@ useEffect(() => {
             iris: selectedPrompt("eyeColor"),
             hairColor: selectedPrompt("hairColor"),
             hairStyle: normalizedHairStyle,
-            eyebrow: mediaValues.eyebrows || "",
-            lips: mediaValues.lips || "",
           }),
         });
         if (!promptResponse.ok) throw new Error("No se pudo construir el prompt de rostro.");
@@ -2127,7 +2115,7 @@ useEffect(() => {
   function choosePending(stepId: StepId, value: string) {
     clearValidation();
     setPendingValues((current) => ({ ...current, [stepId]: value }));
-    const committed = stepId === "eyebrows" || stepId === "lips" || stepId === "hairstyle"
+    const committed = stepId === "hairstyle"
       ? mediaSelected[stepId]
       : selections[stepId];
     if (completedSteps.includes(stepId) && committed !== value) {

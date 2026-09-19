@@ -75,8 +75,6 @@ export const defaultIdentitySelections:IdentitySelections={eyeColor:"brown",skin
 export function colorOption(categoryId:string,optionId:string){return colorCategories.find(c=>c.id===categoryId)?.options.find(o=>o.id===optionId)}
 
 export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:IdentitySelections;mediaValues:Record<string,string>;customValues:Record<string,string>}){
- const eyebrowValue=(args.mediaValues.eyebrows||args.customValues.eyebrows||"").trim();
- const lipsValue=(args.mediaValues.lips||args.customValues.lips||"").trim();
  const hairstyleValue=(args.mediaValues.hairstyle||args.customValues.hairstyle||"").trim();
  const hairColor=colorOption("hairColor",args.selections.hairColor)?.prompt||
    (args.selections.hairColor==="custom"&&args.customValues.hairColor?.trim()?`${args.customValues.hairColor.trim()} hair color`:"");
@@ -88,16 +86,12 @@ export function buildIdentityPrompt(args:{ancestryLabel?:string;selections:Ident
      return colorOption(c.id,chosen)?.prompt||"";
    });
  const hairDescription=[hairColor,hairstyleValue?`${hairstyleValue} hair style`:""].filter(Boolean).join(", ");
- const eyebrowDescription=eyebrowValue?`${eyebrowValue} eyebrow shape`:"";
- const lipsDescription=lipsValue?`${lipsValue} lip shape`:"";
  const pieces=[
    "instapic",
    FACE_TRIGGER,
    args.ancestryLabel?`beautiful woman of ${args.ancestryLabel} ancestry`:"beautiful woman",
    ...colorsWithoutHair,
    hairDescription,
-   eyebrowDescription,
-   lipsDescription,
    "realistic skin texture",
    "fine pores",
    "highly detailed eyes",
