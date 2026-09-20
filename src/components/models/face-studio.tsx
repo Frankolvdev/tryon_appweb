@@ -1377,6 +1377,13 @@ useEffect(() => {
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
       const faceSwapEyeColor = colorOption("eyeColor", selections.eyeColor)?.faceSwapColor || "brown";
+      const faceReferenceGroup = resolveFaceReferenceGroup(
+        ancestry?.country_code,
+        ancestry?.display_name,
+      );
+      // Workflow convention: African/Afro-descendant references use 0;
+      // every other facial-reference group uses 1.
+      const isAfricanWorkflowValue = faceReferenceGroup === "african_afrodescendant" ? 0 : 1;
       const faceSwapAncestry = (ancestry?.display_name || "")
         .trim()
         .replace(/\s+ancestry$/i, "")
@@ -1443,6 +1450,7 @@ useEffect(() => {
           input_25: ageLoraValue,
           input_26: hairVolume,
           input_27: promptFaceSwap,
+          input_28: isAfricanWorkflowValue,
         };
       } else if (generationModule.id === 9 && identityMode === "existing") {
         // Local From Head V6 contract. It mirrors the local body/scene inputs
@@ -1547,7 +1555,7 @@ useEffect(() => {
             payload,
             options?.reuseHeadSeed ? lastGenerationSeeds?.faceReferenceToken : undefined,
             lastGenerationSeeds?.faceReferenceToken,
-            resolveFaceReferenceGroup(ancestry?.country_code, ancestry?.display_name),
+            faceReferenceGroup,
           )
         : await executeGenerationModule(generationModule.id, payload);
       const faceReferenceToken = typeof (execution as GenerationExecution & { private_face_reference_token?: unknown }).private_face_reference_token === "string"
