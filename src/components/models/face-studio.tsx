@@ -58,7 +58,7 @@ const MIN_MODEL_AGE = 18;
 const MAX_MODEL_AGE = 70;
 const MIN_AGE_LORA = -1;
 const MAX_AGE_LORA = 6;
-const MIN_SKIN_TONE = -2;
+const MIN_SKIN_TONE = -3;
 const MAX_SKIN_TONE = 6.8;
 const MIN_HAIR_VOLUME = -4;
 const MAX_HAIR_VOLUME = 4;
@@ -2869,7 +2869,7 @@ useEffect(() => {
                               }
                             }}
                           />
-                          <div className="modelAxisEnds"><span>-2</span><span>6.8</span></div>
+                          <div className="modelAxisEnds"><span>-3</span><span>6.8</span></div>
                         </div>
                       </div>
                     )}

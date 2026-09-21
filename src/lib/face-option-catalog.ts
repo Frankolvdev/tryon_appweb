@@ -61,10 +61,10 @@ export const HAIR_EFFECT_COLORS=[
 ] as const;
 
 export const SKIN_TONE_GENERATION_VALUES:Record<string,number>={
- albine:-2,
- porcelain:-0.8,
- fair:0.0,
- light:0.2,
+ albine:-3,
+ porcelain:-2,
+ fair:-0.8,
+ light:-0.4,
  medium:2.6,
  tan:3.8,
  black:4.8,
