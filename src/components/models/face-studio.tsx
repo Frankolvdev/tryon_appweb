@@ -294,6 +294,20 @@ const EXISTING_IDENTITY_STEPS: StepDefinition[] = [
     kind: "color",
   },
   {
+    id: "hairstyle",
+    label: "Peinado",
+    shortLabel: "Cabello",
+    hint: "Previsualiza y elige el peinado",
+    kind: "media",
+  },
+  {
+    id: "hairColor",
+    label: "Color de cabello",
+    shortLabel: "Color",
+    hint: "Elige el color del cabello",
+    kind: "color",
+  },
+  {
     id: "occupation",
     label: "Ocupación",
     shortLabel: "Ocupación",
@@ -608,7 +622,7 @@ function identityDraftSnapshot({
     selections,
     mediaSelected,
     customValues,
-    identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true, facialFeatureStepsRemoved: true },
+    identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true, facialFeatureStepsRemoved: true, fromHeadHairEnabled: true },
     completedSteps,
     activeStep,
     bodyAdjustments,
@@ -834,6 +848,7 @@ export function FaceStudio({ modelId }: { modelId: number }) {
             const savedHairLengthTouched = data?.identityControlMeta?.hairLengthTouched === true;
             const savedHairLengthEmbedded = data?.identityControlMeta?.hairLengthEmbedded === true;
             const savedFacialFeatureStepsRemoved = data?.identityControlMeta?.facialFeatureStepsRemoved === true;
+            const savedFromHeadHairEnabled = data?.identityControlMeta?.fromHeadHairEnabled === true;
             const restoredCustomValues = {
               skinToneValue: "0",
               hairVolume: "0",
@@ -938,9 +953,18 @@ export function FaceStudio({ modelId }: { modelId: number }) {
                   ? 4
                   : migratedActiveStep - 2
               : migratedActiveStep;
+            // From Head drafts created before the hair controls existed used
+            // indexes 4..7 for Occupation, Identity Face, Extra and Summary.
+            // Preserve the same logical node after inserting Hairstyle and
+            // Hair Color at indexes 4 and 5.
+            const migratedFromHeadHairStep = restoredMode === "existing" && !savedFromHeadHairEnabled
+              ? migratedFacialFeatureStep >= 4
+                ? migratedFacialFeatureStep + 2
+                : migratedFacialFeatureStep
+              : migratedFacialFeatureStep;
             const restoredStep = restoredIsComplete
               ? restoredDoneIndex
-              : Math.min(migratedFacialFeatureStep, restoredSteps.length - 1);
+              : Math.min(migratedFromHeadHairStep, restoredSteps.length - 1);
             setActiveStep(restoredStep);
 
             const lastExecutionId =
@@ -1094,7 +1118,7 @@ useEffect(() => {
           selections,
           mediaSelected,
           customValues,
-          identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true },
+          identityControlMeta: { hairLengthTouched, hairLengthEmbedded: true, facialFeatureStepsRemoved: true, fromHeadHairEnabled: true },
           completedSteps,
           activeStep,
           bodyAdjustments,
@@ -1479,7 +1503,7 @@ useEffect(() => {
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
           input_17: " ",
-          input_18: occupationContext.clothes,
+          input_18: clothesWithHead,
           input_19: customValues.extraDetails?.trim() || " ",
           input_20: hipsText,
           input_21: headFile,
