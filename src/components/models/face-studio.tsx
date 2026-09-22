@@ -1373,7 +1373,7 @@ useEffect(() => {
       };
       const hipsIndex = Math.max(0, Math.min(3, Math.round(bodyNumber("hips", 0))));
       const hipsText = HIP_GENERATION_VALUES[hipsIndex];
-      const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 2 : 1;
+      const complexionValue = String(rawBody.complexion || "slim").toLowerCase() === "thick" ? 1 : 2;
       const realAge = clampModelAge(customValues.age);
       const ageLoraValue = modelAgeToLora(realAge);
       const faceSwapEyeColor = colorOption("eyeColor", selections.eyeColor)?.faceSwapColor || "brown";
