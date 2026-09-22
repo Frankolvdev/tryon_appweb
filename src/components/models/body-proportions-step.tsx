@@ -48,7 +48,7 @@ export function preloadBodyProportionsStep(bodyDraft?:Partial<BodyControlState>|
    nearestAsset(map.breasts??[],(Number(body.breasts||0)+5)/10),
    nearestAsset(map.height??[],(Number(body.height||0)+5)/10),
    nearestAsset(map.bubble_butt??[],Number(body.bubbleButt||0)/.7),
-   nearestAsset(map.waist??[],(Number(body.waist||0)+3)/6),
+   nearestAsset(map.waist??[],(Number(body.waist||0)+4)/7),
    (map.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion||"slim"))??nearestAsset(map.complexion??[],body.complexion==="thick"?1:0),
   ];
   previews.forEach(asset=>preloadPreviewUrl(asset?.poster_url||(!asset?.poster_url?asset?.video_url:null)));
@@ -119,7 +119,7 @@ export function BodyProportionsStep({
    .catch(()=>{if(alive)toast.error("No se pudieron cargar los presets corporales base.")});
   return()=>{alive=false};
  },[legacyBodyCompatibility]);
- const preview=useMemo(()=>({hips:nearestAsset(assets.hips??[],body.hips/3),butt_size:nearestAsset(assets.butt_size??[],body.buttSize/7),breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),height:nearestAsset(assets.height??[],(body.height+5)/10),bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7),waist:nearestAsset(assets.waist??[],(body.waist+3)/6),complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)}),[assets,body]);
+ const preview=useMemo(()=>({hips:nearestAsset(assets.hips??[],body.hips/3),butt_size:nearestAsset(assets.butt_size??[],body.buttSize/7),breasts:nearestAsset(assets.breasts??[],(body.breasts+5)/10),height:nearestAsset(assets.height??[],(body.height+5)/10),bubble_butt:nearestAsset(assets.bubble_butt??[],body.bubbleButt/.7),waist:nearestAsset(assets.waist??[],(body.waist+4)/7),complexion:(assets.complexion??[]).find(x=>(x.title||x.asset_key).toLowerCase().includes(body.complexion))??nearestAsset(assets.complexion??[],body.complexion==="slim"?0:1)}),[assets,body]);
  const publishDraft=(nextBody:BodyControlState,nextMeta:{heightTouched:boolean;hipsTouched:boolean;breastsTouched:boolean})=>{
   onDraftChangeRef.current?.(nextBody,"fit",nextMeta);
  };
@@ -190,7 +190,7 @@ export function BodyProportionsStep({
    <Control loading={catalogLoading} label="Breasts" value={body.breasts} display={valueLabel(body.breasts)} min={-5} max={5} step={0.2} left="Small" right="Huge" asset={preview.breasts} onChange={v=>setValue("breasts",v,{breastsTouched:true})}/>
    <Control loading={catalogLoading} label="Height" value={body.height} display={valueLabel(body.height)} min={-5} max={5} step={0.2} left="Very short" right="Very tall" asset={preview.height} onChange={v=>setValue("height",v,{heightTouched:true})}/>
    <Control loading={catalogLoading} label="Bubble Butt" value={body.bubbleButt} display={valueLabel(body.bubbleButt)} min={0} max={.7} step={.2} left="Low lift" right="High lift" asset={preview.bubble_butt} onChange={v=>setValue("bubbleButt",Number(v.toFixed(1)))}/>
-   <Control loading={catalogLoading} label="Waist" value={body.waist} display={valueLabel(body.waist)} min={-3} max={3} step={0.2} left="Very narrow" right="Very wide" asset={preview.waist} onChange={v=>setValue("waist",v)}/>
+   <Control loading={catalogLoading} label="Waist" value={body.waist} display={valueLabel(body.waist)} min={-4} max={3} step={0.2} left="Very narrow" right="Very wide" asset={preview.waist} onChange={v=>setValue("waist",v)}/>
   </div>
   <div className="faceStepConfirmRow"><button type="button" className="faceChooseButton" onClick={confirm} disabled={saving}><Check size={17}/>{saving?"Guardando…":"Confirmar"}</button></div>
  </div>
