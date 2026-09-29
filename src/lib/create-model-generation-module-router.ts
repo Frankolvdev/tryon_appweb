@@ -103,20 +103,77 @@ const LOCAL_EXISTING_V6_INPUTS = [
   { key: "input_25", name: "hair_volumen", type: "float", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
+const REMOTE_CREATE_V7_INPUTS = [
+  { key: "input_1", name: "prompt head", type: "text", required: true },
+  { key: "input_2", name: "complexion", type: "integer", required: true },
+  { key: "input_4", name: "Seed Body", type: "integer", required: true },
+  { key: "input_5", name: "Seed Head", type: "integer", required: true },
+  { key: "input_6", name: "ass", type: "float", required: true },
+  { key: "input_7", name: "breasts", type: "float", required: true },
+  { key: "input_8", name: "waist", type: "float", required: true },
+  { key: "input_9", name: "skin tone", type: "float", required: true },
+  { key: "input_10", name: "height", type: "float", required: true },
+  { key: "input_11", name: "bubble butt", type: "float", required: true },
+  { key: "input_12", name: "hair length", type: "float", required: true },
+  { key: "input_13", name: "pose", type: "text", required: true },
+  { key: "input_14", name: "view", type: "text", required: true },
+  { key: "input_15", name: "action", type: "text", required: true },
+  { key: "input_16", name: "place", type: "text", required: true },
+  { key: "input_17", name: "time_weather_lighting", type: "text", required: true },
+  { key: "input_18", name: "clothes", type: "text", required: true },
+  { key: "input_19", name: "extra_details", type: "text", required: true },
+  { key: "input_20", name: "hips", type: "text", required: true },
+  { key: "input_21", name: "face_reference", type: "image", required: true },
+  { key: "input_22", name: "ancestry", type: "text", required: true },
+  { key: "input_23", name: "hair style", type: "text", required: true },
+  { key: "input_24", name: "face_reference2", type: "image", required: true },
+  { key: "input_25", name: "age", type: "float", required: true },
+  { key: "input_26", name: "hair_volumen", type: "float", required: true },
+  { key: "input_27", name: "prompt_face_swap", type: "text", required: true },
+  { key: "input_28", name: "is_african", type: "integer", required: true },
+] as const satisfies readonly ExpectedInput[];
+
+const REMOTE_EXISTING_V8_INPUTS = [
+  { key: "input_2", name: "complexion", type: "integer", required: true },
+  { key: "input_4", name: "Seed Body", type: "integer", required: true },
+  { key: "input_5", name: "Seed Head", type: "integer", required: true },
+  { key: "input_6", name: "ass", type: "float", required: true },
+  { key: "input_7", name: "breasts", type: "float", required: true },
+  { key: "input_8", name: "waist", type: "float", required: true },
+  { key: "input_9", name: "skin tone", type: "float", required: true },
+  { key: "input_10", name: "height", type: "float", required: true },
+  { key: "input_11", name: "bubble butt", type: "float", required: true },
+  { key: "input_12", name: "hair length", type: "float", required: true },
+  { key: "input_13", name: "pose", type: "text", required: true },
+  { key: "input_14", name: "view", type: "text", required: true },
+  { key: "input_15", name: "action", type: "text", required: true },
+  { key: "input_16", name: "place", type: "text", required: true },
+  { key: "input_17", name: "time_weather_lighting", type: "text", required: true },
+  { key: "input_18", name: "clothes", type: "text", required: true },
+  { key: "input_19", name: "extra_details", type: "text", required: true },
+  { key: "input_20", name: "hips", type: "text", required: true },
+  { key: "input_21", name: "head", type: "image", required: true },
+  { key: "input_22", name: "ancestry", type: "text", required: true },
+  { key: "input_23", name: "age", type: "float", required: true },
+  { key: "input_24", name: "hair_style", type: "text", required: true },
+  { key: "input_25", name: "hair_volumen", type: "float", required: true },
+] as const satisfies readonly ExpectedInput[];
+
 const REMOTE_CREATE_CONTRACT = {
-  moduleId: 4,
+  moduleId: 10,
   key: "create_model_woman",
-  name: "Create Model Woman",
-  inputs: LOCAL_CREATE_V5_INPUTS,
+  name: "Create Model Woman  V2",
+  version: 7,
+  inputs: REMOTE_CREATE_V7_INPUTS,
   outputs: CREATE_MODEL_OUTPUTS,
 } as const satisfies GenerationModuleContract;
 
 const REMOTE_EXISTING_CONTRACT = {
-  moduleId: 5,
+  moduleId: 11,
   key: "create_model_woman",
-  name: "Create Model Woman From Head",
-  version: 2,
-  inputs: LOCAL_EXISTING_V6_INPUTS,
+  name: "Create Model Woman From Head  V2",
+  version: 8,
+  inputs: REMOTE_EXISTING_V8_INPUTS,
   outputs: CREATE_MODEL_OUTPUTS,
 } as const satisfies GenerationModuleContract;
 
@@ -133,7 +190,7 @@ const LOCAL_EXISTING_BASE = {
  * Central routing table for Create Model IA.
  *
  * Important separation:
- * - commercial_remote: modules 4/5 using the modern Create/From Head contracts on remote providers.
+ * - commercial_remote: modules 10/11 using the published Create/From Head V2 contracts on remote providers.
  * - commercial_local: modules 8/9 only when they are published as local_docker.
  *   Backend keeps accounting_mode=commercial, so tokens/pricing stay normal.
  * - owner_local: the same local-optimized modules 8/9. Backend independently
@@ -240,7 +297,7 @@ export function assertGenerationModuleMatchesContract(
 /**
  * The active local_docker publication is the switch for commercial-local.
  * Keeping modules 8/9 inactive (or not local_docker) preserves the historical
- * 4/5 path for ordinary users. Owner is always routed to 8/9; Backend then
+ * 10/11 path for ordinary users. Owner is always routed to 8/9; Backend then
  * forces owner_local independently of the module's published engine.
  */
 export function createModelAudience(
