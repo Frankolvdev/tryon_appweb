@@ -1437,8 +1437,8 @@ useEffect(() => {
         : clothesWithPeriod;
 
       let payload: Record<string, unknown>;
-      if (generationModule.id === 8 && identityMode === "create") {
-        // Local Create V5 contract. Send raw UI body controls; the Backoffice
+      if ((generationModule.id === 4 || generationModule.id === 8) && identityMode === "create") {
+        // Modern Create contract (commercial remote 4 / local 8). Send raw UI body controls; the Backoffice
         // pipeline owns the Slim/Ass/Breasts compensation so AppWeb never
         // applies those corrections twice.
         payload = {
@@ -1476,8 +1476,8 @@ useEffect(() => {
           input_27: promptFaceSwap,
           input_28: isAfricanWorkflowValue,
         };
-      } else if (generationModule.id === 9 && identityMode === "existing") {
-        // Local From Head V6 contract. It mirrors the local body/scene inputs
+      } else if ((generationModule.id === 5 || generationModule.id === 9) && identityMode === "existing") {
+        // Modern From Head contract (commercial remote 5 / local 9). It mirrors the body/scene inputs
         // from Create V5 but receives the selected persisted head as input_21.
         if (!existingIdentityFile) throw new Error("Confirma un rostro de identidad antes de generar.");
         const headBlob = await downloadLibraryFile(existingIdentityFile.id);
@@ -1517,7 +1517,7 @@ useEffect(() => {
           input_25: hairVolume,
         };
       } else {
-        // Historical remote contracts stay untouched.
+        // Defensive fallback for any legacy Create Model module outside the routed 4/5/8/9 contracts.
         const basePayload = {
           input_1: round1(bodyBase.ass + bodyAdjustments.ass),
           input_2: round1(bodyBase.fat + bodyAdjustments.fat),
@@ -1573,7 +1573,7 @@ useEffect(() => {
       console.log("Payload:", { inputs: payload });
       console.groupEnd();
 
-      const execution = generationModule.id === 8 && identityMode === "create"
+      const execution = (generationModule.id === 4 || generationModule.id === 8) && identityMode === "create"
         ? await executeCreateModelWithPrivateFaceReference(
             generationModule.id,
             payload,

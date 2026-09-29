@@ -30,24 +30,6 @@ export type GenerationModuleContract = {
   outputs: readonly ExpectedOutput[];
 };
 
-const CREATE_MODEL_BASE_INPUTS = [
-  { key: "input_1", name: "Hips SIze", type: "float", required: true },
-  { key: "input_2", name: "Fat - Thin", type: "float", required: true },
-  { key: "input_3", name: "Breasts Size", type: "float", required: true },
-  { key: "input_4", name: "Skin Tone", type: "float", required: true },
-  { key: "input_5", name: "Hair Length", type: "float", required: true },
-  { key: "input_6", name: "Butt Elevation", type: "float", required: true },
-  { key: "input_7", name: "Pose", type: "text", required: true },
-  { key: "input_8", name: "On", type: "text", required: true },
-  { key: "input_9", name: "view", type: "text", required: true },
-  { key: "input_10", name: "Action", type: "text", required: true },
-  { key: "input_11", name: "Place", type: "text", required: true },
-  { key: "input_12", name: "time_day_weather_or_lighting", type: "text", required: true },
-  { key: "input_13", name: "Clothes", type: "text", required: true },
-  { key: "input_14", name: "extra_details", type: "text", required: false },
-] as const satisfies readonly ExpectedInput[];
-
-
 const LOCAL_CREATE_V5_INPUTS = [
   { key: "input_1", name: "prompt head", type: "text", required: true },
   { key: "input_2", name: "complexion", type: "integer", required: true },
@@ -83,35 +65,8 @@ const CREATE_MODEL_OUTPUTS = [
   { key: "output_2", name: "head", type: "image", required: true },
 ] as const satisfies readonly ExpectedOutput[];
 
-const createPromptInputs = [
-  ...CREATE_MODEL_BASE_INPUTS,
-  { key: "input_15", name: "prompt_head", type: "text", required: true },
-] as const satisfies readonly ExpectedInput[];
-
-const createFromHeadInputs = [
-  ...CREATE_MODEL_BASE_INPUTS,
-  { key: "input_15", name: "head", type: "image", required: true },
-] as const satisfies readonly ExpectedInput[];
-
 const OWNER_LOCAL_ENGINES = ["local_docker", "owner_local"] as const satisfies readonly GenerationExecutionEngine[];
 const COMMERCIAL_LOCAL_ENGINES = ["local_docker"] as const satisfies readonly GenerationExecutionEngine[];
-
-const REMOTE_CREATE_CONTRACT = {
-  moduleId: 4,
-  key: "create_model_woman",
-  name: "Create Model Woman",
-  inputs: createPromptInputs,
-  outputs: CREATE_MODEL_OUTPUTS,
-} as const satisfies GenerationModuleContract;
-
-const REMOTE_EXISTING_CONTRACT = {
-  moduleId: 5,
-  key: "create_model_woman",
-  name: "Create Model Woman From Head",
-  version: 2,
-  inputs: createFromHeadInputs,
-  outputs: CREATE_MODEL_OUTPUTS,
-} as const satisfies GenerationModuleContract;
 
 const LOCAL_CREATE_BASE = {
   moduleId: 8,
@@ -148,6 +103,23 @@ const LOCAL_EXISTING_V6_INPUTS = [
   { key: "input_25", name: "hair_volumen", type: "float", required: true },
 ] as const satisfies readonly ExpectedInput[];
 
+const REMOTE_CREATE_CONTRACT = {
+  moduleId: 4,
+  key: "create_model_woman",
+  name: "Create Model Woman",
+  inputs: LOCAL_CREATE_V5_INPUTS,
+  outputs: CREATE_MODEL_OUTPUTS,
+} as const satisfies GenerationModuleContract;
+
+const REMOTE_EXISTING_CONTRACT = {
+  moduleId: 5,
+  key: "create_model_woman",
+  name: "Create Model Woman From Head",
+  version: 2,
+  inputs: LOCAL_EXISTING_V6_INPUTS,
+  outputs: CREATE_MODEL_OUTPUTS,
+} as const satisfies GenerationModuleContract;
+
 const LOCAL_EXISTING_BASE = {
   moduleId: 9,
   key: "create_model_woman",
@@ -161,7 +133,7 @@ const LOCAL_EXISTING_BASE = {
  * Central routing table for Create Model IA.
  *
  * Important separation:
- * - commercial_remote: historical modules 4/5 (unchanged fallback).
+ * - commercial_remote: modules 4/5 using the modern Create/From Head contracts on remote providers.
  * - commercial_local: modules 8/9 only when they are published as local_docker.
  *   Backend keeps accounting_mode=commercial, so tokens/pricing stay normal.
  * - owner_local: the same local-optimized modules 8/9. Backend independently

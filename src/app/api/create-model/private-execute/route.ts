@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   catch { return NextResponse.json({ detail: "Solicitud inválida." }, { status: 400 }); }
 
   const moduleId = Number(body.module_id);
-  if (moduleId !== 8 || !body.inputs || typeof body.inputs !== "object" || Array.isArray(body.inputs)) {
+  if (![4, 8].includes(moduleId) || !body.inputs || typeof body.inputs !== "object" || Array.isArray(body.inputs)) {
     return NextResponse.json({ detail: "Contrato Create Model inválido." }, { status: 400 });
   }
 
