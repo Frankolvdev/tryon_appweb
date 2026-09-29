@@ -3094,7 +3094,7 @@ useEffect(() => {
                       type="button"
                       onClick={() => {
                         const hasPreviousResult = generatedExecution?.status === "completed" && Boolean(generatedPreviewUrl);
-                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9;
+                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9 || generationModuleInfo?.id === 10 || generationModuleInfo?.id === 11;
                         if (hasPreviousResult && seedReuseSupported) {
                           setReusePreviousBodySeed(false);
                           setReusePreviousHeadSeed(false);
