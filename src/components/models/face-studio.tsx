@@ -530,9 +530,7 @@ function commaPrompt(value: string): string {
 function promptWithTattooFreeSkin(base: string, extraDetails?: string): string {
   const prompt = base.trim().replace(/[,\s]+$/g, "");
   const details = (extraDetails || "").trim().replace(/[.\s]+$/g, "");
-  return details
-    ? `${prompt} ${details}. remove all tattoos.`
-    : `${prompt} remove all tattoos.`;
+  return details ? `${prompt} ${details}.` : prompt;
 }
 
 type GeneratedImageResult = {
@@ -1467,9 +1465,6 @@ useEffect(() => {
           input_16: occupationContext.place,
           input_17: " ",
           input_18: promptWithTattooFreeSkin(clothesWithHead, customValues.extraDetails),
-          // Keep input_19 empty because the workflow joins fields with a comma.
-          // The tattoo-free suffix is appended to input_18 so the final prompt is
-          // ". remove all tattoos." instead of "., remove all tattoos.".
           input_19: " ",
           input_20: hipsText,
           // Workflow-only identity labels: lowercase and without descriptive suffixes.
