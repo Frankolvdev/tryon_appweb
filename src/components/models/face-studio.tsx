@@ -527,9 +527,12 @@ function commaPrompt(value: string): string {
     .join(", ");
 }
 
-function extraDetailsWithTattooFreeSkin(value: string | undefined): string {
-  const details = (value || "").trim().replace(/[.\s]+$/g, "");
-  return details ? `${details}. skin without tattoos.` : "skin without tattoos.";
+function promptWithTattooFreeSkin(base: string, extraDetails?: string): string {
+  const prompt = base.trim().replace(/[,\s]+$/g, "");
+  const details = (extraDetails || "").trim().replace(/[.\s]+$/g, "");
+  return details
+    ? `${prompt} ${details}. skin without tattoos.`
+    : `${prompt} skin without tattoos.`;
 }
 
 type GeneratedImageResult = {
@@ -1463,11 +1466,11 @@ useEffect(() => {
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
           input_17: " ",
-          input_18: clothesWithHead,
-          // input_19 is required in V5. A single space satisfies the transport
-          // contract while the pipeline's clean()/strip() correctly turns it
-          // into an empty optional detail.
-          input_19: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
+          input_18: promptWithTattooFreeSkin(clothesWithHead, customValues.extraDetails),
+          // Keep input_19 empty because the workflow joins fields with a comma.
+          // The tattoo-free suffix is appended to input_18 so the final prompt is
+          // ". skin without tattoos." instead of "., skin without tattoos.".
+          input_19: " ",
           input_20: hipsText,
           // Workflow-only identity labels: lowercase and without descriptive suffixes.
           input_22: (ancestry?.display_name || "")
@@ -1508,8 +1511,8 @@ useEffect(() => {
           input_15: "standing and looking directly at camera",
           input_16: occupationContext.place,
           input_17: " ",
-          input_18: clothesWithHead,
-          input_19: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
+          input_18: promptWithTattooFreeSkin(clothesWithHead, customValues.extraDetails),
+          input_19: " ",
           input_20: hipsText,
           input_21: headFile,
           input_22: (ancestry?.display_name || "")
@@ -1536,8 +1539,8 @@ useEffect(() => {
           input_10: "standing and looking directly at camera",
           input_11: occupationContext.place,
           input_12: " ",
-          input_13: occupationContext.clothes,
-          input_14: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
+          input_13: promptWithTattooFreeSkin(occupationContext.clothes, customValues.extraDetails),
+          input_14: null,
         };
 
         if (identityMode === "existing") {
@@ -3099,8 +3102,7 @@ useEffect(() => {
                       type="button"
                       onClick={() => {
                         const hasPreviousResult = generatedExecution?.status === "completed" && Boolean(generatedPreviewUrl);
-                        const seedReuseSupported = generationModuleInfo?.id === 8 || generationModuleInfo?.id === 9 || generationModuleInfo?.id === 10 || generationModuleInfo?.id === 11;
-                        if (hasPreviousResult && seedReuseSupported) {
+                        if (hasPreviousResult) {
                           setReusePreviousBodySeed(false);
                           setReusePreviousHeadSeed(false);
                           setGenerationReuseModalOpen(true);
