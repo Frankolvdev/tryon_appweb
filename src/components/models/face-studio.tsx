@@ -527,6 +527,11 @@ function commaPrompt(value: string): string {
     .join(", ");
 }
 
+function extraDetailsWithTattooFreeSkin(value: string | undefined): string {
+  const details = (value || "").trim().replace(/[.\s]+$/g, "");
+  return details ? `${details}. skin without tattoos.` : "skin without tattoos.";
+}
+
 type GeneratedImageResult = {
   storage_file_id?: number;
   download_url?: string | null;
@@ -1462,7 +1467,7 @@ useEffect(() => {
           // input_19 is required in V5. A single space satisfies the transport
           // contract while the pipeline's clean()/strip() correctly turns it
           // into an empty optional detail.
-          input_19: customValues.extraDetails?.trim() || " ",
+          input_19: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
           input_20: hipsText,
           // Workflow-only identity labels: lowercase and without descriptive suffixes.
           input_22: (ancestry?.display_name || "")
@@ -1504,7 +1509,7 @@ useEffect(() => {
           input_16: occupationContext.place,
           input_17: " ",
           input_18: clothesWithHead,
-          input_19: customValues.extraDetails?.trim() || " ",
+          input_19: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
           input_20: hipsText,
           input_21: headFile,
           input_22: (ancestry?.display_name || "")
@@ -1532,7 +1537,7 @@ useEffect(() => {
           input_11: occupationContext.place,
           input_12: " ",
           input_13: occupationContext.clothes,
-          input_14: customValues.extraDetails?.trim() || null,
+          input_14: extraDetailsWithTattooFreeSkin(customValues.extraDetails),
         };
 
         if (identityMode === "existing") {
