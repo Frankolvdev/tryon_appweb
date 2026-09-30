@@ -1432,9 +1432,10 @@ useEffect(() => {
           : "",
       ].filter(Boolean).join(", ");
       const clothesWithPeriod = occupationContext.clothes.trim().replace(/[.\s]+$/g, "") + ".";
+      const promptLineBreak = String.fromCharCode(10);
       const clothesWithHead = headPromptSuffix
-        ? `${clothesWithPeriod}\nHead: ${headPromptSuffix}.`
-        : clothesWithPeriod;
+        ? `${clothesWithPeriod}${promptLineBreak}Head: ${headPromptSuffix}.${promptLineBreak}remove all tattoos`
+        : `${clothesWithPeriod}${promptLineBreak}remove all tattoos`;
 
       let payload: Record<string, unknown>;
       if ((generationModule.id === 10 || generationModule.id === 8) && identityMode === "create") {
