@@ -2,10 +2,46 @@
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Check, Upload, X } from "lucide-react";
-import { uploadLibraryFileWithProgress, type LibraryFile } from "@/lib/user-library-api";
+import { downloadLibraryFile, uploadLibraryFileWithProgress, type LibraryFile } from "@/lib/user-library-api";
 
 export type IdentitySourceMode = "create" | "existing";
 export type ExistingIdentityFile = Pick<LibraryFile, "id" | "filename" | "content_type" | "url">;
+
+export function PersistedIdentityImage({
+  file,
+  alt,
+  className,
+}: {
+  file: ExistingIdentityFile;
+  alt: string;
+  className?: string;
+}) {
+  const [src, setSrc] = useState(file.url);
+
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl: string | null = null;
+    setSrc(file.url);
+
+    void downloadLibraryFile(file.id)
+      .then((blob) => {
+        if (disposed) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => {
+        // Keep the upload response URL as a best-effort fallback. The durable
+        // source of truth is the library file ID; generation also reads by ID.
+      });
+
+    return () => {
+      disposed = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [file.id, file.url]);
+
+  return <img src={src} alt={alt} className={className} />;
+}
 
 export function IdentitySourceModal({
   open,
@@ -105,7 +141,7 @@ export function IdentitySourceModal({
         {mode === "existing" && (
           <div className="identitySourceUploadArea">
             <button type="button" className={`identityDropzone${file ? " hasFile" : ""}`} onClick={() => !uploading && inputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={onDrop} disabled={uploading}>
-              {file ? <img src={file.url} alt="Rostro de identidad seleccionado" /> : <span className="identityDropIcon"><Upload size={25}/></span>}
+              {file ? <PersistedIdentityImage file={file} alt="Rostro de identidad seleccionado" /> : <span className="identityDropIcon"><Upload size={25}/></span>}
               <div>
                 <strong>{file ? file.filename : "Arrastra aquí el rostro o haz clic para elegirlo"}</strong>
                 <small>{file ? "Puedes reemplazar esta imagen antes de confirmar." : "JPG, PNG o WEBP · usa una imagen clara y frontal"}</small>

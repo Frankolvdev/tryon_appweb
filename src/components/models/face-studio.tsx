@@ -44,7 +44,7 @@ import { ModelGlobalTimeline } from "./model-global-timeline";
 import { BodyProportionsStep, preloadBodyProportionsStep } from "./body-proportions-step";
 import { AncestryExperience } from "./ancestry-experience";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IdentitySourceModal, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
+import { IdentitySourceModal, PersistedIdentityImage, type ExistingIdentityFile, type IdentitySourceMode } from "./identity-source-modal";
 import { downloadLibraryFile } from "@/lib/user-library-api";
 
 const STORAGE_PREFIX = "tryon-face-draft-v2:";
@@ -3055,7 +3055,7 @@ useEffect(() => {
               {currentStep.kind === "identityFace" && (
                 <div className="faceIdentityUploadStep">
                   <div className="existingIdentityHero">
-                    {existingIdentityFile ? <img src={existingIdentityFile.url} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
+                    {existingIdentityFile ? <PersistedIdentityImage file={existingIdentityFile} alt="Rostro de identidad seleccionado" /> : <div className="existingIdentityMissing">Sin rostro seleccionado</div>}
                     <div>
                       <div className="existingIdentityWarning">
                         <TriangleAlert size={18} aria-hidden="true" />
